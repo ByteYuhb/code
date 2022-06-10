@@ -1,0 +1,78 @@
+序列化：
+	将java对象转换为字节序列IO流
+反序列化:
+	将字节序列IO流恢复为java对象
+
+意义：序列化可以将对象转换为字节序列，保存在磁盘或者同过网络传输传递到远程或者其他进程中
+
+使用方式;
+
+	1.直接继承Serializable接口后就可以使用，最好设置了serialVersionUID序列号版本号，防止因为class文件有修改导致版本不一致，序列化出问题
+		public class Person implements Serializable 
+		序列化：
+		ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("object.txt"))) {
+		//将对象序列化到文件s
+		Person person = new Person("9龙", 23);
+		oos.writeObject(person);
+		
+		反序列化：
+		ObjectInputStream ois = new ObjectInputStream(new FileInputStream("person.txt"))) {
+        Person brady = (Person) ois.readObject();
+		
+		1.成员字段非基本类型和String类型，引用类型的成员也需要实现Serializable接口才可以被序列化
+		
+		2.通一个对象不能被序列化多次。
+		
+		3.使用transient修饰的属性，java序列化时，会忽略掉此字段，所以反序列化出的对象，被transient修饰的属性是默认值。
+			对于引用类型，值是null；基本类型，值是0；boolean类型，值是false。
+		
+		
+		4.通过重写writeObject与readObject方法，可以自己选择哪些属性需要序列化， 哪些属性不需要
+			public class Person implements Serializable {
+			   private String name;
+			   private int age;
+			   //省略构造方法，get及set方法
+
+			   private void writeObject(ObjectOutputStream out) throws IOException {
+			       //将名字反转写入二进制流
+			       out.writeObject(new StringBuffer(this.name).reverse());
+			       out.writeInt(age);
+			   }
+
+			   private void readObject(ObjectInputStream ins) throws IOException,ClassNotFoundException{
+			       //将读出的字符串反转恢复回来
+			       this.name = ((StringBuffer)ins.readObject()).reverse().toString();
+			       this.age = ins.readInt();
+			   }
+			}
+		5.使用原理：
+			Serializable接口没有方法和属性，只是一个识别类可被序列化的标志。
+			Serializable是通过I/O读写存储在磁盘上的, 通过反射解析出对象描述、属性的描述 以HandleTable来缓存解析信息,
+			之后解析成二进制，存储、传输。
+	2.使用Parcelable
+		1.Parcel翻译过来是打包的意思,其实就是包装了我们需要传输的数据,然后在Binder中传输,也就是用于跨进程传输数据
+			,将序列化之后的数据写入到一个共享内存中，其他进程通过Parcel可以从这块共享内存中读出字节流，并反序列化成对象
+		2.使用方式
+
+
+3.	Serializable和	Parcelable区别
+
+1.为什么效果比Serializable高？
+	设计目的：
+		Serializable是java api提供的一个接口，使用方式是将对象存储到磁盘或者网络传输，序列化过程中使用了反射机制。
+		Parcelable是AndroidSdk提供的一个专门用于进程间通讯的机制，使用的是内核空间通过MMap的方式传输，效率肯定比Serializable高
+	实现原理：
+		Serializable序列化是通过IO读写，存储在磁盘上或者网络传输，使用反射机制，效率低，且在使用过程中会产生很多临时对象，会频繁触发gc，引起内存抖动
+		Parcelable是直接在内存中读写，效率高，开销小
+2.为了效率损失了什么？
+	Parcelable是直接存储在内存中，不能持久化数据
+3.一个对象可以序列化的关键，你认为是？
+	在序列化时，对象的各属性都必须是可序列化的，声明为static和transient类型的成员数据不能被序列化。
+	总结：
+		Parcelable（安卓）特点：高效但复杂，将一个对象进行分解，且分解的每一部分都是可支持可传递的数据类型
+
+		Serializable （Java）特点：开销大效率低但简单，主要是将一个对象转换成可存储可传输的状态
+
+		对于Intent等内存中传递数据建议用Parcelable进行序列化，对于需要将数据保存到本地或网络传输建议用Serializable
+
+

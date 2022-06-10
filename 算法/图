@@ -1,0 +1,16 @@
+图
+图的各种存储结构及实现
+
+两种标准的表示方法;
+1.邻接矩阵
+思路： 使用数组 verticesvertices 存储顶点，邻接矩阵 edgesedges 存储边； edges[i][j]edges[i][j] 代表节点 i + 1i+1 和 节点 j + 1j+1 之间是否有边。
+
+使用
+
+2.邻接链表
+思路： 
+使用数组 verticesvertices 存储顶点，邻接表 edgesedges 存储边。 
+edgesedges 为一个二维容器，第一维 ii 代表顶点索引，第二维 edges[i]edges[i] 存储此顶点对应的边集和；
+例如 edges[0] = [1, 2, 3, 4]edges[0]=[1,2,3,4] 代表 vertices[0]vertices[0] 的边集合为 [1, 2, 3, 4][1,2,3,4] 。
+vertices=[1,2,3,4,5]
+edges

@@ -1,0 +1,142 @@
+解释器模式
+软件开发中经常会有些问题多次出现，而且有一定的相似性和规律性，
+如果将这些相似性语句通过一个通用语句进行解释，那么这些问题实例就是该通用语句的语法，
+这样就可以使用编译原理使用的解释器模式来处理
+定义
+给分析对象定义一个语句，并定义该语句的文法，在使用一个解释器来解析这个文法，就是说是有编译语言的方式来分析应用中的实例
+结构
+需要先了解编译原理中的“文法，句子，语法树”等相关概念
+
+文法：用来描述语言的语法结构表达式：
+如：
+〈句子〉::=〈主语〉〈谓语〉〈宾语〉
+〈主语〉::=〈代词〉|〈名词〉
+〈谓语〉::=〈动词〉
+〈宾语〉::=〈代词〉|〈名词〉
+〈代词〉你|我|他
+〈名词〉7大学生I筱霞I英语
+〈动词〉::=是|学习
+
+句子：
+句子是语言的基本单位，是语言集中的一个元素，它由终结符构成，能由“文法”推导出。
+例如，上述文法可以推出“我是大学生”，所以它是句子。
+
+语法树：
+语法树是句子结构的一种树型表示，它代表了句子的推导结果，它有利于理解句子语法结构的层次。图 1 所示是“我是大学生”的语法树。
+
+通过以上分析，可知解释器模式和组合模式很类似，但是解释器模式包含的组成元素比较多，而组合模式只包含树叶和树枝
+
+角色：
+抽象表达式：AbstractExpression：定义解释器的接口，约定解释器的解释操作，包含解释方法interpret();
+终结符表达式：TerminalExpression:抽象表达式的子类，用来实现文法中与终结符相关的操作，文法中的每个终结符都有一个终结符表达式对应
+非终结符表达式：NonterminalExpression：也是抽象表达式的子类，用来实现文法中和非终结符相关的操作。
+环境角色：Context：包含解释器需要的数据或公共功能，一般用来传递被所有解释器共享的数据。
+客户端:Client:语法树是句子结构的一种树型表示，它代表了句子的推导结果，它有利于理解句子语法结构的层次。图 1 所示是“我是大学生”的语法树。
+
+如定义如下语法：
+<expression>::=<city>的<persion>
+<city>::= 江西|上海
+<persion>::= 老人|儿童|妇女
+
+
+UML
+
+代码：
+抽象表达式：AbstractExpression
+public interface AbstractExpression{
+	public boolean interpret();
+}
+
+终结符表达式：CityExpression
+public class CityExpression implements AbstractExpression{
+	HashSet<String> set = new HashSet<>();
+	public CityExpression(String[] strs){
+		for(String info:strs){
+			set.add(info);
+		}
+	}
+	public boolean interpret(String info){
+		if(set.contains(info)){
+			return true;
+		}
+		return false;
+	}
+	
+}
+终结符表达式：PersonExpression
+public class PersonExpression implements AbstractExpression{
+	HashSet<String> set = new HashSet<>();
+	public PersonExpression(String[] strs){
+		for(String info:strs){
+			set.add(info);
+		}
+	}
+	public boolean interpret(String info){
+		if(set.contains(info)){
+			return true;
+		}
+		return false;
+	}
+}
+
+非终结表达式：NonterminalExpression
+public class NonterminalExpression implements AbstractExpression{
+	CityExpression cityExpression;
+	PersonExpression personExpression;
+	public NonterminalExpression(CityExpression cityExpression,PersonExpression personExpression){
+		this.cityExpression = cityExpression;
+		this.personExpression = personExpression;
+	}
+	public boolean interpret(String info){
+		String[] s = info.split("的");
+		return cityExpression.interpret(s[0])&& personExpression.interpret(s[1]);
+	}
+}
+
+环境类：Context
+public class Context{
+	private String[] citys = {"韶关", "广州"};
+    private String[] persons = {"老人", "妇女", "儿童"};
+    private Expression cityPerson;
+    public Context() {
+        Expression city = new CityExpression(citys);
+        Expression person = new PersonExpression(persons);
+        cityPerson = new NonterminalExpression(city, person);
+    }
+	public void freeRide(String info) {
+		boolean ok = cityPerson.interpret(info);
+        if (ok) System.out.println("您是" + info + "，您本次乘车免费！");
+        else System.out.println(info + "，您不是免费人员，本次乘车扣费2元！");
+	}
+
+
+}
+
+客户端：
+main{
+	Context context = new Context();
+	context.freeRide("上海的老人");
+	context.freeRide("韶关的老人");
+	context.freeRide("韶关的妇女");
+	context.freeRide("韶关的儿童");
+	context.freeRide("广州的老人");
+	context.freeRide("上海的儿童");
+}
+
+结果：
+	上海的老人，您不是免费人员，本次乘车扣费2元！
+	您是韶关的老人，您本次乘车免费！
+	您是韶关的妇女，您本次乘车免费！
+	您是韶关的儿童，您本次乘车免费！
+	您是广州的老人，您本次乘车免费！
+	上海的儿童，您不是免费人员，本次乘车扣费2元！
+
+应用场景
+1.语言的文法比较简单，且对性能要求这块不是很高
+2.问题重复出现，且可以用一个通用的语法表示
+3.当一个语言需要解释执行，且语言中的句子可以表示一个抽象的语法树时。
+
+
+扩展
+如果需要到数据进行分析和计算，目前无需再使用解释器模式进行，直接可以使用开源框架Expression4J或者Jep等
+

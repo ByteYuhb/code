@@ -1,0 +1,103 @@
+图片资源目录下加载的优先级？
+	1.首先我们了解连接各资源文件的密度范围：
+		密度            dpi范围
+		ldpi			0-120dpi
+		mdpi			120-160dpi
+		hdpi			160-240dpi
+		xhdpi			240-320dpi
+		xxhdpi			320-480dpi
+		xxxhdpi			480-640dpi
+	
+	2.测试情况：
+		说明：目前只是使用xhdpi和xxhdpi文件加下的同一资源文件做测试，文件初始尺寸为1200*800
+		a.使用的设备密度:420dpi 
+			调用context.getResources().getDisplayMetrics().densityDpi可以获取到
+		b.获取bitmap：
+			在xhdpi文件下放入：aaa.jpg改名为aaa_xh
+				Bitmap bitmap2 = BitmapFactory.decodeResource(context.getResources(), R.drawable.aaa_xh);
+				Log.d("BitmapUtils","b1:drawable-xh：size："+getBitmapSize(bitmap2)+" width:"+bitmap2.getWidth()+" height:"+bitmap2.getHeight());
+			在xxhdpi文件下放入：aaa.jpg改名为aaa_xxh
+				Bitmap bitmap3 = BitmapFactory.decodeResource(context.getResources(), R.drawable.aaa_xxh);
+				Log.d("BitmapUtils","b1:drawable-xxh：size："+getBitmapSize(bitmap3)+" width:"+bitmap3.getWidth()+" height:"+bitmap3.getHeight());
+			getBitmapSize方法：
+				public static int getBitmapSize(Bitmap bitmap){
+					if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.KITKAT){
+						return bitmap.getAllocationByteCount();
+					}
+					if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.HONEYCOMB_MR1){
+						return bitmap.getByteCount();
+					}
+					return bitmap.getRowBytes()*bitmap.getHeight();
+				}
+		c.测试结果：
+			2022-01-12 11:47:23.172 22193-22193/com.android.yuhb.test D/BitmapUtils: b1:drawable-xh：size：6615000 width:1575 height:1050
+			2022-01-12 11:47:23.190 22193-22193/com.android.yuhb.test D/BitmapUtils: b1:drawable-xxh：size：2940000 width:1050 height:700	
+	3.分析第二步中的测试结果：
+		3.1：对于宽和高，
+			我们先写下公式：bitmap：width = 原始图片：width*(设备密度/资源文件夹密度)
+			1.对drawable-xhdpi下面的文件：
+				1.bitmap：width = 1050 ，原始图片：width = 1200，这个值是怎么计算出来的呢
+					套用上面的公式：
+					1050 = 1200*(420/480) 两边确实相等
+					高度也是一样：你们可以自己去套用看看
+			2.在drawable-xxhdpi下面的文件：
+				同理：套用公式
+					1575 = 1200*(420/320) 两边确实相等
+			3.最后看下另外一个看实巧合的点：
+				xh-width/xxh-width = 1575/1050
+				xh-密度/xxh-密度 = 320/480 = 1050/1575 = xxh-width/xh-width
+				对，这个就是系统对资源文件在内存中宽高缩放的原理：
+					按资源文件夹密度比反比缩放，资源文件夹密度越高，宽高约小,缩放比例为密度反比值
+				
+		3.2:对于bitmap大小
+			我们先写下公式 size = bitmap宽度*bitmap高度*一个像素的大小
+				bitmap宽度 = 图片原始长度尺寸*（系统设备密度/资源文件夹密度）
+				bitmap高度 = 图片原始高度尺寸*（系统设备密度/资源文件夹密度）
+			1.对drawable-xhdpi下面的文件：
+				套公式：
+					bitmap宽度 = 1200*(420/320) = 1575
+					bitmap高度 = 800*(420/320) = 1050
+					一个像素的大小 = 4
+					
+					三者相乘：1570*1050*4 = 6615000 和打印的日志结果一致
+				
+			2.同理在xxh下面的文件：
+				1200*(420/480) * 800*(420/480)*4 = 2940000和打印结果也是一致
+			
+		总结：
+		1.图片在内存中的计算：
+				size = bitmap宽度*bitmap高度*一个像素的大小
+				bitmap宽度 = 图片原始长度尺寸*（系统设备密度/资源文件夹密度）
+				bitmap高度 = 图片原始高度尺寸*（系统设备密度/资源文件夹密度）
+			
+		2.图片在不同资源文件夹下的缩放比例：
+				设：
+				原始图片宽度：width 高度：height
+				xhdpi文件在内存中大小：xh-size 
+				xxhdpi文件在内存中大小：xxh-size 
+				设备密度：deviceDpi = 420
+				资源密度：xh-dpi = 320 和xxh-dpi = 480
+					则xh-size/xxh-size  = (width*(deviceDpi/xhdpi)*height*(deviceDpi/xhdpi)) / (width*(deviceDpi/xxhdpi)*height*(deviceDpi/xxhdpi))
+					最后简化为：xh-size/xxh-size = （xxhdpi*xxhdpi）/(xhdpi*xhdpi)
+					和我们打印日志对比下：
+						480*480/320*320 = 2.25
+						6615000/2940000 = 2.25
+					两者确实是一致
+			总结：bitmap在不同资源文件目录下的转化比例为：（xxhdpi*xxhdpi）/(xhdpi*xhdpi)	
+	4.上面的分析还是不能说明我们的问题
+		其实系统优先级是根据：
+			优先找和我们设备密度一致的资源文件夹下的文件，
+			没有找到就去找更高密度文件下的文件，找不到就去nodpi文件夹中找，
+			还是找不到就依次往较低分辨率资源目录下查找
+		如上面测试情况：
+			优先找xxhdpi下面的文件（密度在320-480，设备密度420）-->xxxh下面的-->nodpi下面的-->xhdpi下面-->hdpi-->mdpi-->ldpi
+		为什么是上面的顺序呢，因为资源文件夹的密度越大，占用的内存就越小，越不容易出现OOM的情况
+	
+		
+				
+		
+		
+	
+				
+		
+	

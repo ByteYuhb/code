@@ -1,0 +1,14 @@
+2022-05-23 22:23:17.387  INFO 6684 --- [main] c.g.z.w.WebdavTeambitionApplication      : Starting WebdavTeambitionApplication v2.4.0 using Java 18.0.1.1 on PC-20190518ODCS with PID 6684 (F:\aliyun\webdav-2.4.1.jar started by Administrator in C:\Users\Administrator\Desktop\笔记)
+2022-05-23 22:23:17.484  INFO 6684 --- [main] c.g.z.w.WebdavTeambitionApplication      : No active profile set, falling back to default profiles: default
+2022-05-23 22:23:25.200  INFO 6684 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 15888 (http)
+2022-05-23 22:23:25.287  INFO 6684 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2022-05-23 22:23:25.289  INFO 6684 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.41]
+2022-05-23 22:23:25.507  INFO 6684 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2022-05-23 22:23:25.509  INFO 6684 --- [main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 6222 ms
+2022-05-23 22:23:29.642  INFO 6684 --- [main] c.g.z.w.client.AliYunDriverClient        : post https://websv.aliyundrive.com/token/refresh, body {"refresh_token":"c171122573a14d90900520ff32130141"}, code 400
+2022-05-23 22:23:29.685 ERROR 6684 --- [main] c.g.z.w.client.AliYunDriverClient        : 请求失败，url=https://websv.aliyundrive.com/token/refresh, code=400, body={"code":"InvalidParameter.RefreshToken","message":"The input parameter refresh_token is not valid. ","requestId":null}
+2022-05-23 22:23:29.806  INFO 6684 --- [main] c.g.z.w.client.AliYunDriverClient        : post https://websv.aliyundrive.com/token/refresh, body {"refresh_token":"cf573ed1bf3a4972a95cd3515a128a6a"}, code 200
+2022-05-23 22:23:30.161  INFO 6684 --- [main] c.g.z.w.client.AliYunDriverClient        : post /user/get, body {}, code 200
+2022-05-23 22:23:30.812  INFO 6684 --- [main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Initializing ExecutorService 'applicationTaskExecutor'
+2022-05-23 22:23:31.496  INFO 6684 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 15888 (http) with context path ''
+2022-05-23 22:23:31.519  INFO 6684 --- [main] c.g.z.w.WebdavTeambitionApplication      : Started WebdavTeambitionApplication in 17.517 seconds (JVM running for 26.946)

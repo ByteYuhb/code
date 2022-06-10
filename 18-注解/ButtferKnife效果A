@@ -1,0 +1,33 @@
+具体需求，实现ButtferKnife效果A
+
+实现的文件Activity+ViewBinding；
+ActivityViewBinding.java
+
+public ActivityViewBinding{
+
+	public void bind(Activity _activity)
+	
+	_activity.btn = (android.widget.Button)_activity.findViewById(R.id.btn);
+
+}
+
+
+@Retention(CLASS)
+@Target(FIELD)
+public @interface BindView{
+	int id;
+
+}
+
+
+Processor:
+
+public process(env){
+	1.获取所有的BindView注解的字段的类Activity，使用Map<Activity,Map<ele.id,ele>> = new HashMap;
+		key:ActivityElement
+		value:Map<ele.id,ele>:该Activity中所有的属性对象
+		这个步骤可以统计出源码中所有的Activity中存储的所有带注解BindView的值
+	2.使用javapoet生产代码
+		1.MethodSpec me = name:
+
+}

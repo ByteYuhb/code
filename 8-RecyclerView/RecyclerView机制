@@ -1,0 +1,60 @@
+https://juejin.cn/post/7044797219878223909
+.滑动刷新机制：滑动
+	mCachedViews中存储的是滑动退出到界面外的ViewHolder，里面存储了View的所有信息包括positong和绑定信息，默认值是两个，
+	但是在滑动的过程中最大值可能会变为3个。
+	可以直接拿来使用，
+	回收存储过程：
+	滑动过程中mCachedViews会一直更新，而更新前的ViewHolder会根据FIFO原则，被替换出来的VH会存储到RecycledViewPool中，RecycledViewPool最大可以存储五个
+	存储到RecycledViewPool中的ViewHolder会被初始化为pos=-1且绑定信息会被清空。下次如果使用这里面的ViewHolder需要重新绑定View
+	所以滑动获取ViewHolder的顺序应该是：
+	0.滑动时候也会去mAttachedScrap中查询是否有对应的pos位置的VH，一般这个时候的mAttachedScrap个数都是0，mAttachedScrap一般用于调用notify操作的时候，会去这里面取
+	1.根据pos去mCachedViews中获取滑动退出到界面外的ViewHolder，找到对应pos的ViewHolder直接拿来使用。
+	2.如果1没有找到，如果设置了自定义缓存ViewCacheExtension，则去这里面找。
+	2.如果2没有找到，则去RecycledViewPool中获取新的未使用的ViewHolder。使用前需要重新绑定一次View，回调一次onBindViewHolder
+	3.如果3没有找到，则直接创建一个ViewHolder来使用。回调onCreateViewHolder和onBindViewHolder
+
+.刷新回收复用机制：更新如move，update等操作
+	notifyXxx后会RecyclerView会进行两次布局，一次预布局，一次实际布局，然后执行动画操作
+	dispatchLayoutStep1
+	查找改变holder，并保存在mChangedScrap中；其他未改变的保存到mAttachedScrap中 （mChangedScrap保存的holder信息只有预布局时才会被复用）
+	dispatchLayoutStep2
+	此步骤会创建一个新的holder并执行绑定数据，充当改变位置的holder，其他位置holder从mAttachedScrap中获取
+	
+.RecyclerView 为什么要预布局
+	当 Adapter 发生变化的时候，RecyclerView 会让 LayoutManager 进行两次布局。
+	第一次，预布局,为动画前的表项先执行一次pre-layout，根据 Adapter 的 notify 信息，我们知道哪些 item 即将变化
+	了,将不可见的表项 3 也加载到布局中，形成一张布局快照（1、2、3）。
+	第二次，实际布局，也就是变化完成之后的布局同样形成一张布局快照（1、3）。
+	这样只要比较前后布局的变化，就能得出应该执行什么动画了，就称为预测动画。
+		
+	因为RecyclerView 要执行预测动画。比如有A,B,C三个itemView，其中A和B被加载到屏幕上，这时候删除B后，按照
+	最终效果我们会看到C移动到B的位置；因为我们只知道 C 最终的位置，但是不知道 C 的起始位置在哪里(即C还未被
+	加载)。
+	用户有 A、B、C 三个 item，A，B 刚好显示在屏幕中，这个时候，用户把 B 删除了，那么最终 C 会显示在 B 原来的
+	位置
+	因为我们只知道 C 最终的位置，但是不知道 C 的起始位置在哪里，无法确定 C 应该从哪里滑动过来。
+	在其他 LayoutManager 中，它可能是从侧面或者是其他地方滑动过来的。
+	
+	预布局preLayout在LayoutManager的dispatchLayoutStep1阶段进行：
+	预布局阶段如何将屏幕外的那部分也显示出来呢：调用fill方法中，有一个方法，在布局成功一个子View之后，会消费掉这块子View的高度，
+	但是对于params.isItemRemoved() || params.isItemChanged()就是删除的的View或者Update的View不会消费掉，这样可以多循环一次，把看不见的那部分View也给加载进来。
+
+.ListView 与 RecyclerView区别
+	1.布局效果
+		ListView 的布局比较单一，只有一个纵向效果； RecyclerView 的布局效果丰富， 可以在 LayoutMananger 中设
+	置：线性布局（纵向，横向），表格布局，瀑布流布局
+	2.局部刷新
+		RecyclerView中可以实现局部刷新，例如：notifyItemChanged()；
+	ListView实现起来比较复杂：当一个item数据刷新时，我们可以在Adapter中，实现一个notifyItemChanged()方法，在方法里面通过这个 item 的 position，刷新这个item的数据
+	3.缓存区别
+		ListView有两级缓存，在屏幕与非屏幕内。 RecyclerView比ListView多两级缓存 ListView缓存View。 RecyclerView
+	缓存RecyclerView.ViewHolder
+
+.RecyclerView性能优化
+	1.数据处理与视图加载分离
+		简单来说就是在onBindViewHolder()只设置UI显示，不做任何逻辑判断，需要的业务逻辑在得到javabean之前处理好:如通过手势获取点击的View的pos位置，而不是在BindView中绑定点击事件
+		
+	2.布局优化
+		减少过渡绘制 减少布局层级
+	3.设置RecyclerView.addOnScrollListener()来在滑动过程中停止加载的操作。
+

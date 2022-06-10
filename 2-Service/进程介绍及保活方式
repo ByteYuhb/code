@@ -1,0 +1,138 @@
+1.进程划分：
+
+	1.前台进程：处于前台的进程，用户正在使用的程序，一般不会被杀死，除非
+		1.1：Activity处于resume状态的进程
+		1.2：某个进程持有一个Service，且该Service正在与用户进程交互的Activity进程绑定
+		1.3：某个进程持有一个Service，并且该Service调用startForeground()方法使之位于前台运行
+		1.4：某个进程持有一个Service，并且该Service正在执行它的某个生命周期回调方法，比如onCreate()、 onStart()或onDestroy()
+		1.5：某个进程持有一个BroadcastReceiver，并且该BroadcastReceiver正在执行其onReceive()方法。
+	2.可见进程
+		2.1: 最顶层Activity处于onPause状态的进程
+		2.2：拥有绑定到可见（或前台）Activity 的 Service
+	3.服务进程
+		3.1：在后台运行的服务进程
+	4.后台进程
+		3.1：泛指看不见的一切后台进程
+	5.空进程
+		5.1：只是一个壳，不包含任何组件，唯一作用是当系统有需要创建进程时，可以直接从空进程转过来。
+		
+	进程被杀死优先级高低：
+		前台->可见->服务进程->后台进程->空进程
+
+
+2.内存阈值
+	进程是根据什么来杀进程的呢？
+	出于性能和用户体验考虑，app在退出到后台时，不会直接杀死进程，而是将其缓存起来，
+	当缓存到一定值的时候就会出现内存不足的情况时，最后会根据内存阈值来杀死对应的进程。
+	可以根据：
+		使用cat /sys/module/lowmemorykiller/parameters/minfree来查看某个手机的内存阈值
+	18432,23040,27648,32256,36864,46080
+	注意这些数字的单位是page. 1 page = 4 kb.上面的六个数字对应的就是(MB): 72,90,108,126,144,180
+	如数180代表内存低于180M时会清除优先级最低的空进程。
+3.adj优先级值
+	获取adj：adb shell ps|grep com.android.yuhb.test
+
+		  adb shell cat /proc/21375/oom_adj
+
+	每个等级的进程又有对应的优先级，使用adj值来表示，进程回收机制就是根据这个adj值来进行的
+	前台进程adj值最低，代表进程优先级最高，
+	空进程adj值越高，最容易被kill
+	对于相等优先级的进程：使用的内存越多越容易被杀死
+4.进程保留方案：
+	通过上面的分析，进程保活其实就是提高adj进程优先级
+	方案一：
+	4.1：开启一个像素的Activity
+		伪代码：
+		1.创建一个像素的Activity
+			class onePxActivity
+				method：startSelf(context)
+							Intent it;
+							it.setflag:FLAG_ACTIVITY_NEW_TASK
+							context.startActivity
+				onCreate
+					getWindow
+					WindowManager.LayoutParams attributes = window.getAttributes();
+					//宽高设计为1个像素
+					attributes.width = 1;
+					attributes.height = 1;
+					//起始坐标
+					attributes.x = 0;
+					attributes.y = 0;
+					window.setAttributes(attributes);
+		2.设置Activity的style为透明
+			<style name="LiveStyle">
+				<item name="android:windowIsTranslucent">true</item>
+				<item name="android:windowBackground">@android:color/transparent</item>
+				<item name="android:windowAnimationStyle">@null</item>
+				<item name="android:windowNoTitle">true</item>
+		   </style>
+
+		3.监听开屏和关屏广播去启动和关闭一个像素的Activity
+			在哪里监听：
+			class mainActivity
+			onCreate()
+				screenListener.register()
+				screenListener.setlistener(interface listener{
+					method on(){ }
+					method off(){}
+				)
+				screenManager
+			onDestroy()
+			screenListener.unregister()
+			
+			
+			
+		 
+			class screenListener
+				interface listener				
+				method register （on off）
+				field broadcastReceiver
+					onReceiver
+						if on listener.on
+						if off listner.off
+			class screenManager
+				method startActivity();
+				method setActivity()
+				method finishActivity()
+				
+				
+	4.2：通过调用Service的startForeGround
+		4.2.1:api<18 :
+			调用startForeground(NOTIFICATION_ID, new Notification());
+		4.2.2:api>=18:
+			Notification.Builder builder = new Notification.Builder(this);
+			builder.setSmallIcon(R.mipmap.ic_launcher);
+			startForeground(NOTIFICATION_ID, builder.build());
+			startService(new Intent(this, InnerService.class));
+		
+			class InnerService
+				startForeground(NOTIFICATION_ID, builder.build()); 通需要保活的NOTIFICATION_ID
+				handler:
+				stopForeground(true);
+				NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+				manager.cancel(NOTIFICATION_ID);
+				stopSelf();
+	4.3:相互唤醒
+		A-B：A死了B收到信息唤醒A 
+		B-A：B死了A收到信息唤醒B
+		
+	4.4: JobSheduler
+		隔多久启动任务
+	4.5：粘性服务&与系统服务捆绑
+		START_STICKY
+			如果系统在onStartCommand返回后被销毁，系统将会重新创建服务并依次调用onCreate和onStartCommand
+		START_NOT_STICKY
+			如果系统在onStartCommand返回后被销毁，如果返回该值，则在执行完onStartCommand方法后如果Service被杀掉系统将不会重启该服务。
+		START_REDELIVER_INTENT
+			START_STICKY的兼容版本，不同的是其不保证服务被杀后一定能重启
+			
+		
+		只要手机收到了通知，NotificationListenerService都能监听到，即时用户把进程杀死，也能重启，所以说要是把这个服务放到我们的进程之中
+		1.public class LiveService extends NotificationListenerService {}
+		2.添加权限BIND_NOTIFICATION_LISTENER_SERVICE
+		
+	
+
+
+
+

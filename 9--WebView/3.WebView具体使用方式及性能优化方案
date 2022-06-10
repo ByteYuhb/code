@@ -1,0 +1,178 @@
+WebView是什么？
+	Android WebView在Android平台上是一个特殊的View， 基于webkit引擎、展现web页面的控件，
+	这个类可以被用来在你的app中仅仅显示一张在线的网页，还可以用来开发浏览器。
+
+使用场景？
+	现在很多APP都内置了Web网页，比如说很多电商平台，淘宝、京东、聚划算等等。
+	WebView比较灵活，不需要升级客户端，只需要修改网页代码即可。
+	一些经常变化的页面可以用WebView这种方式去加载网页。
+	例如中秋节跟国庆节打开的页面不一样，如果是用WebView显示的话，只修改修改html页面就行，而不需要升级客户端。
+
+
+WebView使用方式？
+	1.加载本地Html网页,sdcard上的页面和asset目录下，直接显示html代码
+		webView.loadUrl("content://com.ansen.webview/sdcard/test.html");
+		webView.loadUrl("file:///android_asset/test.html");//加载asset文件夹下html
+		webView.loadDataWithBaseURL(null,"<html><head><title> 欢迎您 </title></head>" + "<body><h2>使用webview显示 html代码</h2></body></html>", "text/html" , "utf-8", null);
+	2.加载URL网页
+		webView.loadUrl("http://139.196.35.30:8080/OkHttpTest/apppackage/test.html");
+	3.使用JS可以原生app和html互相调用
+		
+	代码使用方式步骤：
+		1.因为需要加载网页url，所以需要在AndroidManifest.xml中添加访问网络权限。
+			<uses-permission android:name="android.permission.INTERNET" />
+		2.布局文件:activity_main.xml
+			<?xml version="1.0" encoding="utf-8"?>
+			<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:orientation="vertical">
+
+				<WebView
+					android:id="@+id/webview"
+					android:layout_width="match_parent"
+					android:layout_height="match_parent"/>
+
+				<ProgressBar
+					android:id="@+id/progressbar"
+					style="@android:style/Widget.ProgressBar.Horizontal"
+					android:layout_width="match_parent"
+					android:layout_height="3dip"
+					android:max="100"
+					android:progress="0"
+					android:visibility="gone"/>
+			</FrameLayout>
+		3.业务层
+			webView.loadUrl("http://139.196.35.30:8080/OkHttpTest/apppackage/test.html");//加载url
+			webView.addJavascriptInterface(this,"android");//添加js监听 这样html就能调用客户端
+			webView.setWebChromeClient(webChromeClient);
+			webView.setWebViewClient(webViewClient);
+
+			WebSettings webSettings=webView.getSettings();
+			webSettings.setJavaScriptEnabled(true);//允许使用js
+			/**
+			 * LOAD_CACHE_ONLY: 不使用网络，只读取本地缓存数据
+			 * LOAD_DEFAULT: （默认）根据cache-control决定是否从网络上取数据。
+			 * LOAD_NO_CACHE: 不使用缓存，只从网络获取数据.
+			 * LOAD_CACHE_ELSE_NETWORK，只要本地有，无论是否过期，或者no-cache，都使用缓存中的数据。
+			 */
+			webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);//不使用缓存，只从网络获取数据.
+
+			//支持屏幕缩放
+			webSettings.setSupportZoom(true);
+			webSettings.setBuiltInZoomControls(true);
+
+			//不显示webview缩放按钮
+			webSettings.setDisplayZoomControls(false);
+			
+		4.//WebViewClient主要帮助WebView处理各种通知、请求事件
+			private WebViewClient webViewClient=new WebViewClient(){
+				@Override
+				public void onPageFinished(WebView view, String url) {//页面加载完成
+					progressBar.setVisibility(View.GONE);
+				}
+
+				@Override
+				public void onPageStarted(WebView view, String url, Bitmap favicon) {//页面开始加载
+					progressBar.setVisibility(View.VISIBLE);
+				}
+
+				@Override
+				public boolean shouldOverrideUrlLoading(WebView view, String url) {
+					Log.i("ansen","拦截url:"+url);
+					if(url.equals("http://www.google.com/")){
+						Toast.makeText(MainActivity.this,"国内不能访问google,拦截该url",Toast.LENGTH_LONG).show();
+						return true;//表示我已经处理过了
+					}
+					return super.shouldOverrideUrlLoading(view, url);
+				}
+
+			};
+		5.//WebChromeClient主要辅助WebView处理Javascript的对话框、网站图标、网站title、加载进度等
+			private WebChromeClient webChromeClient=new WebChromeClient(){
+				//不支持js的alert弹窗，需要自己监听然后通过dialog弹窗
+				@Override
+				public boolean onJsAlert(WebView webView, String url, String message, JsResult result) {
+					AlertDialog.Builder localBuilder = new AlertDialog.Builder(webView.getContext());
+					localBuilder.setMessage(message).setPositiveButton("确定",null);
+					localBuilder.setCancelable(false);
+					localBuilder.create().show();
+
+					//注意:
+					//必须要这一句代码:result.confirm()表示:
+					//处理结果为确定状态同时唤醒WebCore线程
+					//否则不能继续点击按钮
+					result.confirm();
+					return true;
+				}
+
+				//获取网页标题
+				@Override
+				public void onReceivedTitle(WebView view, String title) {
+					super.onReceivedTitle(view, title);
+					Log.i("ansen","网页标题:"+title);
+				}
+
+				//加载进度回调
+				@Override
+				public void onProgressChanged(WebView view, int newProgress) {
+					progressBar.setProgress(newProgress);
+				}
+			};
+		6.@Override
+			public boolean onKeyDown(int keyCode, KeyEvent event) {
+				Log.i("ansen","是否有上一个页面:"+webView.canGoBack());
+				if (webView.canGoBack() && keyCode == KeyEvent.KEYCODE_BACK){//点击返回按钮的时候判断有没有上一页
+					webView.goBack(); // goBack()表示返回webView的上一页面
+					return true;
+				}
+				return super.onKeyDown(keyCode,event);
+			}
+		7./**
+			 * JS调用android的方法
+			 * @param str
+			 * @return
+			 */
+			@JavascriptInterface //仍然必不可少
+			public void  getClient(String str){
+				Log.i("ansen","html调用客户端:"+str);
+			}
+		8.@Override
+			protected void onDestroy() {
+				super.onDestroy();
+
+				//释放资源
+				webView.destroy();
+				webView=null;
+			}
+		}
+
+WebView过程？
+	参考图：webview过程.png
+	主要是三个步骤：
+	WebView初始化：这段时间会没有任何反馈
+	建立连接：这段时间可能会白屏
+	loading：加载数据
+	
+
+WebView优化方案？
+	App中打开WebView的第一步并不是建立连接，而是启动浏览器内核。这是个耗时操作
+	1.优化手段围绕着以下两个点进行
+		1.预加载WebView。
+		2.加载WebView的同时，请求H5页面数据。
+	2.常见的方法是：
+		1.全局WebView
+			在客户端刚启动时，就初始化一个全局的WebView待用，并隐藏；
+			这种方法可以比较有效的减少WebView在App中的首次打开时间。当用户访问页面时，不需要初始化WebView的时间。
+			当然这也带来了一些问题，包括：额外的内存消耗，页面间跳转需要清空上一个页面的痕迹，更容易内存泄露。
+		2.客户端代理页面请求WebView初始化完成后向客户端请求数据
+			在客户端初始化WebView的同时，直接由native开始网络请求数据；
+			当页面初始化完成后，向native获取其代理请求的数据。
+		3.asset存放离线包。离线html文件
+	3.除此之外还有一些其他的优化手段：
+		1.DNS和链接慢:想办法复用客户端使用的域名和链接
+		2.脚本执行慢，可以把框架代码拆分出来，在请求页面之前就执行好。
+		3.预加载js数据
+	总结：一个加载网页的过程中，native、网络、后端处理、CPU都会参与，各自都有必要的工作和依赖关系；让他们相互并行处理而不是相互阻塞才可以让网页加载更快：
+	
+

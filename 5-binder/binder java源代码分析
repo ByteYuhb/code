@@ -1,0 +1,130 @@
+binder java源码分析
+
+
+1.注册服务
+ServiceManager.addService("vibrator", vibrator);
+	getIServiceManager().addService(name, service, false);
+		分析1：getIServiceManager()：
+					ServiceManagerNative.asInterface(Binder.allowBlocking(BinderInternal.getContextObject()));
+					分析2：BinderInternal.getContextObject()：由下面分析可以看出 = new BinderProxy(mObject = new BpBinder(handle=0))
+							static jobject android_os_BinderInternal_getContextObject(JNIEnv* env, jobject clazz){
+								sp<IBinder> b = ProcessState::self()->getContextObject(NULL);
+									return getStrongProxyForHandle(0);{
+										new BpBinder(handle); handle=0
+									}
+										
+								return javaObjectForIBinder(env, b); //b = new BpBinder(handle); handle=0{
+									object = env->NewObject(gBinderProxyOffsets.mClass, gBinderProxyOffsets.mConstructor);gBinderProxyOffsets.mConstructor=android.os.BinderProxy
+									env->SetLongField(object, gBinderProxyOffsets.mObject, (jlong)val.get()); 给BinderProxy对象设置mObject为传入的new BpBinder(handle)
+								}
+							}
+					分析3：ServiceManagerNative.asInterface(new BinderProxy(mObject = new BpBinder(handle=0))){
+								return new ServiceManagerProxy(obj); obj = new BinderProxy(mObject = new BpBinder(handle=0))
+						   }
+		分析4：ServiceManagerProxy.addService(name, service, false)
+					data.writeString(name);
+					data.writeStrongBinder(service);
+						nativeWriteStrongBinder(mNativePtr, val);
+							parcel->writeStrongBinder(ibinderForJavaObject(env, object));
+									分析5：ibinderForJavaObject(env, object){
+												JavaBBinderHolder* jbh = (JavaBBinderHolder*)env->GetLongField(obj, gBinderOffsets.mObject);
+													return jbh != NULL ? jbh->get(env, obj) : NULL;{
+														JavaBBinderHolder.get{
+															return new JavaBBinder(env, obj);obj= 传入的service
+														}
+													}
+										   }
+									分析6：parcel->writeStrongBinder(new JavaBBinder(env, obj))
+												flatten_binder(ProcessState::self(), val, this); obj.cookie = binder.unsafe_get()将new JavaBBinder(env, obj)放入cookie
+													IBinder *local = real->localBinder();
+													if (!local) {
+														BpBinder *proxy = real->remoteBinder();
+														if (proxy == NULL) {
+															ALOGE("null proxy");
+														}
+														const int32_t handle = proxy ? proxy->handle() : 0;
+														obj.type = BINDER_TYPE_WEAK_HANDLE;
+														obj.binder = 0; /* Don't pass uninitialized stack data to a remote process */
+														obj.handle = handle;
+														obj.cookie = 0;
+													} else {
+														obj.type = BINDER_TYPE_WEAK_BINDER;
+														obj.binder = reinterpret_cast<uintptr_t>(binder.get_refs());
+														obj.cookie = reinterpret_cast<uintptr_t>(binder.unsafe_get());
+													}
+											
+					mRemote.transact(ADD_SERVICE_TRANSACTION, data, reply, 0); mRemote = new BinderProxy(mObject = new BpBinder(handle=0)根据分析2可知
+						BinderProxy.transact{
+							transactNative(code, data, reply, flags);
+								static jboolean android_os_BinderProxy_transact(JNIEnv* env, jobject obj,...{
+									Parcel* data = parcelForJavaObject(env, dataObj);获取发送参数
+									Parcel* reply = parcelForJavaObject(env, replyObj);获取接收参数
+									IBinder* target = (IBinder*)env->GetLongField(obj, gBinderProxyOffsets.mObject);获取BinderProxy.mObject = new BpBinder(handle=0)
+									status_t err = target->transact(code, *data, reply, flags);发送数据
+										status_t status = IPCThreadState::self()->transact(mHandle, code, data, reply, flags);
+											...下面就和之前分析C++操作类似了
+								
+								}
+						}
+						
+							
+
+2.获取服务
+ServiceManager.getService("vibrator")
+	getIServiceManager().getService(name)//getIServiceManager()从前面分析可知 = new ServiceManagerProxy(obj); obj = new BinderProxy(mObject = new BpBinder(handle=0))
+		ServiceManagerProxy.getService{
+			data.writeString(name);
+			mRemote.transact(GET_SERVICE_TRANSACTION, data, reply, 0); mRemote = new BinderProxy(mObject = new BpBinder(handle=0)根据分析2可知
+			IBinder binder = reply.readStrongBinder();
+				nativeReadStrongBinder(mNativePtr);
+					static jobject android_os_Parcel_readStrongBinder(JNIEnv* env, jclass clazz, jlong nativePtr)
+					{
+						Parcel* parcel = reinterpret_cast<Parcel*>(nativePtr);
+						if (parcel != NULL) {
+							return javaObjectForIBinder(env, parcel->readStrongBinder());
+							分析7：parcel->readStrongBinder(){
+										readNullableStrongBinder(&val);
+											unflatten_binder(ProcessState::self(), *this, val);
+												const flat_binder_object* flat = in.readObject(false);
+												if (flat) {
+													switch (flat->type) {
+														case BINDER_TYPE_BINDER:
+															*out = reinterpret_cast<IBinder*>(flat->cookie);
+															return finish_unflatten_binder(NULL, *flat, in);
+														case BINDER_TYPE_HANDLE:
+															*out = proc->getStrongProxyForHandle(flat->handle);---->>
+																return new BpBinder(handle); 返回一个BpBinder
+															return finish_unflatten_binder(
+																static_cast<BpBinder*>(out->get()), *flat, in);
+													}
+												}
+								   }
+							分析8：javaObjectForIBinder(env,new BpBinder(handle=服务的handle))
+									  object = env->NewObject(gBinderProxyOffsets.mClass, gBinderProxyOffsets.mConstructor);gBinderProxyOffsets.mConstructor=android.os.BinderProxy
+									  env->SetLongField(object, gBinderProxyOffsets.mObject, (jlong)val.get()); 给BinderProxy对象设置mObject为BpBinder
+									  
+								
+										
+						}
+						return NULL;
+					}
+			return binder  = new BinderProxy(mObject = new BpBinder(handle) handle=服务的handle)
+		}x
+3.使用服务
+	MyService.Stub.Proxy.sayGoodbye("bye!!")
+		mRemote.transact,这个remote为第二步服务获取的时候获取到的 = new BinderProxy(mObject = new BpBinder(handle) handle=服务的handle)
+		最后调用到C++的BpBinder.transact
+		..之后代码和之前分析C++一样
+
+
+4.服务获取到第一步addService中存储的cookie值，会调用cookie = JavaBBinder的onTransact方法
+	case BR_TRANSACTION:
+		error = reinterpret_cast<BBinder*>(tr.cookie)->transact(tr.code, buffer,&reply, tr.flags);调用BBinder的transact
+			err = onTransact(code, data, reply, flags);调用的是子类JavaBBinder的方法		
+				jboolean res = env->CallBooleanMethod(mObject, gBinderOffsets.mExecTransact,code, reinterpret_cast<jlong>(&data), reinterpret_cast<jlong>(reply), flags);
+				android/os/Binder.execTransact
+					res = onTransact(code, data, reply, flags);调用GoodByeService中的onTransact方法，最后根据code调用对应的对象方法
+						
+					
+
+

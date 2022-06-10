@@ -1,0 +1,98 @@
+Service启动流程分析：
+1.bindService
+	ContextWrapper.bindService
+		ContextImpl.bindService
+			bindServiceCommon(service, conn, flags..)
+				sd = mPackageInfo.getServiceDispatcher(conn, getOuterContext(), handler, flags);
+					sd = new ServiceDispatcher(c, context, handler, flags);{创建ServiceDispatcher服务分发，其实是对ServiceConnection的包装
+						mIServiceConnection = new InnerConnection(this);{
+							mDispatcher = new WeakReference<LoadedApk.ServiceDispatcher>(sd);包装为弱引用
+							
+							public void connected(ComponentName name, IBinder service, boolean dead)连接上后会调用这个方法
+								throws RemoteException {
+								LoadedApk.ServiceDispatcher sd = mDispatcher.get();
+								if (sd != null) {
+									sd.connected(name, service, dead);
+										doConnected(name, service, dead);
+											mConnection.onServiceConnected(name, service);调用ServiceConnect的onServiceConnected方法
+								}
+							}
+						}
+						mConnection = conn;
+						mContext = context;
+						mActivityThread = activityThread;
+						mLocation = new ServiceConnectionLeaked(null);
+						mLocation.fillInStackTrace();
+						mFlags = flags;
+					}
+				IBinder token = getActivityToken()获取ActivityToken
+				ActivityManager.getService().bindService(...)调用AMS的bindService操作
+					mServices.bindServiceLocked(caller, token, service,...)
+						final ProcessRecord callerApp = mAm.getRecordForAppLocked(caller);根据caller获取进程记录
+						activity = ActivityRecord.isInStackLocked(token);判断ActivityRecord是否在TaskRecord
+						final boolean isCallerSystem = callerApp.info.uid == Process.SYSTEM_UID;判断是否是系统进程
+						ServiceLookupResult res = retrieveServiceLocked(service, resolvedType...)获取ServiceRecord信息
+							ServiceMap smap = getServiceMapLocked(userId);
+								ServiceMap smap = mServiceMap.get(callingUser);获取当前应用的ServiceMap
+							final ComponentName comp = service.getComponent();
+							r = smap.mServicesByName.get(comp);获取当前应用的ServiceRecord看下是否之前有注册过
+							if (r == null) {
+								r = new ServiceRecord(mAm, ss, name, filter, sInfo, callingFromFg, res);
+								smap.mServicesByName.put(name, r);将ServiceRecord放入ServiceMap中，下次getService就可以直接获取不需要重建 = 在AMS中注册了该Service
+								smap.mServicesByIntent.put(filter, r);
+							}
+							return new ServiceLookupResult(r, null);里面包含了该服务的ServiceRecord信息
+						realStartServiceLocked(r, app, execInFg);
+							app.thread.scheduleCreateService(r, r.serviceInfo,..)	调用ActivityThread的thread启动service
+								handleCreateService((CreateServiceData)msg.obj);
+									ContextImpl context = ContextImpl.createAppContext(this, packageInfo);
+									context.setOuterContext(service);
+
+									Application app = packageInfo.makeApplication(false, mInstrumentation);创建Application
+									service.attach(context, this, data.info.name, data.token, app,
+											ActivityManager.getService());
+									service.onCreate();调用服务的onCreate方法
+									mServices.put(data.token, service);
+							
+							requestServiceBindingsLocked(r, execInFg);
+								r.app.thread.scheduleBindService(r, i.intent.getIntent()..)调用ActivityThread的thread的onBind
+									handleBindService((BindServiceData)msg.obj);
+										IBinder binder = s.onBind(data.intent);调用服务的onBind
+										ActivityManager.getService().publishService();通知应用服务bind成功了，并把绑定对象返回BinderProxy
+											mServices.publishServiceLocked((ServiceRecord)token, intent, service);
+												c.conn.connected(r.name, service, false);c.conn = mIServiceConnection 这里调用的是InnerConnection中的connected方法
+													
+											
+							updateServiceClientActivitiesLocked(app, null, true);
+							
+							
+2.startService分析：
+	ContextWrapper.startService
+		mServices.startServiceLocked(caller, service,..)
+			final ProcessRecord callerApp = mAm.getRecordForAppLocked(caller);获取app进程信息
+			ServiceLookupResult res = retrieveServiceLocked(service, resolvedType, callingPackage,..)获取ServiceRecord信息
+			ProcessRecord proc = mAm.getProcessRecordLocked(r.processName..)获取被调用的服务进程信息
+			ComponentName cmp = startServiceInnerLocked(smap, service, r..)
+				 String error = bringUpServiceLocked(r, service.getFlags()..)
+					final String procName = r.processName;获取需要在哪个进程启动，默认是在当前进程，可以根据在manfest中设置process属性指定需要启动的进程名称				
+					realStartServiceLocked(r, app, execInFg);
+						app.thread.scheduleCreateService(r, r.serviceInfo,..)	调用ActivityThread的thread启动service
+							handleCreateService((CreateServiceData)msg.obj);
+								ContextImpl context = ContextImpl.createAppContext(this, packageInfo);
+								context.setOuterContext(service);
+
+								Application app = packageInfo.makeApplication(false, mInstrumentation);创建Application
+								service.attach(context, this, data.info.name, data.token, app,
+										ActivityManager.getService());
+								service.onCreate();调用服务的onCreate方法
+								mServices.put(data.token, service);
+								
+								
+3，区别：
+使用场景不一样，
+startService只是启动一个Service，启动之后，调用的app不关心服务里面具体做了哪些事情，
+而bindService，专门是用来做进程间通信RPC通信使用，具体怎么调用需要依靠本用于进行调度，而服务提供实现方法功能，可以获取执行结果。
+			
+				
+					
+						

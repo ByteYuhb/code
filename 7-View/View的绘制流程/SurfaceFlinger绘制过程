@@ -1,0 +1,179 @@
+SurfaceFlinger绘制过程：
+
+在之前分析ViewRootImpl流程中：在view绘制开始阶段
+/**
+  * ViewRootImpl.setView（）
+  */
+    public void setView(View view, WindowManager.LayoutParams attrs, View panelParentView) {
+            requestLayout(); //View的绘制
+			res = mWindowSession.addToDisplay(mWindow, mSeq, mWindowAttributes,...)这里之前没有分析过		mWindowSession = WindowManagerService的Session类	
+    }
+	Session.java：
+	public int addToDisplay(IWindow window, int seq, WindowManager.LayoutParams attrs,
+            int viewVisibility, int displayId, Rect outContentInsets, Rect outStableInsets,
+            Rect outOutsets, InputChannel outInputChannel) {
+        return mService.addWindow(this, window, seq, attrs, viewVisibility, displayId,   mService = WindowManagerService
+                outContentInsets, outStableInsets, outOutsets, outInputChannel);
+    }
+	WindowManagerService.java：
+	public int addWindow(Session session, IWindow client, int seq,...){
+		 ...
+		WindowToken token = mTokenMap.get(attrs.token);
+		//创建 WindowState
+		WindowState win = new WindowState(this, session, client, token,
+					attachedWindow, appOp[0], seq, attrs, viewVisibility, displayContent);
+		...
+		//调整 WindowManager 的 LayoutParams 参数
+		mPolicy.adjustWindowParamsLw(win.mAttrs);
+		res = mPolicy.prepareAddWindowLw(win, attrs);
+		addWindowToListInOrderLocked(win, true);
+		// 设置 input
+		mInputManager.registerInputChannel(win.mInputChannel, win.mInputWindowHandle);
+		//详见下面 分析1
+		win.attach();
+		mWindowMap.put(client.asBinder(), win);
+		
+		if (win.canReceiveKeys()) {
+			//当该窗口能接收按键事件，则更新聚焦窗口
+			focusChanged = updateFocusedWindowLocked(UPDATE_FOCUS_WILL_ASSIGN_LAYERS,
+					false /*updateInputWindows*/);
+		}
+		assignLayersLocked(displayContent.getWindowList());						
+		...
+	}
+	
+	
+	分析1:win.attach();win = WindowState
+		void attach() {
+			mSession.windowAddedLocked();
+		}
+	Session.java：
+		void windowAddedLocked() {
+			if (mSurfaceSession == null) {
+				mSurfaceSession = new SurfaceSession();创建了SurfaceSession对象 分析2
+				mService.mSessions.add(this);将当前Session对象添加到ServiceManagerService的mSessions列表中
+				if (mLastReportedAnimatorScale != mService.getCurrentAnimatorScale()) {
+					mService.dispatchNewAnimatorScaleLocked(this);
+				}
+			}
+			mNumWindow++;
+		}
+	分析2：mSurfaceSession = new SurfaceSession()
+		/** Create a new connection with the surface flinger. */这个是源码中解释：意思创建一个和surface flinger的连接，那继续看里面
+		public SurfaceSession() {
+			mNativeClient = nativeCreate();native方法，此处mNativeClient= 返回的SurfaceComposerClient对象的地址，之后在native层可以通过这个地址访问SurfaceComposerClient
+		}
+	android_view_SurfaceSession.cpp:
+		static jlong nativeCreate(JNIEnv* env, jclass clazz) {
+			SurfaceComposerClient* client = new SurfaceComposerClient();内部创建了一个SurfaceComposerClient
+			client->incStrong((void*)nativeCreate);引用计数加1
+			return reinterpret_cast<jlong>(client);返回client地址信息，验证了之前说法
+		}
+	SurfaceComposerClient.cpp:
+		SurfaceComposerClient::SurfaceComposerClient()
+			: mStatus(NO_INIT), mComposer(Composer::getInstance())
+		{
+			空实现，初始化操作在第一次被引用的时候onFirstRef中：
+		}
+		
+		void SurfaceComposerClient::onFirstRef() {
+			sp<ISurfaceComposer> sm(ComposerService::getComposerService()); 分析3
+			if (sm != 0) {
+				auto rootProducer = mParent.promote();
+				sp<ISurfaceComposerClient> conn;
+				conn = (rootProducer != nullptr) ? sm->createScopedConnection(rootProducer) :
+						sm->createConnection();分析4：初步预判是返回一个ISurfaceComposer的BnSurfaceComposerClient基类
+				if (conn != 0) {
+					mClient = conn;设置SurfaceComposerClient = BnSurfaceComposerClient基类用于Binder通讯
+					mStatus = NO_ERROR;
+				}
+			}
+		}
+	来看分析3：ComposerService::getComposerService()：初步推测是返回SurfaceFlinger的代理类BpXXX
+	sp<ISurfaceComposer> ComposerService::getComposerService() {
+		ComposerService& instance = ComposerService::getInstance();
+		...
+		return instance.mComposerService;
+	}
+	分析ComposerService::getInstance();
+		ComposerService::ComposerService()
+			: Singleton<ComposerService>() {
+				Mutex::Autolock _l(mLock);
+				connectLocked();
+			}
+	分析connectLocked：
+		void ComposerService::connectLocked() {
+			const String16 name("SurfaceFlinger"); 可以看到此处服务名称为：SurfaceFlinger
+			while (getService(name, &mComposerService) != NO_ERROR) {获取SurfaceFlinger服务的代理类放到mComposerService中：代理类一般为BpSurfaceFlinger
+				usleep(250000);
+			}
+			
+			// Create the death listener.
+			class DeathObserver : public IBinder::DeathRecipient {
+				ComposerService& mComposerService;
+				virtual void binderDied(const wp<IBinder>& who) {
+					ALOGW("ComposerService remote (surfaceflinger) died [%p]",
+						  who.unsafe_get());
+					mComposerService.composerServiceDied();
+				}
+			 public:
+				explicit DeathObserver(ComposerService& mgr) : mComposerService(mgr) { }
+			};
+
+			mDeathObserver = new DeathObserver(*const_cast<ComposerService*>(this));
+			IInterface::asBinder(mComposerService)->linkToDeath(mDeathObserver);注册死亡通知，如果Service挂了，会回调mDeathObserver的binderDied方法
+		}
+	
+	来分析之前native方法中的分析4：sm->createConnection()，根据之前分析可以看出sm= SurfaceFlinger服务的代理类BpSurfaceFlinger
+	执行的是SurfaceFlinger的createConnection方法：
+		sp<ISurfaceComposerClient> SurfaceFlinger::createConnection() {
+			return initClient(new Client(this));1.构造实例2.初始化Client实例
+		}
+		继续：看下Client的构造方法
+		Client::Client(const sp<SurfaceFlinger>& flinger)
+			: Client(flinger, nullptr)
+		{
+		}
+		Client::Client(const sp<SurfaceFlinger>& flinger, const sp<Layer>& parentLayer)
+			: mFlinger(flinger),内部包括SurfaceFlinger
+			  mParentLayer(parentLayer)父类Layer图片
+		{
+		}
+		创建一个class Client : 继承自BnSurfaceComposerClient
+		在来看下：initClient
+		static sp<ISurfaceComposerClient> initClient(const sp<Client>& client) {
+			status_t err = client->initCheck();分析这
+			if (err == NO_ERROR) {initCheck返回NO_ERROR最后返回client实例，否则返回空指针
+				return client;
+			}
+			return nullptr;
+		}
+		分析这：client->initCheck();
+		status_t Client::initCheck() const {
+			return NO_ERROR;
+		}
+	总结下
+	1.SurfaceComposerClient.cpp:的创建实例过程其实是返回一个BnSurfaceComposerClient代理类，之后所有对SurfaceComposerClient和SurfaceFlinger交互都是通过他进行
+	2.Session的mSurfaceSession对象中有个mNativeClient指针指向native层中的SurfaceComposerClient(mClient = Client继承BnSurfaceComposerClient)
+	3.通过调用mService.mSessions.add(this)。WindowManagerService可以通过或列表中的Session，从而最终获取到SurfaceFlinger的内部Client代理类实现wns和sf的通讯
+	4.window在wms中是以session的形式存在每个session对应SurfaceFlinger中的一个代理类
+	window的状态：
+		应用层：Surface
+		SurfaceFlinger：Layer
+		显示器：Buffer
+	
+
+
+
+	
+		
+	
+	
+	
+
+	
+	
+	
+
+	
+	

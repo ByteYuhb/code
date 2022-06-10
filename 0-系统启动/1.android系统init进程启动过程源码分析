@@ -1,0 +1,99 @@
+init进程 0号进程
+
+1.创建和挂载启动所需的文件系统：tmpfs,devpts,proc,sysfs,selinuxfs等
+2.初始化和启动属性服务
+3.设置子进程(zygote进程)异常退出处理函数。
+	在UNIX/linux中，父进程调用fork函数创建子进程，在子进程在异常退出后，如果父进程不知道子进程已经退出，其会在系统进程表中保留进程信息(进程号，退出状态和运行时间等)，
+	这个子进程就变成僵尸进程，系统进程表是一项有限资源，如果系统进程被僵尸进程耗尽就会无法创建新的进程
+4.解析init.rc文件,并启动孵化zygote进程（Android初始化语言）
+
+5.启动孵化zygote进程
+	app_main.cpp
+	int main(){
+		runtime.start("com.android.internal.os.ZygoteInit", args, zygote);
+			AndroidRuntime.cpp:start:
+			startVm(&mJavaVM, &env, zygote) != 0；启动java虚拟机
+			startReg(env) < 0；注册android启动需要的jni方法
+			env->CallStaticVoidMethod(startClass, startMeth, strArray); startClass="com.android.internal.os.ZygoteInit" startMeth=main方法
+			即调用ZygoteInit的main方法
+			ZygoteInit.java:main	
+				zygoteServer.registerServerSocket(socketName);创建一个Server端的socket，socketName=“zygote” 用于接收应用的请求创建应用进程fork方式
+					ZygoteServer.java:registerServerSocket
+					
+				preload(bootTimingsTraceLog);预加载系统类和系统资源
+					preloadClasses();
+					preloadResources();
+					preloadOpenGL();
+					preloadSharedLibraries();
+					preloadTextResources();
+					WebViewFactory.prepareWebViewInZygote();
+				startSystemServer(abiList, socketName, zygoteServer);启动SystemServer进程
+					pid = Zygote.forkSystemServer(parsedArgs.uid, parsedArgs.gid...);fork the system server process
+					if (pid == 0) {在SystemServer进程中
+						zygoteServer.closeServerSocket();关闭SystemServer进程中的socket，因为是通过fork创建，子进程也会有socket服务，所有需要关闭子进程的socket通道
+						handleSystemServerProcess(parsedArgs);
+							cl = createPathClassLoader(...);创建PathClassLoader
+							ZygoteInit.zygoteInit(parsedArgs.targetSdkVersion, parsedArgs.remainingArgs, cl);注释2
+								RuntimeInit.commonInit();RuntimeInit初始化操作
+									RuntimeInit.java:commonInit
+									Thread.setDefaultUncaughtExceptionHandler(new KillApplicationHandler());设置未捕获异常时回调的Handler,可以在app中替换
+								ZygoteInit.nativeZygoteInit(); 对应AndroidRunTime：com_android_internal_os_ZygoteInit_nativeZygoteInit:
+									gCurRuntime->onZygoteInit(); gCurRuntime = AppRuntime在app_main.cpp中初始化
+										sp<ProcessState> proc = ProcessState::self();
+										proc->startThreadPool();启动线程池，内部会循环获取其他应用发过来的数据，根据binder机制
+								RuntimeInit.applicationInit(targetSdkVersion, argv, classLoader);
+									invokeStaticMain(args.startClass, args.startArgs, classLoader);
+										cl = Class.forName(className, true, classLoader); 前面传入的是"com.android.server.SystemServer"，加载类SystemServer
+										m = cl.getMethod("main", new Class[] { String[].class });反射获取SystemServer的main方法
+										throw new Zygote.MethodAndArgsCaller(m, argv);可以再注释1出捕获，最终进入SystemServer的main方法
+									
+					}
+				zygoteServer.runSelectLoop(abiList);这个还是在app_main进程中等待AMS创建新的应用程序进程 注释3
+					while (true) {
+						StructPollfd[] pollFds = new StructPollfd[fds.size()];
+						for (int i = 0; i < pollFds.length; ++i) {
+							pollFds[i] = new StructPollfd();
+							pollFds[i].fd = fds.get(i);
+							pollFds[i].events = (short) POLLIN;
+						}
+						try {
+							//poll函数使用pollfd类型的结构来监控一组文件句柄
+							//https://blog.csdn.net/sijinxiaotongxue/article/details/81988411
+							Os.poll(pollFds, -1);
+						} catch (ErrnoException ex) {
+							throw new RuntimeException("poll failed", ex);
+						}
+						for (int i = pollFds.length - 1; i >= 0; --i) {
+							if ((pollFds[i].revents & POLLIN) == 0) {
+								continue;
+							}
+							if (i == 0) {i=0为connect阶段
+								ZygoteConnection newPeer = acceptCommandPeer(abiList);
+								peers.add(newPeer);
+								fds.add(newPeer.getFileDesciptor());
+							} else {
+								//不为0则说明AMS向孵化进程发出一个创建进程的请求，调用fork方式创建进程
+								boolean done = peers.get(i).runOnce(this);
+									acceptCommandPeer.runOnce(this);
+										args = readArgumentList();读客户端发来的数据
+										pid = Zygote.forkAndSpecialize(...) 调用fork创建新的进程										
+								if (done) {创建成功，移除ZygoteConnection
+									peers.remove(i);
+									fds.remove(i);
+								}
+							}
+						}
+					}
+					if (pid == 0) { 0为子进程
+						zygoteServer.closeServerSocket();关闭子进程的socket连接，子进程不需要创建socket
+						handleChildProc(parsedArgs, descriptors, childPipeFd, newStderr);处理子进程
+							ZygoteInit.zygoteInit(parsedArgs.targetSdkVersion,parsedArgs.remainingArgs, null /* classLoader */);和注释2一样内部为初始化和创建子进程的线程池和启动子进程
+								
+					}
+				catch (Zygote.MethodAndArgsCaller caller) {
+					caller.run();子进程入口 注释1，zygote进程还是在注释3处等待
+				} 
+				
+			
+	}
+	

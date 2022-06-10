@@ -1,0 +1,176 @@
+调试Activity栈管理
+
+在桌面调用：adb shell dumpsys activity
+结果如下：
+	ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
+	Display #0 (activities from top to bottom):
+	  Stack #0:
+	  mFullscreen=true
+	  mBounds=null
+		Task id #419
+		mFullscreen=true
+		mBounds=null
+		mMinWidth=-1
+		mMinHeight=-1
+		mLastNonFullscreenBounds=null
+		  TaskRecord{ace8ff3 #419 I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 StackId=0 sz=1}
+		  Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000100 cmp=com.google.android.apps.nexuslauncher/.NexusLauncherActivity}
+			Hist #0: ActivityRecord{e6686ec u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t419}
+			  Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000100 cmp=com.google.android.apps.nexuslauncher/.NexusLauncherActivity }
+			  ProcessRecord{c3ec379 3555:com.google.android.apps.nexuslauncher/u0a22}
+
+		Running activities (most recent first):
+		  TaskRecord{ace8ff3 #419 I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 StackId=0 sz=1}
+			Run #0: ActivityRecord{e6686ec u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t419}
+
+		mResumedActivity: ActivityRecord{e6686ec u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t419}
+
+	  Stack #5:
+	  mFullscreen=true
+	  mBounds=null
+		Task id #440
+		mFullscreen=true
+		mBounds=null
+		mMinWidth=-1
+		mMinHeight=-1
+		mLastNonFullscreenBounds=null
+		  TaskRecord{2c184b0 #440 A=com.android.systemui U=0 StackId=5 sz=1}
+		  Intent { flg=0x10804000 cmp=com.android.systemui/.recents.RecentsActivity }
+			Hist #0: ActivityRecord{83493b6 u0 com.android.systemui/.recents.RecentsActivity t440}
+			  Intent { flg=0x10804000 cmp=com.android.systemui/.recents.RecentsActivity }
+			  ProcessRecord{92a0712 5724:com.android.systemui/u0a28}
+
+		Running activities (most recent first):
+		  TaskRecord{2c184b0 #440 A=com.android.systemui U=0 StackId=5 sz=1}
+			Run #0: ActivityRecord{83493b6 u0 com.android.systemui/.recents.RecentsActivity t440}
+
+
+
+	
+实际上就是如下图所示的结构，这里的Stack #0就是ActivityStackSupervisor中的mHomeStack，mHomeStack管理的是Launcher相关的任务。	
+stack#5为系统创建的一个RecentsActivity任务栈，如果点击了任务栈按钮就会出现这个栈。刚开机不会出现
+图：桌面栈.eddx
+
+在桌面上启动一个应用后：
+	Stack #1:
+	  mFullscreen=true
+	  mBounds=null
+		Task id #878
+		mFullscreen=true
+		mBounds=null
+		mMinWidth=-1
+		mMinHeight=-1
+		mLastNonFullscreenBounds=null
+		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+		  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity }
+			Hist #0: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
+			  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity bnds=[437,373][644,651] }
+			  ProcessRecord{91f3fa7 24522:com.android.yuhb.test/u0a89}
+
+		Running activities (most recent first):
+		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+			Run #0: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
+
+		mResumedActivity: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
+
+可以看到多出了一个Stack #1：这个就是新建的一个stack1
+这里的Stack #1就是ActivityStackSupervisor中的mFocusStack，管理非Launcher任务
+图：打开一个应用后的任务栈.eddx
+
+在启动应用界面再次以Standard方式启动一个Activity
+
+1.1:默认模式从A-B-C
+	Display #0 (activities from top to bottom):
+	  Stack #1:
+	  mFullscreen=true
+	  mBounds=null
+		Task id #878
+		mFullscreen=true
+		mBounds=null
+		mMinWidth=-1
+		mMinHeight=-1
+		mLastNonFullscreenBounds=null
+		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=3}
+		  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity }
+			Hist #2: ActivityRecord{6905c8a u0 com.android.yuhb.test/.CActivity t878}
+			  Intent { cmp=com.android.yuhb.test/.CActivity }
+			  ProcessRecord{91f3fa7 24522:com.android.yuhb.test/u0a89}
+			Hist #1: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}
+			  Intent { cmp=com.android.yuhb.test/.BActivity }
+			  ProcessRecord{91f3fa7 24522:com.android.yuhb.test/u0a89}
+			Hist #0: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
+			  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity bnds=[437,373][644,651] }
+
+		Running activities (most recent first):
+		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=2}
+			Run #1: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}
+			Run #0: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
+
+		mResumedActivity: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}
+可以看到：在Task id #878中多出了一个Hist #1和Hist #1: ActivityRecord CActivity且放在任务顶端。
+结果如图：A-B-C(Standard)
+
+1.2:在1.1基础上启动singleTop模式的C;
+获取的结果和前面是一样，且C的onNewIntent回调了，
+结果如图:A-B-C(Standard)-C(singleTop)
+1.3:在1.1基础上启动singleTask模式的B
+结果：
+Display #0 (activities from top to bottom):
+	  Stack #1:
+	  mFullscreen=true
+	  mBounds=null
+		Task id #878
+		mFullscreen=true
+		mBounds=null
+		mMinWidth=-1
+		mMinHeight=-1
+		mLastNonFullscreenBounds=null
+		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=3}
+		  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity }
+			Hist #1: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}
+			  Intent { cmp=com.android.yuhb.test/.BActivity }
+			  ProcessRecord{91f3fa7 24522:com.android.yuhb.test/u0a89}
+			Hist #0: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
+			  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity bnds=[437,373][644,651] }
+
+		Running activities (most recent first):
+		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=2}
+			Run #1: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}
+			Run #0: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
+
+在B栈上方的C栈出栈，且回调了B的onNewIntent。
+结果见图：A-B-C(Standard)-B(singleTask).eddx
+
+1.4:在1.1基础上启动singleInstance模式的D
+
+结果： TaskRecord{7e15509 #889 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+        Run #3: ActivityRecord{f8cc6dc u0 com.android.yuhb.test/.DActivity t889}
+      TaskRecord{4f95fb0 #888 A=com.android.yuhb.test U=0 StackId=1 sz=3}
+        Run #2: ActivityRecord{d76f950 u0 com.android.yuhb.test/.CActivity t888}
+        Run #1: ActivityRecord{ff2c64c u0 com.android.yuhb.test/.BActivity t888}
+        Run #0: ActivityRecord{fec30c1 u0 com.android.yuhb.test/.AActivity t888}
+
+可以看到在stack#1中新建了一个TaskRecord，里面存储了一个D的ActivityRecord
+结果在图：A-B-C(Standard)-D(singleInstance).eddx
+
+1.5：在1.4基础上调用A
+	 Running activities (most recent first):
+      TaskRecord{1db3cfe #892 A=com.android.yuhb.test U=0 StackId=1 sz=4}
+        Run #4: ActivityRecord{986782d u0 com.android.yuhb.test/.AActivity t892}
+      TaskRecord{81e0b9 #893 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+        Run #3: ActivityRecord{b042fbb u0 com.android.yuhb.test/.DActivity t893}
+      TaskRecord{1db3cfe #892 A=com.android.yuhb.test U=0 StackId=1 sz=4}
+        Run #2: ActivityRecord{12459a8 u0 com.android.yuhb.test/.CActivity t892}
+        Run #1: ActivityRecord{c5c2e24 u0 com.android.yuhb.test/.BActivity t892}
+        Run #0: ActivityRecord{890e0cc u0 com.android.yuhb.test/.AActivity t892}
+
+可以看到在singleInstance任务栈上创建其他Activity会在原TaskRecord#892上创建了一个ActivityRecord(这个和taskAffinity有关)，所以singleInstance任务栈上只能有一个ActivityRecord
+
+
+
+
+	
+
+
+
+

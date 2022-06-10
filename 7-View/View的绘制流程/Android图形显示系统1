@@ -1,0 +1,88 @@
+Android图形显示系统1
+1.简介：
+	上层-->buffer-->framework-->buffer-->显示屏
+	这里的buffer缓冲区，大家可以理解为带有宽高和像素密度的内存区块。
+	可以理解为上层生产，下层消费模型。
+2.从下到上讲解
+	2.1.显示屏
+		显示屏上的内容是从硬件帧缓冲区中读取，从buffer的起始地址开始，从上往下从左往右扫描整个buffer，将内容映射到显示屏上。
+		123456
+		789032
+		324242   -------->screen显示屏
+		556456
+		676578
+	    按生产者消费者模式，
+		1.画面撕裂：如果在统一个buffer中读取和写入数据，则会导致前一帧还没读取完，后一帧又写入，导致一帧内显示多帧，画面撕裂的感觉
+		2.双缓冲：为了解决画面撕裂问题，硬件层除了提供一个buffer进行显示，又提供了一个buffer用于绘制写入，当上一帧显示完后，进行buffer交换。也就是我们所说的双缓冲
+		3.上面是假设“屏幕显示完后，写入的buffer也会准备好数据”，然而大部分情况不会是这种假设：引入屏幕刷新率（HZ）和系统帧速率（FPS）
+			屏幕刷新率：1s内屏幕刷新次数，也就是1s内读取buffer多少次，一般是60HZ，也就是16.6ms刷新一次屏幕
+			系统帧速率：1s内合成的帧数，该值大小由硬件和算法决定。
+			由上面可知，不会屏幕刷新率越高，屏幕就越流畅，还和系统帧速率有关，即和硬件算法有关
+			
+			屏幕刷新率和系统帧速率在不同步的情况：
+			1.屏幕刷新率比系统帧速率快：导致上一帧显示完后，下一帧数据还没准备好，只能显示上一帧的数据，造成一帧显示多次，给用户产生卡顿现象
+			2.系统帧速率比屏幕刷新率快：此时上一帧还没显示完，下一帧数据很早就准备好了，如果此时进行交换屏幕就会出现撕裂感觉，如果不交换，buffer会被占用，CPU闲置状态
+			为了解决上面屏幕节奏不一致的问题。引入了垂直同步（VSync）概念
+		4.垂直同步（VSync）：在屏幕扫描完一帧之后，开始扫描下一帧之前，发出一个VSync信号，该信号用来切换前后缓冲区
+			通过上面的分析可以看出，屏幕的显示节奏是固定的，操作系统需要配合屏幕的显示，在固定的时间内准备好下一帧，以供屏幕进行显示。两者通过VSync信号来实现同步。
+	2.2：SurfaceFlinger-图形合成者
+		如果说屏幕是消费者，那么SurfaceFlinger相对屏幕来说就是生产者，其具有如下特性：
+			1.作为上层App的消费者，作为下层屏幕显示的生产者，承上启下
+			2.负责图形的合成
+			3.和AMS一样是一个系统服务
+		屏幕分层：1.系统通知栏，系统虚拟按键，系统应用还有应用app，每层都是一个Surface，通过画笔Canvas在Surface上作画，其实是写入buffer数据，Surface是buffer的一个封装
+		SurfaceFlinger使用过程：
+			接收应用发过来的多个Surface，将多个Surface进行合成，放入到后缓冲区中，等待下一个VSync信号，切换到前缓冲区，等待屏幕读取显示
+			
+		什么是Surface？
+			1.对应上层的一个Window（对话框、Activity、状态栏）
+			2.作为上层图形绘制的画板
+			3.Canvas是画笔，上层通过调用Canvas的API向Surface上绘制图形
+			4.Surface内部存在多个缓冲区，形成一个BufferQueue，Surface是对Buffer的进一步封装
+		Surface内部提供一个BufferQueue，与上层和SurfaceFlinger形成一个生产者消费者模型，上层对应Producer，SurfaceFlinger对应Consumer。三者通过Buffer产生联系，
+		每个Buffer都有四种状态：
+			Free：可被上层使用
+			Dequeued：出列，正在被上层使用
+			Queued：入列，已完成上层绘制，等待SurfaceFlinger合成
+			Acquired：被获取，SurfaceFlinger正持有该Buffer进行合成
+		Buffer的一次转移过程大致为：
+			1.从BufferQueue转移到上层
+			2.上层绘制完成再放回BufferQueue
+			3.接着SurfaceFlinger再拿去合成
+			4.最后又放回BufferQueue
+			如此循环，形成一个Buffer被循环使用的过程。
+	2.4: 双缓冲其实还会有问题：
+		1.因为屏幕刷新是固定16.6ms，但是数据处理写入却不是固定时间内，可能导致，在第二次VSync信号到来的时候，第二帧还没处理或者没有处理好，导致显示的还是第一帧，卡顿现象
+			造成这个现象的原因是屏幕绘制的时间是一个不确定的时间。
+			于是引入了Choreographer：编舞者
+				1.Choreographer通过DisplayEventReceiver向framework层注册下一个VSync信号
+				2.当底层产生下一个VSync消息时，该信号将会发送给DisplayEventReceiver，最后传递给Choreographer
+				3.Choreographer收到VSync信号之后，向主线程MessageQueue发送了一个异步消息
+				4.最后，异步消息的执行者是ViewRootImpl，也就是真正开始绘制下一帧了
+			使用编舞者完美解决了之前屏幕绘制的时间不确定的情况
+		2.虽然有了编舞者可能还会有另外一种情况：CPU和GPU的绘制工作在下一个VSync信号来之前还未完成，这样，SurfaceFlinger和GPU各占用两个buffer，导致下一帧显示的还是第一帧且CPU空闲，造成卡顿现象
+			于是谷歌引入了第三个buffer：CPU和GPU还有SurfaceFlinger各占一个Buffer，并行处理图形
+			在第一个VSync到来时，尽管SurfaceFlinger占了一个Buffer，GPU又占了一个Buffer，CPU仍然可以在第三个Buffer中开始下一帧的计算，整个显示过程就开始时卡顿了一帧，之后都是流畅的
+			当然系统并非一直开启三个Buffer，因为Buffer是需要消耗资源的
+		3.并且，我们会发现，上图中，GPU处理好的图形，需要跨越两个VSync信号，才能显示。这样的话，给用户的影响是一个延迟的现象：
+			对于应用程序开发人员来说，重点还是上层的优化，对自己的应用程序的内存，UI，数据等进行优化。
+总结：
+	1.应用App和SurfaceFlinger为生产者和消费者模式，SurfaceFlinger和显示屏为生产者和消费者模式
+	2.为了解决画面撕裂，引入双缓冲
+	3.为了解决上面屏幕节奏不一致的问题。引入了垂直同步（VSync）概念，SurfaceFlinger收到VSync信号，则立即切换buffer
+	4.为了解决绘制时间不固定，引入编舞者Choreographer
+	5.为了解决SurfaceFlinger和GPU同时占用两个Buffer的，CPU空闲的问题，引入第三个Buffer
+	6.应用App和SurfaceFlinger之间使用Surface传递，其实是Surface中给的BufferQueue
+	7.应用开发者需要有对上层的优化，对自己的应用程序的内存，UI，数据等进行优化的能力
+
+
+
+ SurfaceFlinger在系统启动阶段作为系统服务被加载。应用程序中的每个窗口，对应本地代码中的Surface，
+ 而Surface又对应于SurfaceFlinger中的各个Layer，SurfaceFlinger的主要作用是为这些Layer申请内存，
+ 根据应用程序的请求管理这些Layer显示、隐藏、重画等操作，
+ 最终由SurfaceFlinger把所有的Layer组合到一起，显示到显示器上
+
+			
+		
+		
+		

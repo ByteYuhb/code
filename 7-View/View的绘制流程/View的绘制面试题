@@ -1,0 +1,62 @@
+view的绘制面试题
+1.MeasureSpec是什么
+	MeasureSpec表示的是一个32位的整形值，它的高2位表示测量模式SpecMode，低30位表示某种测量模式下的规格
+	大小SpecSize。MeasureSpec是View类的一个静态内部类，用来说明应该如何测量这个View。
+	它由三种测量模式，
+	如下：
+	EXACTLY：精确测量模式
+	AT_MOST：最大值测量模式
+	UNSPECIFIED：不指定测量模式, 父视图没有限制子视图的大小，子视图可以是想要的任何尺寸，通常用于系统内
+	部，应用开发中很少用到。
+	这三种模式主要用在两个地方，
+	1.一个父视图根据自身测量模式获取子视图测量模式的时候，
+	2.二是在子视图根据自身测量模式设置自身宽高的时候
+	MeasureSpec通过将SpecMode和SpecSize打包成一个int值来避免过多的对象内存分配，为了方便操作，其提供了
+	打包和解包的方法，打包方法为makeMeasureSpec，解包方法为getMode和getSize。
+	
+2.子View创建MeasureSpec创建规则是什么
+	根据父容器的MeasureSpec和子View的LayoutParams等信息计算子View的MeasureSpec
+	如果父模式是EXACTLY,说明是父View的大小是固定的
+		子View大小设置的是一个固定值，那就给子View的大小也设置固定值，模式为EXACTLY
+		子View大小设置的是MATCH_PARENT，因为父View是固定大小，所以可以肯定子View大小也设置固定值，模式为EXACTLY
+		子View大小设置的是WRAP_CONTENT，因为父View是固定大小，所以可以让子View大小自己设定，但是最大不能超过父View，所以模式是AT_MOST，最大为父View的大小
+	如果父模式是AT_MOST,说明是父View的大小是不固定的，但是有个最大值
+		子View大小设置的是一个固定值，那就给子View的大小也设置固定值，模式为EXACTLY
+		子View大小设置的是MATCH_PARENT，因为父View是View有个最大值，可以设置为父view状态一样，模式AT_MOST最大不超过父view的大小
+		子View大小设置的是WRAP_CONTENT，因为父View是有个最大值，可以设置为父view状态一样，模式AT_MOST最大不超过父view的大小
+
+3.自定义View wrap_content不起作用的原因？
+	1.View的默认宽高是通过View的getDefaultSize获取，如果是精确模式(EXACTLY)或者最大值模式(At_MOST),则默认大小是父View给子View的默认大小
+	2.在测量过程中如果子View是wrap_content模式，则会给子View提供的测量结果是AT_MOST，最大值为父View的大小，所以子View设置Wrap_content，最终显示的是父View的大小
+	3.可以根据自身需求，在onMeasure方法内部，对wrap_context进行判断，并设置需要的大小
+
+4.在Activity中获取某个View的宽高有几种方法
+	1.Activity/View#onWindowFocusChanged：此时View已经初始化完毕，当Activity的窗口得到焦点和失去焦点时
+		均会被调用一次，如果频繁地进行onResume和onPause，那么onWindowFocusChanged也会被频繁地调用。
+	2.view.post(runnable)： 通过post将runnable放入ViewRootImpl的RunQueue中，RunQueue中runnable最后
+		的执行时机，是在下一个performTraversals到来的时候，也就是view完成layout之后的第一时间获取宽高。
+	3.ViewTreeObserver#addOnGlobalLayoutListener：当View树的状态发生改变或者View树内部的View的可见性
+		发生改变时，onGlobalLayout方法将被回调。
+
+5.为什么onCreate获取不到View的宽高
+	因为View的宽高是在onResume之后通过onMeasure方法绘制出来
+6.View#post与Handler#post的区别
+	View的post：
+	public boolean post(Runnable action) {
+        final AttachInfo attachInfo = mAttachInfo;
+        if (attachInfo != null) {
+            return attachInfo.mHandler.post(action);
+        }
+
+        // Postpone the runnable until we know on which thread it needs to run.
+        // Assume that the runnable will be successfully placed after attach.
+        getRunQueue().post(action);
+        return true;
+    }
+	对于View#post当View已经attach到window，直接调用UI线程的Handler发送runnable。如果View还未attach到
+	window，将runnable放入ViewRootImpl的RunQueue中，而不是通过MessageQueue。RunQueue的作用类似于
+	MessageQueue，只不过这里面的所有runnable最后的执行时机，是在下一个performTraversals到来的时候，也就
+	是view完成layout之后的第一时间获取宽高，MessageQueue里的消息处理的则是下一次loop到来的时候。
+7.Android绘制和屏幕刷新机制原理
+	
+	

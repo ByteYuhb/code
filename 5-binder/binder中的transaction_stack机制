@@ -1,0 +1,29 @@
+transaction_stack机制：
+首先来了解数据CMD传输过程：
+
+先分析一般情况下：
+client							server
+1.发送BC_TRANSACTION  ----->		2.收到BR_TRANSACTION	
+	^
+4.收到BR_REPLY		  <-----		3.回复BC_REPLAY	
+
+按1,2,3,4步骤进行数据传输
+发送给谁？谁接收？回复给谁？
+这就用到了binder内部的transaction_stack机制：
+	1)client发送BC_TRANSACTION的时候，会在内部新建一个transaction_stack，里面标识了from谁发送的，to_proc发送给哪个进程，to_thread发送给进程的哪个线程，并通过from_parent将其入栈
+	2)在server收到BR_TRANSACTION会从proc.todo链表中拿到client中的transaction_stack，并通过to_parent将其入栈
+	3)在server回复BC_REPLAY的时候，将server的transaction_stack出栈通过to_parent，拿到需要回复的进程信息。
+	4)在client收到BR_REPLY的时候，将client中给的transaction_stack出栈通过from_parent。
+	
+
+
+双向传输：
+transaction_stack其实也是个类似链表的数据结构：
+
+null<-(from-parent)P1{to-parent}-----><-(from-parent)P2{to-parent}-----><-(from-parent)P3{to-parent}
+
+from-parent表示prev
+to-parent表示next
+P中包含(from和to)
+
+通过这种类链表的数据结构，可以在任何进程中找到需要发送和回复的进程或线程

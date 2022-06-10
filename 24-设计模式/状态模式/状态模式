@@ -1,0 +1,149 @@
+状态模式：
+定义：
+	当控制一个对象状态转换的条件表达式过于复杂时，可以把复杂逻辑提取出来，用不同的状态进行表示，
+	如：线程状态：NEW RUNNING。。。
+
+结构：
+	Context:上下文，内部存储一个状态对象，每个状态运行完后，可能会切换到下一个状态
+
+	抽象状态类（Abstract）：定义状态的名称还有状态环境引用，用于切换状态
+
+	具体状态实现类（Concrete）：实现抽象状态的子类
+
+UML：
+
+代码：
+
+
+	抽象状态接口：
+	public abstract class ThreadState{
+		public String stateName;
+	}
+	Context:上下文
+	public class ThreadContext {
+		public ThreadState state;
+		public ThreadContext(){
+			this.state = new NewState();
+		}
+		public void setState(ThreadState state){
+			this.state = state;
+		}
+		public ThreadState getState(){
+			return state;
+		}
+
+		public void start(){
+			((NewState)state).start(this);
+		}
+		public void getCPU(){
+			((RunnableState)state).getCPU(this);
+		}
+		public void suspend(){
+			((RunningState)state).suspend(this);
+		}
+		public void stop(){
+			((RunningState)state).stop(this);
+		}
+		public void resume(){
+			((SuspendState)state).resume(this);
+		}
+		//NewState：
+		public class NewState extends ThreadState{
+			public NewState(){
+				this.stateName = "new";
+				System.out.println("当前状态为new");
+			}
+			public void start(ThreadContext context){
+				if("new".equals(stateName)){
+					context.setState(new RunnableState());
+				}
+			}
+		}
+		//RunnableState:
+		public class RunnableState extends ThreadState{
+			public RunnableState(){
+				this.stateName = "runnable";
+				System.out.println("当前状态为runnable");
+			}
+			public void getCPU(ThreadContext context){
+				if("runnable".equals(stateName)){
+					context.setState(new RunningState());
+				}
+			}
+		}
+		//RunningState:
+		public class RunningState extends ThreadState{
+			public RunningState(){
+				this.stateName = "running";
+				System.out.println("当前状态为running");
+			}
+			public void suspend(ThreadContext context){
+				if("running".equals(stateName)){
+					context.setState(new SuspendState());
+				}
+			}
+			public void stop(ThreadContext context){
+				if("running".equals(stateName)){
+					context.setState(new DeadState());
+				}
+			}
+		}
+		//SuspendState:
+		public class SuspendState extends ThreadState{
+			public SuspendState(){
+				this.stateName = "suspend";
+				System.out.println("当前状态为suspend");
+			}
+			public void resume(ThreadContext context){
+				if("suspend".equals(stateName)){
+					context.setState(new RunnableState());
+				}
+			}
+		}
+		//DeadState:
+		public class DeadState extends ThreadState{
+			public DeadState(){
+				this.stateName = "dead";
+				System.out.println("当前状态为dead");
+			}
+		}
+	}
+	客户端：
+	main{
+		ThreadContext context = new ThreadContext();
+		context.start();
+		context.getCPU();
+		context.suspend();
+		context.resume();
+		context.getCPU();
+		context.stop();
+
+	}
+	结果：
+		当前状态为new
+		当前状态为runnable
+		当前状态为running
+		当前状态为suspend
+		当前状态为runnable
+		当前状态为running
+		当前状态为dead
+场景：
+	1.当一个对象的行为取决于它的状态，并且在运行时就需要根据状态有不同的行为，就可以考虑使用状态模式
+	2.一个操作中含有很多分支结构，并且这些分支决定于他的状态就可以考虑使用状态模式
+
+扩展：
+状态模式和责任链模式区别：
+	某些情况下很相似，
+	区别在于状态模式强调内在状态改变，责任链模式强调外部节点处理者的转变
+	代码上看状态模式知道下一个处理者，而责任链模式不知道处理者
+状态模式和策略模式区别：
+	UML结构图基本一样，区别在于策略模式算法之间是没关系的，泽一即可，但是状态模式的状态之间是有联系的
+
+
+
+
+
+
+
+
+

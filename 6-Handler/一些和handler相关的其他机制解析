@@ -1,0 +1,124 @@
+1.ThreadLocal
+	Looper中的ThreadLocal在调用set和get时会获取当前线程的tid，所有的操作都是在当前线程的sThreadLocalMap里面操作的，可以达到线程隔离，
+	伪代码：
+	public void set(T value) {
+        Thread t = Thread.currentThread();
+        ThreadLocalMap map = getMap(t);
+					return t.threadLocals;可以看出此map是当前线程的ThreadLocalMap，
+					ThreadLocalMap类似HashMap，里面使用的是一个数组表示，下标是通过当前ThreadLocal的hash值计算出来。
+        if (map != null)
+            map.set(this, value);
+        else
+            createMap(t, value);
+    }
+
+2.nativePollOnce，nativeWake epool原理
+
+	简介：调用
+	nativePollOnce利用linux的epool系统调用功能，可以监事文件描述符的IO功能并休眠，
+	nativeWake给该文件描述付写入数据，nativePollOnce线程监听到IO操作，唤醒线程。
+
+3.同步屏障机制
+	使用原理：
+	  3.1：使用private int postSyncBarrier(long when) {}插入一个msg.target为空的msg到链表中
+	  3.2：在looper.loop中的queue.next中
+		if (msg != null && msg.target == null) {
+			// Stalled by a barrier.  Find the next asynchronous message in the queue.
+			do {
+				prevMsg = msg;
+				msg = msg.next;
+			} while (msg != null && !msg.isAsynchronous());//同步屏障机制
+		}
+		这段代码会取出链表中的第一个异步消息进行处理。也就是所谓的同步消息受到了限制。
+		再换句话说，同步屏障为Handler消息机制增加了一种简单的优先级机制，异步消息的优先级要高于同步消息。	
+  
+	应用场景：
+		Android应用框架中为了更快的响应UI刷新事件在ViewRootImpl.scheduleTraversals中使用了同步屏障
+		void scheduleTraversals() {
+			if (!mTraversalScheduled) {
+				mTraversalScheduled = true;
+				//设置同步障碍，确保mTraversalRunnable优先被执行
+				mTraversalBarrier = mHandler.getLooper().getQueue().postSyncBarrier();
+				//内部通过Handler发送了一个异步消息
+				mChoreographer.postCallback(
+						Choreographer.CALLBACK_TRAVERSAL, mTraversalRunnable, null);
+				if (!mUnbufferedInputDispatch) {
+					scheduleConsumeBatchedInput();
+				}
+				notifyRendererOfFramePending();
+				pokeDrawLockIfNeeded();
+			}
+		}
+		mTraversalRunnable调用了performTraversals执行measure、layout、draw
+
+		为了让mTraversalRunnable尽快被执行，在发消息之前调用MessageQueue.postSyncBarrier设置了同步屏障
+
+4.mQuitting标志在哪里设置
+	mQuitting在Looper.quit的时候会设置为true，这样在清空MessageQueue中的msg，并唤醒looper.loop线程，当
+	检测到msg为空，这时会退出loop循环。子线程就退出了。
+	Message msg = queue.next(); // might block
+	if (msg == null) {
+		// No message indicates that the message queue is quitting.
+		return;
+	}
+5.HandlerThread的使用：
+	5.1.创建一个HandlerThread； HandlerThread handlerThread = new HandlerThread("downloadImage");
+	5.2.启动HandlerThread线程：    
+	  //必须先开启线程
+      handlerThread.start();
+	5.3.构建循环消息处理机制：
+	  /**
+     * 该callback运行于子线程
+     */
+    class ChildCallback implements Handler.Callback {
+        @Override
+        public boolean handleMessage(Message msg) {
+            //在子线程中进行相应的网络请求
+
+            //通知主线程去更新UI
+            mUIHandler.sendMessage(msg1);
+            return false;
+        }
+    }
+	5.4.构建异步handler
+	Handler childHandler = new Handler(handlerThread.getLooper(),new ChildCallback());子线程handler
+原理：通过	5.4中传入5.2中start方法run中生成的子线程looper，是ChildCallback方法运行在子线程中。
+两处关键点：
+
+@Override
+public void run() {
+        mTid = Process.myTid();
+        Looper.prepare();
+        synchronized (this) {
+            mLooper = Looper.myLooper();
+            notifyAll(); //唤醒等待线程
+        }
+        Process.setThreadPriority(mPriority);
+        onLooperPrepared();
+        Looper.loop();
+        mTid = -1;
+   }
+   
+public Looper getLooper() {
+ //先判断当前线程是否启动了
+   if (!isAlive()) {
+       return null;
+   }
+   // If the thread has been started, wait until the looper has been created.
+   synchronized (this) {
+       while (isAlive() && mLooper == null) {
+           try {
+               wait();//等待唤醒
+           } catch (InterruptedException e) {
+           }
+       }
+   }
+   return mLooper;
+}   
+6.另外除了发送消息之外，我们还有以下几种方法可以在子线程中进行UI操作：
+
+	1. Handler的post()方法
+
+	2. View的post()方法
+
+	3. Activity的runOnUiThread()方法

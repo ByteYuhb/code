@@ -1,0 +1,79 @@
+VirtualAPK四大组件源码分析:
+https://mp.weixin.qq.com/s?__biz=MzAxMTI4MTkwNQ==&mid=2650823488&idx=1&sn=2976c8ddc0c206149b14c527260f7766&chksm=80b78fdeb7c006c8a9585db794c51e799049ec50d23c4d738c78d77454f6b0291227a00e2def&mpshare=1&scene=1&srcid=0712oTUswGWi172UK0Azpg4i&key=8652b956ca1971a47b1e263b435230c7469d30646ddbe6ce2fb781033d6eba5215c9fd7e5eaf0bd73dd5da279b32dd901261d5e55bf32997bc333ad8a059e095e2193a5baa805447fc49cd315fca4404&ascene=0&uin=MTI0NjM4NTEyMA%3D%3D&devicetype=iMac+MacBookPro11%2C4+OSX+OSX+10.11.1+build(15B42)&version=12010110&nettype=WIFI&fontScale=100&pass_ticket=mswE9bS3QeCxTOoepaUWh9VXHxeYMosdkHkAydyR09JHQkVe%2BAJHCCnPQrRpBfQN
+
+VirtualAPK 资源篇
+https://www.notion.so/VirtualAPK-1fce1a910c424937acde9528d2acd537
+
+
+VirtualAPK-插件开发指南
+https://github.com/didi/VirtualAPK/wiki/VirtualAPK-%E6%8F%92%E4%BB%B6%E5%BC%80%E5%8F%91%E6%8C%87%E5%8D%97
+
+
+PluginManager.getInstance(base)：
+-->new PluginManager(context)
+-->hookCurrentProcess();
+--> hookInstrumentationAndHandler(); 
+		//Hook了ActivityThread的mInstrumentation字段为VAInstrumentation，用于设置占位Activity
+		//Hook了ActivityThread的Handler M的mCallback字段 用于还原Activity
+		protected void hookInstrumentationAndHandler() {
+			try {
+				ActivityThread activityThread = ActivityThread.currentActivityThread();
+				Instrumentation baseInstrumentation = activityThread.getInstrumentation();
+	//            if (baseInstrumentation.getClass().getName().contains("lbe")) {
+	//                // reject executing in paralell space, for example, lbe.
+	//                System.exit(0);
+	//            }
+		
+				final VAInstrumentation instrumentation = createInstrumentation(baseInstrumentation);
+				
+				Reflector.with(activityThread).field("mInstrumentation").set(instrumentation);
+				Handler mainHandler = Reflector.with(activityThread).method("getHandler").call();
+				Reflector.with(mainHandler).field("mCallback").set(instrumentation);
+				this.mInstrumentation = instrumentation;
+				Log.d(TAG, "hookInstrumentationAndHandler succeed : " + mInstrumentation);
+			} catch (Exception e) {
+				Log.w(TAG, e);
+			}
+		}
+    hookSystemServices();hookSystemServices AMS
+		/**
+		 * hookSystemServices, but need to compatible with Android O in future.
+		 */
+		protected void hookSystemServices() {
+			try {
+				Singleton<IActivityManager> defaultSingleton;
+		
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+					defaultSingleton = Reflector.on(ActivityManager.class).field("IActivityManagerSingleton").get();
+				} else {
+					defaultSingleton = Reflector.on(ActivityManagerNative.class).field("gDefault").get();
+				}
+				IActivityManager origin = defaultSingleton.get();
+				IActivityManager activityManagerProxy = (IActivityManager) Proxy.newProxyInstance(mContext.getClassLoader(), new Class[] { IActivityManager.class },
+					createActivityManagerProxy(origin));
+
+				// Hook IActivityManager from ActivityManagerNative
+				Reflector.with(defaultSingleton).field("mInstance").set(activityManagerProxy);
+
+				if (defaultSingleton.get() == activityManagerProxy) {
+					this.mActivityManager = activityManagerProxy;
+					Log.d(TAG, "hookSystemServices succeed : " + mActivityManager);
+				}
+			} catch (Exception e) {
+				Log.w(TAG, e);
+			}
+		}
+    hookDataBindingUtil();
+	
+
+pluginManager.loadPlugin(apk);
+--》createLoadedPlugin(apk);
+--》new LoadedPlugin(this, this.mContext, apk);
+--》this.mResources = createResources(context, getPackageName(), apk);创建Resources
+    this.mClassLoader = createClassLoader(context, apk, this.mNativeLibDir, context.getClassLoader());创建ClassLoader
+
+    tryToCopyNativeLib(apk); 将插件中的lib拷贝到对应目录下
+
+
+	
+	

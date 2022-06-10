@@ -1,0 +1,41 @@
+代码修复
+三个方式：
+
+1.类加载方案
+	之前分析类加载机制有说过，
+	加载流程先是遵循双亲委派原则，如果委派原则没有找到此前加载过此类，
+	则会调用CLassLoader的findClass方法，再去BaseDexClassLoader下面的dexElements数组中查找，如果没有找到，最终调用defineClassNative方法加载
+	
+	代码修复就是基于这点：将新的做了修复的dex文件，通过反射注入到BaseDexClassLoader的dexElements数组的第一个位置上dexElements[0]，
+	下次重新启动应用加载类的时候，会优先加载做了修复的dex文件，这样就达到了修复代码的目的。原理很简单
+	如微信Tinker，QQ 空间的超级补丁、手 QQ 的 QFix 、饿了 么的 A migo 和  Nuwa 等
+	
+2.底层替换方案
+	底层替换方案不会再次加载新类，而是直接在 Nat ive 层 修改原有类，
+	如我们调用：
+		Test.class.getDeclaredMethod("test").invoke(Test.class.newInstance());
+	这个方法最终会调用
+		jobject InvokeMethod(const ScopedObjectAccessAlreadyRunnable& soa, jobject javaMethod,
+                     jobject javaReceiver, jobject javaArgs, size_t num_frames) {
+			  ...
+			 
+			  ObjPtr<mirror::Executable> executable = soa.Decode<mirror::Executable>(javaMethod);
+			  const bool accessible = executable->IsAccessible();
+			  ArtMethod* m = executable->GetArtMethod(); // ... 1
+			 
+			  ...
+		 }
+		ArtMethod 类中包含了 Java 方法的信息，包括执行入口、访问权限、所属类和代码执行地址等
+		我们只需要修改这个类即可达到替换原有：
+		在ArtMethod结构中比较重要的字段是：
+			注释1处的 dex_cache_resolved_methods_
+			注释2处的 entry_point_from_quick_compiled_code_ ，
+		它们是方法的执行入口，当我们调用某一个方法时（比如 Test 的 test  方法），
+		就会取得 test 方法的执行入口，通过执行入口就可以跳过去执行 test 方法。
+		替换 ArtMethod 类中的字段或者替换整个 ArtMethod 类， 这就是底层替换方案。 
+		AndFix 采用的是替换 ArtMethod 类中的字段，这样会有兼容问题，因为厂商可能会修改 ArtMethod 类，导致方法替换失败。 
+		Sophix 采用的是替换整个 ArtMethod 类 ，这样不会存在兼容问题。
+		底层替换方案直接替换了方法，可以立即生效不需要重启。
+		采用底层替换方案主要是阿里系为主，包括 AndFix、Dexposed 、阿里百 川、 Sophix。
+
+3.Instant Run 方案

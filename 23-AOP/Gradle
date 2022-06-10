@@ -1,0 +1,79 @@
+Gradle：
+Gradle 是一个开源构建自动化工具，其设计足够灵活，可以构建几乎任何类型的软件
+
+1.高性能
+2.JVM基础
+3.约定
+4.可扩展性
+5.IDE 支持
+6.洞察力
+
+
+关于 Gradle 你需要知道的五件事
+1.Gradle是一个通用的构建工具:Gradle 允许您构建任何软件
+2.核心模型是基于任务：任务为一个有向无环图DAG 任务依赖机制。和启动优化过程有点类似
+	任务包括：
+	任务的行为
+	任务的输入
+	任务的输出
+	
+	Gradle 的增量构建支持强大且可靠，因此clean除非您确实想要执行清理，否则通过避免该任务来保持构建快速运行
+	
+3.Gradle有几个固定的构建阶段
+	1.初始化：为构建设置环境并确定哪些项目将参与其中
+
+	2.配置：为构建构建和配置任务图，然后根据用户想要运行的任务确定需要运行哪些任务以及以何种顺序运行。
+	
+	3.执行：运行在配置阶段结束时选择的任务。
+	
+	三个阶段是Gradle的构建生命周期
+	
+	避免直接在app 模块下面直接使用命令行逻辑，而是将执行逻辑放到buildSrc的src目录下面
+	在app模块下面声明即可：这种方法叫做声明性配置
+
+4.Gradle可以通过多种方式进行扩展
+	1.自定义任务类型。	
+		/*构建一个简单的任务*/
+		abstract class GreetingTask extends DefaultTask{
+			@TaskAction
+			def greet(){
+				println("hello from GreetingTask!!")
+			}
+		}
+		tasks.register('helloTask',GreetingTask)
+	2.自定义任务操作：您可以通过Task.doFirst()和Task.doLast()方法附加在任务之前或之后执行的自定义构建逻辑
+		tasks.register('helloTask',GreetingTask){
+			doLast{
+				println("hello from GreetingTask doLast!!")
+			}
+			doFirst{
+				println("hello from GreetingTask doFirst!!")
+			}
+		}
+	3.项目和任务的额外属性。
+		/*为任务添加属性*/
+		abstract class GreetingTaskWithParam extends DefaultTask{
+			abstract Property<String> getMessage()
+			GreetingTaskWithParam(){
+				message.convention("hello from GreetingTaskWithParam!!")
+			}
+			@TaskAction
+			def greet(){
+				println("message:"+message.get())
+			}
+		}
+		tasks.register('GreetingTaskWithParamNo',GreetingTaskWithParam)
+		tasks.register('GreetingTaskWithParam',GreetingTaskWithParam){
+			message = "nihao yuhb"
+		}
+		额外属性：
+		ext {
+			springVersion = "3.1.0.RELEASE"
+			emailNotification = "build@master.org"
+		}
+		任务转移到独立项目中：
+		
+	4.自定义约定。
+	5.定制模型。
+
+5.构建脚本对 API 进行操作

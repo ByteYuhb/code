@@ -1,0 +1,113 @@
+performTraversals绘制过程前调用了relayoutWindow
+private void performTraversals() {
+    
+    try {
+        relayoutResult= // 1. 关键函数relayoutWindow
+        relayoutWindow(params, viewVisibility,insetsPending);
+    }
+    ......
+    draw(fullRedrawNeeded);// 2. 开始绘制
+    ......
+}
+
+ private int relayoutWindow(WindowManager.LayoutParams params...){
+	mWindowSession.relayout(...) mWindowSession = Session
+	...
+ }
+ Session.java
+  public int relayout(IWindow window...){
+	int res = mService.relayoutWindow(this, window, seq, attrs,...);
+  }
+  WMS:
+  public int relayoutWindow(Session session, IWindow clien...){
+	result = createSurfaceControl(outSurface, result...)
+	...
+  }
+  private int createSurfaceControl(Surface outSurface,...){
+	surfaceController = winAnimator.createSurfaceLocked(win....);分析1
+	surfaceController.getSurface(outSurface);分析2
+  }
+  分析1：
+  WindowSurfaceController createSurfaceLocked(int windowType, int ownerUid) {
+		...
+	 mSurfaceController = new WindowSurfaceController(mSession.mSurfaceSession...{
+		mSurfaceControl = new SurfaceControl(s, name, w, h, format, flags, windowType, ownerUid);
+			mNativeObject = nativeCreate(session, name, w, h, format, flags,...
+				这里进入native
+				
+	 }
+  }
+  android_view_SurfaceControl.cpp
+  static jlong nativeCreate(JNIEnv* env, jclass clazz, jobject sessionObj,..){
+	sp<SurfaceControl> surface = client->createSurface(String8(name.c_str()), w, h, format, flags, parent, windowType, ownerUid); client = SurfaceFlinger里面的Client
+	return reinterpret_cast<jlong>(surface.get());返回一个SurfaceControl的地址
+  }
+  Client.cpp:
+  status_t Client::createSurface(const String8& name,...){
+	sp<MessageBase> msg = new MessageCreateLayer(mFlinger.get(),分析3创建Layer并添加到列表中
+            name, this, w, h, format, flags, handle,
+            windowType, ownerUid, gbp, &parent);
+    mFlinger->postMessageSync(msg);给mFlinger发送一个msg，
+    return static_cast<MessageCreateLayer*>( msg.get() )->getResult();
+  
+  }
+  
+  MessageCreateLayer：
+	virtual bool handler() {
+		result = flinger->createLayer(name, client, w, h, format, flags,
+				windowType, ownerUid, handle, gbp, parent);
+		return true;
+	}
+	
+SurfaceFlinger::createLayer(
+	switch (flags & ISurfaceComposerClient::eFXSurfaceMask) {
+        case ISurfaceComposerClient::eFXSurfaceNormal:
+            result = createNormalLayer(client,创建Layer并设置buffer
+                    uniqueName, w, h, flags, format,
+                    handle, gbp, &layer);
+            break;
+        case ISurfaceComposerClient::eFXSurfaceDim:
+            result = createDimLayer(client,
+                    uniqueName, w, h, flags,
+                    handle, gbp, &layer);
+            break;
+        default:
+            result = BAD_VALUE;
+            break;
+    }
+	result = addClientLayer(client, *handle, *gbp, layer, *parent);添加Layer到列表中并把Layer的number加1
+   
+}
+createNormalLayer：
+	*outLayer = new Layer(this, client, name, w, h, flags);创建Layer图片
+    status_t err = (*outLayer)->setBuffers(w, h, format, flags);给新建的Layer设置Buffer
+    if (err == NO_ERROR) {
+        *handle = (*outLayer)->getHandle();
+        *gbp = (*outLayer)->getProducer();
+    }
+	分析2：surfaceController.getSurface(outSurface);内部调用了CopyFrom方法
+	outSurface.copyFrom(mSurfaceControl);
+	public void copyFrom(SurfaceControl other) {
+        
+        long surfaceControlPtr = other.mNativeObject;获取指向native层的指针
+      
+        long newNativeObject = nativeGetFromSurfaceControl(surfaceControlPtr);在native层拷贝
+
+        synchronized (mLock) {
+            if (mNativeObject != 0) {
+                nativeRelease(mNativeObject);
+            }
+            setNativeObjectLocked(newNativeObject);内部填充Surface可以连接到SF中的Layer图层
+				内部最终会调用到native层的setSurface方法
+				{
+					proxy->updateSurface(surface);更新surface
+				}
+					
+        }
+    }
+总结
+	1.WMS中获取的surfaceController = WindowSurfaceController(mSurfaceController=SurfaceControl(mNativeObject-->这个mNativeObject指向jni层的ISurface 的 Bn 端就是这个对象))
+	2.调用relyout过程中通过AddWindow获取的mClient = Client调用client->createSurface(String8(name.c_str())在SurfaceFlinger中创建了Layer
+	3.这个过程主要任务是在native层创建SurfaceControl，更新native层的surface，在SurfaceFlinger中创建Layer。
+	4.并在最终draw的过程中，更新buffer中的数据，并交换buffer
+ 

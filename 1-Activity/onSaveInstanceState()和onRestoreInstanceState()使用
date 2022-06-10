@@ -1,0 +1,54 @@
+onSaveInstanceState()和onRestoreInstanceState()使用
+
+1.说明：
+	这两个回调函数一般是由于系统约束非应用自身行为导致的Activity回收的情况，
+	则会回调onSaveInstanceState()，让用户去保存系统状态，
+	下次启动的时候可以根据保存的状态恢复原有Activity状态。
+
+
+2.流程
+	破坏：onResume()->onSaveInstanceState()->onDestroy();
+	创建：onCreate()->onStart()->onRestoreInstanceState()->onResume();
+3.使用方式：
+	3.1保存状态
+	static final String STATE_SCORE = "playerScore";
+	static final String STATE_LEVEL = "playerLevel";
+	...
+
+	@Override
+	public void onSaveInstanceState(Bundle savedInstanceState) {
+		// 保存用户自定义的状态
+		savedInstanceState.putInt(STATE_SCORE, mCurrentScore);
+		savedInstanceState.putInt(STATE_LEVEL, mCurrentLevel);
+		
+		// 调用父类交给系统处理，这样系统能保存视图层次结构状态
+		super.onSaveInstanceState(savedInstanceState);
+	}
+	3.2：恢复状态
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState); // 记得总是调用父类
+	   
+		// 检查是否正在重新创建一个以前销毁的实例
+		if (savedInstanceState != null) {
+			// 从已保存状态恢复成员的值
+			mCurrentScore = savedInstanceState.getInt(STATE_SCORE);
+			mCurrentLevel = savedInstanceState.getInt(STATE_LEVEL);
+		} else {
+			// 可能初始化一个新实例的默认值的成员
+		}
+		...
+	}
+	
+	或者：
+	public void onRestoreInstanceState(Bundle savedInstanceState) {
+		// 总是调用超类，以便它可以恢复视图层次超级
+		super.onRestoreInstanceState(savedInstanceState);
+	   
+		// 从已保存的实例中恢复状态成员
+		mCurrentScore = savedInstanceState.getInt(STATE_SCORE);
+		mCurrentLevel = savedInstanceState.getInt(STATE_LEVEL);
+	}
+	
+	
+	

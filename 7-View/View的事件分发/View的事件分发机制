@@ -1,0 +1,14 @@
+android事件分发机制：
+1.由父ViewGroup分发给给子view处理，
+2.分发过程中父ViewGroup可以拦截事件，
+3.如果拦截拦截，父view处理事件，如果不处理，则交由父view的父view处理，
+  如果不拦截，则交由子view处理，最终走到view类，
+  view类默认会消费掉事件，前提是可点击或长按，如Button就会默认消费掉，而TextView因为默认不可以点击或长按，所以默认不会消费事件，传给父view处理。
+  依次类推
+  
+4.可以通过调用requestDisallowInterceptTouchEvent干扰父view的拦截操作，但是对Action_DOWN事件无法干扰，源代码里面可以找到原因。
+
+
+
+
+https://www.jianshu.com/p/38015afcdb58这里面对事件分发做了很详细的源码讲解

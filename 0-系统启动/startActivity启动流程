@@ -1,0 +1,112 @@
+startActivity启动流程：
+
+Activity.java
+
+startActivity();
+	startActivityForResult(intent, -1);
+		startActivityForResult(intent, requestCode, null);
+			mInstrumentation.execStartActivity(this, mMainThread.getApplicationThread(), mToken, this,intent, requestCode, options);
+				ActivityManager.getService().startActivity(whoThread, who.getBasePackageName(), intent,intent.resolveTypeIfNeeded(who.getContentResolver()),token, target, requestCode, 0, null, options);
+						ActivityManagerService.startActivity
+							startActivityAsUser(caller..);
+								mActivityStarter.startActivityMayWait(caller,..)
+									mSupervisor.mActivityMetricsLogger.notifyActivityLaunching();在ActivityStackSupervisor中记录startActivity开始时间
+									// Save a copy in case ephemeral needs it
+									final Intent ephemeralIntent = new Intent(intent);记录一个临时变量，防止intent改变后需要使用原intent的情况。
+									// Don't modify the client's object!
+									intent = new Intent(intent);新建一个intent防止改变原传入的intent
+									ResolveInfo rInfo = mSupervisor.resolveIntent(intent, resolvedType, userId);将intent解析成ResolveInfo
+									// Collect information about the target of the Intent.
+									ActivityInfo aInfo = mSupervisor.resolveActivity(intent, rInfo, startFlags, profilerInfo);将intent和rInfo中的数据解析出ActivityInfo
+									stack = mSupervisor.mFocusedStack;将mSupervisor中的非Launcher任务栈取出来
+									startActivityLocked(caller,...);
+										startActivity(caller, intent, ...);
+											ProcessRecord callerApp = mService.getRecordForAppLocked(caller);去缓存里面获取ProcessRecord
+											final int launchFlags = intent.getFlags();获取intent的flag标签
+											final ActivityStack resultStack = resultRecord == null ? null : resultRecord.getStack();获取ActivityStack
+											boolean abort = !mSupervisor.checkStartAnyActivityPermission(intent..)检查启动Activity权限
+											ActivityRecord r = new ActivityRecord(mService, callerApp, callingPid, callingUid,..)创建ActivityRecord
+											startActivity(r, sourceRecord,...);
+												result = startActivityUnchecked(r, sourceRecord,...);
+													
+													if (mStartActivity.resultTo == null && mInTask == null && !mAddingToTask
+													&& (mLaunchFlags & FLAG_ACTIVITY_NEW_TASK) != 0) {
+														newTask = true;
+														result = setTaskFromReuseOrCreateNewTask();在这里面会调用创建新的taskRecord;														
+													} 
+													mTargetStack.startActivityLocked(mStartActivity...)
+													mSupervisor.resumeFocusedStackTopActivityLocked();
+														 result = resumeTopActivityInnerLocked(prev, options);
+															boolean pausing = mStackSupervisor.pauseBackStacks(userLeaving, next, false);暂停栈顶上的Activity，将要启动的Activity进行resume确保在栈顶上
+															mStackSupervisor.scheduleResumeTopActivities();
+															next.app.thread.scheduleResumeActivity(...);调用启动activityresume操作
+															mStackSupervisor.startSpecificActivityLocked(next, true, true);（参考系统启动--->应用根Activity的启动过程）
+																如果进程已经创建，则直接调用realStartActivityLocked
+																realStartActivityLocked(r, app, andResume, checkConfig);
+																	if(app != null && app.thread != null) {
+																		realStartActivityLocked(r, app, andResume, checkConfig);开始真正进入start
+																			app.thread.scheduleLaunchActivity(new Intent(r.intent), r.appToken,...)调用ApplicationThread启动Activity														
+																	}
+																如果进程没有启动则会调用startProcessLocked去创建应用进程，前面有对这块的分析
+																mService.startProcessLocked(r.processName, r.info.applicationInfo, true, 0,"activity", r.intent.getComponent(), false, false, true);
+ ActivityThread.java
+	 class ApplicationThread extends IApplicationThread.Stub{
+		void scheduleLaunchActivity(Intent intent,...){
+			ActivityClientRecord r = new ActivityClientRecord();
+			sendMessage(H.LAUNCH_ACTIVITY, r);
+		}
+	 }'
+	 case LAUNCH_ACTIVITY: {                
+            handleLaunchActivity(r, null, "LAUNCH_ACTIVITY");
+				Activity a = performLaunchActivity(r, customIntent);
+					ContextImpl appContext = createBaseContextForActivity(r);
+						ContextImpl appContext = ContextImpl.createActivityContext()
+							ContextImpl context = new ContextImpl(null, mainThread, packageInfo...)创建context
+								context.setResources(resourcesManager.createBaseActivityResources(activityToken,
+									packageInfo.getResDir(),
+									splitDirs,
+									packageInfo.getOverlayDirs(),
+									packageInfo.getApplicationInfo().sharedLibraryFiles,
+									displayId,
+									overrideConfiguration,
+									compatInfo,
+									classLoader));设置resource所以在其他地方可以使用Activity获取resource信息
+					activity = mInstrumentation.newActivity(cl, component.getClassName(), r.intent);通过反射获取activity对象实例				
+					Application app = r.packageInfo.makeApplication(false, mInstrumentation);创建application
+						ContextImpl appContext = ContextImpl.createAppContext(mActivityThread, this);创建application的context
+						app = mActivityThread.mInstrumentation.newApplication(cl, appClass, appContext);
+							newApplication(cl.loadClass(className), context);
+								Application app = (Application)clazz.newInstance();通过反射获取application实例
+								app.attach(context);调用app的attach方法
+									attachBaseContext(context);设置application的context
+									mLoadedApk = ContextImpl.getImpl(context).mPackageInfo;设置apk信息
+						appContext.setOuterContext(app);设置application的context
+						instrumentation.callApplicationOnCreate(app);调用app的onCreate方法
+					appContext.setOuterContext(activity);设置Activity的context
+					activity.attach(appContext, this...)调用Activity的attach方法
+						attachBaseContext(context);设置context
+						mWindow = new PhoneWindow(this, window, activityConfigCallback);设置phoneWindow
+						mWindow.setWindowManager( );因此可以在Activity中获取window取出windowManager
+					mInstrumentation.callActivityOnCreate(activity, r.state);	
+						activity.performCreate(icicle);
+							onCreate(icicle);调用Activity的onCreate方法
+					mActivities.put(r.token, r);将Activity放入列表中
+				
+		
+				
+					
+			handleResumeActivity(r.token, false, r.isForward,
+				r = performResumeActivity(token, clearHide, reason);
+					r.activity.performResume();
+						performRestart();
+						mInstrumentation.callActivityOnResume(this);
+							activity.onResume();此次调用Activity的onResume方法
+到这里整个Activity的Start流程就完成了。							
+								
+ 
+	 
+		
+			
+ 
+									
+									

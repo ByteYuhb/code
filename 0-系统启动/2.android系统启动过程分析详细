@@ -1,0 +1,170 @@
+init.cpp
+	linux系统启动第一个进程：
+	1.mount("tmpfs", "/dev", "tmpfs", MS_NOSUID, "mode=0755");挂载临时文件系统
+	2.selinux_initialize(true);启动selinux 主要作用就是最大限度地减小系统中服务进程可访问的资源（最小权限原则）
+	3.InitKernelLogging(argv);初始化内核日志
+	4.property_init();对属性服务进行初始化
+	5.signal_handler_init();设置信号处理函数，如果子进程（Zygote）进程异常退出，会调用该函数设置的信号函数进行处理
+	6.start_property_service();启动属性服务
+	7.解析init.rc文件
+
+
+init.rc
+	由android初始化语言编写的脚本文件
+	主要作用是启动Zygote进程：
+	启动方式：fork子进程，会启动app_main.cpp的main函数
+
+app_main.cpp
+	根据参数判断启动哪个进程：
+	case strcmp(arg, "--zygote") == 0：
+	runtime.start("com.android.internal.os.ZygoteInit", args, zygote);
+
+	case strcmp(arg, "--start-system-server") == 0:
+	runtime.start("com.android.internal.os.RuntimeInit", args, zygote);
+
+	开机启动阶段参数中含有--zygote
+	启动的是ZygoteInit进程，进入AndroidRuntime。
+
+AndroidRuntime.cpp
+	1.startVm(&mJavaVM, &env, zygote)启动java虚拟机
+	2.startReg(env)注册jni方法
+		register_jni_procs(gRegJNI, NELEM(gRegJNI), env)
+	3.env->CallStaticVoidMethod(startClass, startMeth, strArray);调用java方法：ZygoteInit的main方法，进入java代码
+			startClass = com.android.internal.os.ZygoteInit
+
+ZygoteInit.java
+	1.zygoteServer.registerServerSocket(socketName);注册一个ServerSocket
+	  文件名：ANDROID_SOCKET_zygote
+		mServerSocket = new LocalServerSocket(fd);
+			impl = new LocalSocketImpl(fd);
+			impl.listen(LISTEN_BACKLOG);
+				Os.listen(fd, backlog);
+	2.startSystemServer 启动SystemServer进程
+		pid = Zygote.forkSystemServer() fork出SystemServer进程 fork操作会返回两次，一次是父进程一次是子进程
+		if(pid ==0){	pid=0说明运行在子线程SystemServer进程
+			zygoteServer.closeServerSocket();
+			handleSystemServerProcess(parsedArgs);处理SystemServer进程
+				ZygoteInit.zygoteInit();
+					RuntimeInit.commonInit();RuntimeInit初始化
+					ZygoteInit.nativeZygoteInit();创建binder线程池
+					RuntimeInit.applicationInit(targetSdkVersion, argv, classLoader);
+						invokeStaticMain(args.startClass, args.startArgs, classLoader);
+							throw new Zygote.MethodAndArgsCaller(m, argv);
+							会跳转到ZygoteInit的main方法中，
+							catch (Zygote.MethodAndArgsCaller caller) { class: SystemServer method: main
+								caller.run();
+									main(){
+										Looper.prepareMainLooper();
+										// Initialize the system context.
+										createSystemContext();
+											ActivityThread activityThread = ActivityThread.systemMain();创建ActivityThread，应用进程方法入口
+												ActivityThread thread = new ActivityThread();
+												thread.attach(true);
+												if(!isSystem){										
+													final IActivityManager mgr = ActivityManager.getService();    从ServiceManager中获取 ActivityManagerService       
+													mgr.attachApplication(mAppThread); 将ActivityThread中的ApplicationThread发给AMS，此后AMS就可以使用该mAppThread调用ActivityThread中的方法。		
+												}else{
+													ContextImpl context = ContextImpl.createAppContext(this, getSystemContext().mPackageInfo);
+													mInitialApplication = context.mPackageInfo.makeApplication(true, null);
+													mInitialApplication.onCreate();
+												}
+											mSystemContext = activityThread.getSystemContext();	创建系统context
+												ContextImpl.createSystemContext(this);
+													LoadedApk packageInfo = new LoadedApk(mainThread);创建LoadedApk
+													ContextImpl context = new ContextImpl(null, mainThread, packageInfo, null, null, null, 0, null);创建context
+													context.setResources(packageInfo.getResources());设置context的resources
+											mSystemContext.setTheme(DEFAULT_SYSTEM_THEME);		设置系统Theme：com.android.internal.R.style.Theme_DeviceDefault_System
+										LocalServices.addService(SystemServiceManager.class, mSystemServiceManager);注册SystemServiceManager
+										startBootstrapServices();启动引导服务
+										startCoreServices();启动核心服务
+										startOtherServices();启动其他服务
+											mActivityManagerService.systemReady()启动Launcher
+												startHomeActivityLocked(currentUserId, "systemReady");
+													Intent intent = getHomeIntent();获取启动Launcher的intent Action:action.main
+														Intent intent = new Intent(mTopAction, mTopData != null ? Uri.parse(mTopData) : null);mTopAction = Intent.ACTION_MAIN;
+														intent.setComponent(mTopComponent);
+														intent.addFlags(Intent.FLAG_DEBUG_TRIAGED_MISSING);
+														if (mFactoryTest != FactoryTest.FACTORY_TEST_LOW_LEVEL) {
+															intent.addCategory(Intent.CATEGORY_HOME);
+														}
+													mActivityStarter.startHomeActivityLocked(intent, aInfo, myReason);
+														mSupervisor.moveHomeStackTaskToTop(reason);将Launcher放入HomeStack
+														startActivityLocked();
+															startActivity();启动activity(launcher的启动activity)开始启动Launcher
+																
+															
+															
+														
+
+										Looper.loop();可看出SystemServer进程也使用了Looper消息处理机制
+									}									
+							} 
+		}
+	Zygote进程会继续执行下面的语句。	
+	3.zygoteServer.runSelectLoop(abiList);
+			 while (true) {
+				StructPollfd[] pollFds = new StructPollfd[fds.size()];
+				for (int i = 0; i < pollFds.length; ++i) {
+					pollFds[i] = new StructPollfd();
+					pollFds[i].fd = fds.get(i);
+					pollFds[i].events = (short) POLLIN;
+				}
+				try {
+					//poll函数使用pollfd类型的结构来监控一组文件句柄
+					//https://blog.csdn.net/sijinxiaotongxue/article/details/81988411
+					Os.poll(pollFds, -1);
+				} catch (ErrnoException ex) {
+					throw new RuntimeException("poll failed", ex);
+				}
+				for (int i = pollFds.length - 1; i >= 0; --i) {
+					if ((pollFds[i].revents & POLLIN) == 0) {返回的事件掩码被设置为POLLIN说明可读，如果不是POLLIN则继续看下一个Fd是否为POLLIN；
+						continue;
+					}
+					if (i == 0) {此处的pollFds->revents为POLLIN说明可读，i=0说明有客户端做连接操作，服务端则调用accept操作，这样就创建了连接。把连接上的fd放入需要监听的fds中，继续while监听。
+						ZygoteConnection newPeer = acceptCommandPeer(abiList);新建一个ZygoteConnection
+							LocalSocket localSocket = mServerSocket.accept();获取sokcet客户端传过来的数据并封装到ZygoteConnection中。
+							createNewConnection(localSocket, abiList);
+								new ZygoteConnection(socket, abiList);
+						peers.add(newPeer);
+						fds.add(newPeer.getFileDesciptor());
+						
+					} else { i!=0
+						//不为0则说明签名i=0放入的fd句柄有事件，调用fork方式创建进程
+						boolean done = peers.get(i).runOnce(this);
+							args = readArgumentList();读参数
+							pid = Zygote.forkAndSpecialize(args)；fork出子进程
+							if (pid == 0) {
+								// in child
+								zygoteServer.closeServerSocket();								
+								handleChildProc(parsedArgs, descriptors, childPipeFd, newStderr);	处理子进程		
+									ZygoteInit.zygoteInit();
+										RuntimeInit.commonInit();RuntimeInit初始化
+										ZygoteInit.nativeZygoteInit();创建binder线程池
+										RuntimeInit.applicationInit(targetSdkVersion, argv, classLoader);
+											invokeStaticMain(args.startClass, args.startArgs, classLoader);
+												throw new Zygote.MethodAndArgsCaller(m, argv);
+												会跳转到ZygoteInit的main方法中，
+												catch (Zygote.MethodAndArgsCaller caller) {
+													caller.run();
+												} 
+								return true;
+							} else {
+								// in parent...pid of < 0 means failure				
+								return handleParentProc(pid, descriptors, serverPipeFd, parsedArgs);处理父进程
+							}
+						if (done) {
+							peers.remove(i);
+							fds.remove(i);
+						}
+					}
+				}
+			}
+		PS：这里的为什么是i=0为连接操作呢，因为pollFds的第一个元素的fd字段为socket监听的fd文件。
+		而i>0的情况为i=0获取到连接信息时fds.add(newPeer.getFileDesciptor());添加的fd，索引肯定大于0，
+		这里巧妙的用了索引位置的关系，节省了一些代码
+
+	3.zygoteServer.closeServerSocket(); 一般只有zygote进程退出的时候才会走到这里，也就是关机的时候才会，前面while循环会一直等待AMS发起创建fork进程的操作	
+			
+
+
+

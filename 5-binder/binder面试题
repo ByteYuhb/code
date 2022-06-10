@@ -1,0 +1,93 @@
+1.Binder的定向制导，如何找到目标Binder，唤起进程或者线程
+	对于服务注册和服务的获取过程：
+	sm在启动的时候会调用set_sm的操作，通知驱动我现在是sm进程，并在驱动中创建一个binder_prc结构体表示该进程，客户端通过调用handle为0的ioctl操作获取到sm的binder_prc结构体
+	并将数据放到binder_proc或者binder_proc进程下面的binder_thread线程的todo链表中，并唤醒sm线程。
+	对于服务的调用过程：
+	服务在获取的过程中通过服务名称可以从sm中获取一个desc，并返回给驱动，驱动获取这个desc，从之前服务注册的时候生成的ref_by_desc的红黑树中找到binder_node节点，并在客户端binder_proc下面创建一个binder_ref的引用
+	最后吧引用的handle或者说是desc返回给客户端，这个值是一个int值，表示创建的binder_ref顺序。
+	客户端获取这个handle之后，调用ioctl操作，服务端根据这个handle找到binder_ref，根据binder_ref找到binder_node，最后根据binder_node找到服务端binder_proc，binder_node中含有一个ptr/cookie,
+	找到服务端的binder_proc之后，把数据放到这个binder_proc或者binder_thread下面的todo链表中，并唤醒服务进程或者线程，
+	服务端之后就可以接收到客户端发来的是数据，根据之前注册的函数中binder_node的ptr或者cookie，调用对应的函数。
+	这个就是Binder如何找到目标的详细过程。
+2.Binder中的红黑树，为什么会有两棵binder_ref红黑树
+	refs_by_desc主要是通过desc来查找对应的binder_ref
+	refs_by_node主要是通过node来查找对应的binder_ref
+	1.查找方式不一样
+3.Binder一次拷贝原理
+	其实是通过mmap的机制实现了一次拷贝：
+	传统的数据拷贝方式如socket：
+	用户空间---->内核空间：copy_from_user 
+	内核空间---->用户空间：copy_to_user
+	而binder使用mmap机制，在内核空间和用户空间中间使用物理地址开辟了一个映射关系
+	内核空间调用copy_from_user会直接将数据拷贝到内核空间并反馈到映射后的物理地址上，
+	由于用户空间和物理地址也有个映射关系，用户空间可以直接通过映射的虚拟地址指针访问到写入物理地址的数据。
+	这就是binder一次拷贝的原理
+4.Binder传输数据的大小限制：
+	对于内核可以传输的是4M，但是应用层限制在1M-8K范围内，这就是在进程间传输过大的数据会导致崩溃的原因
+5.系统服务与bindService等启动的服务的区别
+	系统服务通过ServerManager.addService将服务注册到SM中，客户端需要使用的时候调用ServerManager.getService获取服务的引用，通过引用去binder驱动中查找对应的binder_ref引用，最终找到binder_node中的cookie，并调用服务提供的函数
+	而普通bindService的服务管理方式是通过AMS来管理，当服务创建成功后，将服务注册到AMS中，管理的是使用一个ServiceMap类来管理，使用的key为当前服务的Compment
+6.Binder多线程
+	如果服务端线程不够用，则驱动会发出一个信号，应用层收到这个信号调用Register_Thread，这样驱动层就可以使用这个新建出来的子线程进行数据的处理
+7.Binder请求的同步与异步
+	Binder客户端请求的时候是同步等待的，其实底层是个休眠的动作，待服务端处理完成后，服务端会发送一个BC_REPLAY命令给客户端，此时服务端进行休眠，客户端继续执行，
+	所以可以看出客户端和服务端其实都是同步实现的，通过binder驱动调度，而也可以说服务端收到数据返回给客户端后，服务端就进行休眠，也可以说是不需要客户端提供数据，
+	也就是所谓的异步
+8.Android APP进程天生支持Binder通信的原理是什么
+	Android APP进程都是由Zygote进程孵化出来的。
+	常见场景：点击桌面icon启动APP，或者startActivity启动一个新进程里面的Activity，
+	最终都会由AMS去调用Process.start()方法去向Zygote进程发送请求，让Zygote去fork一个新进程，Zygote收到请求后会调用Zygote.forkAndSpecialize()来fork出新进程,
+	之后会通过RuntimeInit.nativeZygoteInit来初始化Andriod APP运行需要的一些环境，而binder线程就是在这个时候新建启动的
+	virtual void onZygoteInit()
+    {
+        sp proc = ProcessState::self();
+        //启动新binder线程loop
+        proc->startThreadPool();
+    }
+9.Android APP有多少Binder线程，是固定的么？
+	不是固定的，一般默认值是15，15个基本上可以满足现有app同时调用的需求
+	最大线程数还可以通过ioctl设置这个最大并发线程数。
+10.同一个线程的请求必定是顺序执行，即使是异步请求(oneway)
+	一般而言，Client同步阻塞请求Service，直到Service提供完服务后才返回，不过，也有特殊的，比如请求用ONE_WAY方式，这种场景一般主要是用来通知，至于通知被谁消费，是否被消费压根不会关心。
+	拿ContentService服务为例子，它是一个全局的通知中心，负责转发通知，而且，一般是群发，由于在转发的时候，ContentService被看做Client，如果这个时候采用普通的同步阻塞势必会造成通知的延时发送送，所以这里的Client采用了oneway，异步。
+	
+11.Binder线程的睡眠与唤醒（请求线程睡在哪个等待队列上，唤醒目标端哪个队列上的线程）
+	1.请求线程睡在当前请求的binder_thread线程上
+	2.如果只是一次请求和返回则唤醒的是之前睡眠的服务线程
+	而如果是互相请求：A-请求B—请求A——返回B-返回A的情况
+	则要说到binder的transaction_stack传输栈机制：
+	A1调用B1，A1入栈休眠，B1唤醒
+	B1调用A2，B1入栈休眠，A2唤醒，其实这个时候因为B再请求A的时候，A1肯定是执行不到的，所以这个时候binder驱动使用了一个线程复用的思路，直接唤醒了A1，待A1执行完毕返回的时候又进入休眠
+	等A1返回给B1的时候，B1被唤醒，最后返回给A1，B1出栈，A1又被唤醒，A1出栈
+12.BC和BR的区别
+	BC是发送请求或者回复请求的时候使用BC——XXX命令，
+	BR是收到请求的binder驱动会将BC——XXX命令转为BR
+	所以客户端发送的是BC而服务端收到的是BR
+	
+13.进程和线程的关系
+	进程是系统进行资源分配和调度的基本单位，是可以独立运行的一段程序
+	线程是一个实体，是CPU调度和分派的基本单位，他是比进程更小的能独立运行的基本单位。线程只是占用一些寄存器计数器和栈
+	1.进程有不同的代码和数据空间，而多个线程则共享数据空间。
+	2.进程间相互独立，而多个线程共享一个进程
+	3.进程间通讯需要使用到IPC通讯，而线程间通讯可以直接读写进程数据段如全局变量，需要进程同同步和互斥的手段保证数据的一致性
+14.为何需要IPC，多进程通讯会有什么问题？
+	android进程间是相互独立和相互隔离的，每个进程拥有自己的独立虚拟机，系统给他们分配的地址空间都是隔离的，两个进程间通讯只能使用IPC机制，通过内核空间通讯，内核空间是每个进程共享的部分由系统调度
+15.进程间通讯对比
+	intent 文件共享 AIDL ContentProvider Socket 
+16.为何新增Binder来作为主要的IPC方式
+	binder socket 共享内存
+	效率：只需要一次拷贝
+	安全性：binder机制为每个进程分配了uid和pid，在通讯时会对uid和pid进程有效性校验
+	稳定性：共享内存的性能比binder好，但是难于控制，需要自己处理好内存的分配和释放问题，且容易造成死锁和资源竞争，而binder采用CS架构，Server段和Client端相互独立
+17.什么是binder？
+	binder机制是一种android进程间通讯的机制
+	对Server端：binder是一个实体
+	对Client端：binder是一个远程代理对象
+	对android framework来说，binder是ServiceManager连接各个Manager和ManagerService的桥梁
+	进程间通讯机制：基于CS架构，主要由Client，Server和ServiceManager还有binder驱动组成
+	进程空间分为：用户空间和内核空间，每个进程都有各自的用户空间，而内核空间是每个进程共享的，binder驱动就是运行在内核空间
+18.
+	
+	
+	
+	

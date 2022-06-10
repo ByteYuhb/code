@@ -1,0 +1,7 @@
+server多线程：
+
+1.当请求调用server的时候，当驱动发现忙不过来，即启动了多个线程调用server
+2.驱动发出BR_SPAWN_LOOPER
+3.用户态获取BR_SPAWN_LOOPER创建新线程
+4.新线程发出BC_REGISTER_LOOPER进入新的线程循环
+5.新的线程向主线程一样进入一个循环{read 处理 返回 等..}

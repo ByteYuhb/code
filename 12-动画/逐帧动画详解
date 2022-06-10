@@ -1,0 +1,28 @@
+逐帧动画详解：
+
+1.简介：
+	逐帧动画其实就是将一个gif图分解了一帧一帧，然后把动画一帧一帧显示出来
+2.使用场景：
+	需要在屏幕中显示一个gif动图效果
+3.特点：
+	优点;使用方便
+	缺点：因为需要加载大量的帧动画， 如果图片尺寸过大可能会引发OOM
+3.使用方式
+	1.创建需要的GIF动图，将动图使用gif分解软件如GifSpliter，分解为一帧一帧的bmp图片
+	2.使用AnimationDrawable 
+		animationDrawable = new AnimationDrawable();
+        for (int i = 0; i <= 25; i++) {
+            int id = getResources().getIdentifier("a" + i, "drawable", getPackageName());
+            Drawable drawable = getResources().getDrawable(id);
+            animationDrawable.addFrame(drawable, 100);
+        }
+	3.启动和停止动画
+		启动：
+			iv.setImageDrawable(animationDrawable);
+			animationDrawable.stop();
+			animationDrawable.start();
+		停止：
+			animationDrawable.stop();
+4.总结：
+	逐帧动画使用方便，但是会有OOM内存溢出风险，在非必要情况下尽量不使用，
+	可以使用开源GIF图加载框架如：fresoo，glide等

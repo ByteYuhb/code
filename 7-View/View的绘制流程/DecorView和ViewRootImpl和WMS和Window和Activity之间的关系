@@ -1,0 +1,309 @@
+View的绘制准备工作：
+
+1.DecorView创建：
+源码解析：
+调用StartActivity的时候会在attach方法中创建一个Window的实例PhoneWindow；
+	mWindow = new PhoneWindow(this, window, activityConfigCallback); Activity和Window绑定
+	mWindow.setWindowControllerCallback(this);给window设置回调方法
+	mWindow.setCallback(this);
+	mWindow.setOnWindowDismissedCallback(this);
+	mWindow.setWindowManager((WindowManager)context.getSystemService(Context.WINDOW_SERVICE),...);	给window设置WindowManager
+		mWindowManager = ((WindowManagerImpl)wm).createLocalWindowManager(this);WindowManager的具体实现类为WindowManagerImpl
+			return new WindowManagerImpl(mContext, parentWindow);
+			
+StartActivity总结：创建PhoneWindow类并赋值给Activity
+
+在onCreate方法中调用setContentView方法：
+	getDelegate().setContentView(layoutResID);-->mDelegate = AppCompatDelegate.create(this, this);
+																return new AppCompatDelegateImpl(activity, callback);
+	AppCompatDelegateImpl.setContentView
+		ensureSubDecor();
+			mSubDecor = createSubDecor();根据不同的属性创建不同的mSubDecor DecorView
+				TypedArray a = mContext.obtainStyledAttributes(R.styleable.AppCompatTheme);
+				if (a.getBoolean(R.styleable.AppCompatTheme_windowNoTitle, false)) {
+					requestWindowFeature(Window.FEATURE_NO_TITLE);
+				} else if (a.getBoolean(R.styleable.AppCompatTheme_windowActionBar, false)) {
+					// Don't allow an action bar if there is no title.
+					requestWindowFeature(FEATURE_SUPPORT_ACTION_BAR);
+				}
+				....省略和上面同类的代码
+				ensureWindow();
+					attachToWindow(((Activity) mHost).getWindow());
+						final Window.Callback callback = window.getCallback();获取Activity的PhoneWindow的CallBack回调实例，其实就是Activity中实现的Callback方法
+						mAppCompatWindowCallback = new AppCompatWindowCallback(callback);生成一个代理AppCompatWindowCallback
+						window.setCallback(mAppCompatWindowCallback);设置Activity的PhoneWindow的CallBack实例为新的mAppCompatWindowCallback实例
+						mWindow = window;设置当前mWindow为新的window
+				mWindow.getDecorView();获取window的DecorView对象
+				if (!mWindowNoTitle) {调用requestWindowFeature(int featureId) featureId = Window.FEATURE_NO_TITLE
+					if (mIsFloating) {-->mIsFloating = a.getBoolean(R.styleable.AppCompatTheme_android_windowIsFloating, false);
+						// If we're floating, inflate the dialog title decor 如果我们设置了主题AppCompatTheme,且有android_windowIsFloating属性为true，则subDecor = R.layout.abc_dialog_title_material
+						subDecor = (ViewGroup) inflater.inflate(
+								R.layout.abc_dialog_title_material, null);
+
+						// Floating windows can never have an action bar, reset the flags
+						mHasActionBar = mOverlayActionBar = false; 悬浮windows没有action bar，设置为false
+					}else if (mHasActionBar){调用requestWindowFeature(int featureId) featureId = FEATURE_SUPPORT_ACTION_BAR
+						mContext.getTheme().resolveAttribute(R.attr.actionBarTheme, outValue, true);
+						themedContext = new ContextThemeWrapper(mContext, outValue.resourceId);
+						subDecor = (ViewGroup) LayoutInflater.from(themedContext).inflate(R.layout.abc_screen_toolbar, null);创建subDecor
+						mDecorContentParent = (DecorContentParent) subDecor.findViewById(R.id.decor_content_parent);获取mDecorContentParent
+						mDecorContentParent.setWindowCallback(getWindowCallback());
+						if (mOverlayActionBar) {
+							mDecorContentParent.initFeature(FEATURE_SUPPORT_ACTION_BAR_OVERLAY);
+						}
+						...初始化mDecorContentParent
+					}					
+				}else {
+					if (mOverlayActionMode) {
+						subDecor = (ViewGroup) inflater.inflate(
+								R.layout.abc_screen_simple_overlay_action_mode, null);
+					} else {
+						subDecor = (ViewGroup) inflater.inflate(R.layout.abc_screen_simple, null);
+					}
+				}
+				if (mDecorContentParent == null) {
+					mTitleView = (TextView) subDecor.findViewById(R.id.title);
+				}
+				// Make the decor optionally fit system windows, like the window's decor
+				ViewUtils.makeOptionalFitsSystemWindows(subDecor);
+				/ Now set the Window's content view with the decor
+				mWindow.setContentView(subDecor);PhoneWindow
+					if (mContentParent == null) { 如果mContentParent为null则
+						installDecor();
+							if (mDecor == null) {
+								mDecor = generateDecor(-1);
+									return new DecorView(context, featureId, this, getAttributes());在这里创建了DecorView
+									
+							}else {
+								mDecor.setWindow(this);
+							}
+							if (mContentParent == null) {
+								mContentParent = generateLayout(mDecor);
+									...
+									...
+									省略很多都是对view属性的设置
+									ViewGroup contentParent = (ViewGroup)findViewById(ID_ANDROID_CONTENT);获取DecorView的content部分
+									return contentParent;	
+							}
+							
+					} else if (!hasFeature(FEATURE_CONTENT_TRANSITIONS)) {
+						mContentParent.removeAllViews();
+					}
+					if (hasFeature(FEATURE_CONTENT_TRANSITIONS)) {新特性过度动画
+						view.setLayoutParams(params);
+						final Scene newScene = new Scene(mContentParent, view);
+						transitionTo(newScene);
+					} else {
+						mContentParent.addView(view, params);
+					}
+					mContentParent.requestApplyInsets();
+						requestFitSystemWindows();
+							mParent.requestFitSystemWindows();让view可以根据系统窗口(如status bar)来调整自己的布局
+					cb.onContentChanged();通知Activity我现在的content部分变了
+				return subDecor;
+        }
+							
+        ViewGroup contentParent = mSubDecor.findViewById(android.R.id.content);获取content
+        contentParent.removeAllViews();移除所有的content中给的view
+        LayoutInflater.from(mContext).inflate(resId, contentParent);将resId xml解析到contentParent中
+        mAppCompatWindowCallback.getWrapped().onContentChanged();
+		
+setContentView方法总结：
+1.创建Window抽象类的子类PhoneWindow类的实例对象;
+2.为PhoneWindow类对象设置WindowManager对象;
+3.为PhoneWindow类对象创建1个DecroView类对象(根据所选的主题样式增加);
+4.为DecroView类对象中的content增加Activity中设置的布局文件。
+
+此时，DecorView(即顶层View)已创建和添加Activity中设置的布局文件中，但目前仍未显示出来，即不可见。
+
+
+
+2.DecorView显示
+/**
+  * 源码分析：主线程创建时，调用的handleResumeActivity()
+  */
+  @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+    }
+
+/**
+  * 源码分析：Activity的setContentView()
+  */
+ final void handleResumeActivity(IBinder token,
+    boolean clearHide, boolean isForward, boolean reallyResume) {
+
+    ActivityClientRecord r = performResumeActivity(token, clearHide);
+
+    if (r != null) {
+        final Activity a = r.activity;
+          if (r.window == null && !a.mFinished && willBeVisible) {
+			// 1. 获取Window实例中的Decor对象
+			r.window = r.activity.getWindow();
+			View decor = r.window.getDecorView();
+
+			// 2. DecorView对用户不可见
+			decor.setVisibility(View.INVISIBLE);
+			ViewManager wm = a.getWindowManager();
+			WindowManager.LayoutParams l = r.window.getAttributes();
+			a.mDecor = decor;
+		  
+			l.type = WindowManager.LayoutParams.TYPE_BASE_APPLICATION;
+
+			// 3. DecorView被添加进WindowManager了
+			// 此时，还是不可见
+			if (a.mVisibleFromClient) {
+				a.mWindowAdded = true;
+				
+				wm.addView(decor, l);
+			}
+
+			// 4. 此处设置DecorView对用户可见
+			if (!r.activity.mFinished && willBeVisible
+				&& r.activity.mDecor != null && !r.hideForNow) {
+				 if (r.activity.mVisibleFromClient) {
+						r.activity.makeVisible();
+						// —>>分析1
+					}
+				}
+    }
+/**
+  * 分析1：Activity.makeVisible()
+  */
+  void makeVisible() {
+   if (!mWindowAdded) {
+            ViewManager wm = getWindowManager();
+            // 1. 将DecorView添加到WindowManager ->>分析2
+            wm.addView(mDecor, getWindow().getAttributes());
+            mWindowAdded = true;
+        }
+        // 2. DecorView可见
+        mDecor.setVisibility(View.VISIBLE);
+    }
+
+/**
+  * 分析2：wm.addView
+  * 作用：WindowManager = 1个接口，由WindowManagerImpl类实现
+  */
+  public final class WindowManagerImpl implements WindowManager {    
+    private final WindowManagerGlobal mGlobal = WindowManagerGlobal.getInstance();
+
+    @Override
+    public void addView(View view, ViewGroup.LayoutParams params) {
+        mGlobal.addView(view, params, mDisplay, mParentWindow); ->>分析3
+    }
+}
+
+/**
+  * 分析3：WindowManagerGlobal 的addView()
+  */
+  public void addView(View view, ViewGroup.LayoutParams params,Display display, Window parentWindow) {
+
+     final WindowManager.LayoutParams wparams = (WindowManager.LayoutParams)params;
+
+     ...
+
+     synchronized (mLock) {
+
+     // 1. 实例化一个ViewRootImpl对象
+     ViewRootImpl root;
+     root = new ViewRootImpl(view.getContext(), display);
+     view.setLayoutParams(wparams);
+
+     mViews.add(view);
+     mRoots.add(root);
+     mParams.add(wparams);
+     }
+
+     // 2. WindowManager将DecorView实例对象交给ViewRootImpl 绘制View
+     root.setView(view, wparams, panelParentView);
+     // ->> 分析4
+       }
+    }
+ }
+
+/**
+  * 分析4：ViewRootImpl.setView（）
+  */
+    public void setView(View view, WindowManager.LayoutParams attrs, View panelParentView) {
+                requestLayout(); // ->>分析5
+    }
+
+/**
+  * 分析5：ViewRootImpl.requestLayout()
+  */
+    @Override
+    public void requestLayout() {
+
+        if (!mHandlingLayoutInLayoutRequest) {
+            // 1. 检查是否是view的创建线程
+            checkThread();
+            mLayoutRequested = true;//mLayoutRequested 是否measure和layout布局。
+            // 2. ->>分析6
+            scheduleTraversals();
+        }
+    }
+
+/**
+  * 分析6：ViewRootImpl.scheduleTraversals()
+  */
+    void scheduleTraversals() {
+        if (!mTraversalScheduled) {
+            mTraversalScheduled = true;
+            mTraversalBarrier = mHandler.getLooper().getQueue().postSyncBarrier();
+
+            // 通过mHandler.post（）发送一个runnable，在run()方法中去处理绘制流程
+            // 与ActivityThread的Handler消息传递机制相似
+            // ->>分析7
+            mChoreographer.postCallback(Choreographer.CALLBACK_TRAVERSAL, mTraversalRunnable, null);
+        }
+    }
+
+/**
+  * 分析7：Runnable类的子类对象mTraversalRunnable
+  * 作用：在run()方法中去处理绘制流程
+  */
+    final class TraversalRunnable implements Runnable {
+        @Override
+        public void run() {
+            doTraversal(); // ->>分析8
+        }
+    }
+    final TraversalRunnable mTraversalRunnable = new TraversalRunnable();
+
+/**
+  * 分析8：doTraversal()
+  */
+    void doTraversal() {
+            mHandler.getLooper().getQueue().removeSyncBarrier(mTraversalBarrier);
+
+            performTraversals(); 
+            // 最终会调用performTraversals()，从而开始View绘制的3大流程：Measure、Layout、Draw
+					performMeasure；
+					performLayout；
+					performDraw();
+					
+    }
+
+// 注：
+// a. ViewRootImpl中W类是Binder的Native端，用于接收WmS处理操作
+// b. 因W类的接收方法是在线程池中的，故可通过Handler将事件处理切换到主线程中
+
+总结：
+1.将DecorView对象添加到WindowManager中;
+2.创建ViewRootImpl对象;
+3.WindowManager将DecorView对象交给ViewRootImpl对象;
+4.ViewRootImpl对象通过Handler向主线程发送了一条触发遍历操作的消息：performTraversals()；该方法用于执行View的绘制流程（measure、layout、draw）。
+5.ViewRootImpl对象中接收的各种变化（如来自WmS的窗口属性变化、来自控件树的尺寸变化、重绘请求等都引发performTraversals()的调用及完成相关处理，并最终显示到可见的Activity中
+
+
+Window:创建DecorView -->传递DecorView-->WindowManager:管理Window-->传递DecorView-->ViewRoot实现类为ViewRootImpl:实现View的绘制(performTraversals)-->最终显示
+
+从上面的结论可以看出：
+1.一次次performTraversals()的调用驱动着控件树有条不紊的工作;
+2.一旦此方法无法正常执行，整个控件树都将处于僵死状态;
+3.因此performTraversals()可以说是ViewRootImpl类对象的核心逻辑。而performTraversals()的后续逻辑，则是View绘制的三大流程：测量流程(measure)、布局流程(layout)、绘制流程(draw)。
+4. ViewRootImpl 是DecorView和WMS的连接器
+
+

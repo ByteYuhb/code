@@ -1,0 +1,196 @@
+我对Bitmap的了解
+
+图片处理类
+可以通过BitmapFactory获取本地图片文件转换为Bitmap对象
+Bitmap图片可以进行压缩：如质量压缩，图片剪切，
+Bitmap缓存，回收复用，内存溢出
+Bitmap的图片格式png，jpg
+图片优化
+其他网络补充
+
+
+1.Bitmap简介
+	Bitmap是Android内部对图片处理的最重要的类之一。
+	通过Bitmap可以将图片转换显示在View内，一般是ImageView
+2.图片在内存中的大小计算：
+	1.图片大小：长度*宽度*一个像素的大小*
+		那么一个像素大小到底是多少呢？这个和我们使用Bitmap的编解码格式有关：
+			一起有以下几种：A：透明度 R：RED G：GREEN B：BLUE
+			1.ARGB_8888：表示ARGB是个元素都占用8个位，4*8=32位，即4个字节
+			2.RGB_565：表示RGB三个元素分辨占用5,6,5个位数，5+6+5 = 16，即2个字节
+			3.ARGB_4444：表示ARGB是个元素都占用4个位，4*4=16位，即2个字节
+			4.ALPHA_8：表示只有透明度一个元素占8位，即一个字节
+		一般我们使用比较多的是ARGB_8888和RGB_565：
+		举个例子：如果一个100*100的图片
+			1.使用ARGB_8888编码，则最后获取的bitmap大小是100*100*4=40000b
+			2.使用RGB_565编码，则最后获取的bitmap大小是100*100*2=20000b
+		大小整整小了一倍，但是前者看起来的效果会更加逼真
+		
+		注意：上面的计算方式还忽视了图片存放在哪个资源目录下，不同的资源目录最后测算出来的图片大小也会不一样
+		所以最终计算公式：
+			长度*宽度*一个像素的大小* inTargetDensity/inDensity * inTargetDensity/inDensity 
+			nTargetDensity：当前系统的密度
+			inDensity：存放的资源文件目录的密度
+		可以看出同一张图片放入的资源目录的密度越大，图片像素大小越大，越逼真
+		
+		
+2.Bitmap对象获取方式
+	1.获取本地
+		Bitmap bitmap = BitmapFactory.decodeFile("/sdcard/Pictures/aaa.jpg");获取sdcard图片
+		Bitmap bitmap5 = BitmapFactory.decodeResource(context.getResources(), R.drawable.aaa_xlarge)获取drawable目录下文件
+		BitmapFactory.decodeStream(context.getResources().getAssets().open("asset目录文件"));获取asset目录下文件
+		BitmapFactory.decodeFileDescriptor(new FileDescriptor());获取打开的文件描述符的图片文件
+		BitmapFactory.decodeByteArray(new ByteArrayOutputStream().toByteArray(),0,100);获取内存中ByteArrayOutputStream的文件
+		
+	2.获取网络
+		BitmapFactory.decodeStream(new inputStream)网络中的文件
+		BitmapFactory.decodeStream(new inputStream(),new Rect())网络中的文件，第二个参数表示获取的尺寸
+3.Bitmap压缩方式
+	1.质量压缩
+		在保持像素大小不变的情况下，改变图片的位深和透明度，来达到压缩图片的目的，图片在内存中的大小不变，图片的大小会改变
+		使用方式：
+			bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+			第二个参数表示压缩的比例
+		
+	2.采样率压缩
+		设置inSampleSize的值(int类型)后，假如设为n，则宽和高都为原来的1/n，宽高都减少，内存降低，图片在内存中给的大小改变
+		使用方式：
+			/**
+			 * 第二种：按采样大小压缩
+			 *
+			 * @param src       源图片
+			 * @param maxWidth  最大宽度
+			 * @param maxHeight 最大高度
+			 * @param recycle   是否回收
+			 * @return 按采样率压缩后的图片
+			 */
+			public static Bitmap compressBySampleSize(final Bitmap src, final int maxWidth, final int maxHeight, final boolean recycle) {
+				if (src == null || src.getWidth() == 0 || src.getHeight() == 0) {
+					return null;
+				}
+				Log.i("yc压缩图片","压缩前大小"+src.getByteCount());
+				BitmapFactory.Options options = new BitmapFactory.Options();
+				options.inJustDecodeBounds = true;设置只获取图片的宽高，不获取具体的bitmap
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				src.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+				byte[] bytes = baos.toByteArray();
+				BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+				options.inSampleSize = calculateInSampleSize(options, maxWidth, maxHeight);
+				options.inJustDecodeBounds = false;这里会实际加载bitmap
+				if (recycle && !src.isRecycled()) {
+					src.recycle();
+				}
+				Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+				Log.i("yc压缩图片","压缩后大小"+bitmap.getByteCount());
+				return bitmap;
+			}
+
+			/**
+			 * 计算获取缩放比例inSampleSize
+			 */
+			private static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+				final int height = options.outHeight;
+				final int width = options.outWidth;
+				int inSampleSize = 1;
+				if (height > reqHeight || width > reqWidth) {
+					final int heightRatio = Math.round((float) height / (float) reqHeight);
+					final int widthRatio = Math.round((float) width / (float) reqWidth);
+					inSampleSize = heightRatio < widthRatio ? heightRatio : widthRatio;
+				}
+				final float totalPixels = width * height;
+				final float totalReqPixelsCap = reqWidth * reqHeight * 2;
+				while (totalPixels / (inSampleSize * inSampleSize) > totalReqPixelsCap) {
+					inSampleSize++;
+				}
+				return inSampleSize;
+			}
+	3.缩放法压缩
+		Android中使用Matrix对图像进行缩放、旋转、平移、斜切等变换的
+		/**
+		 * 第三种：按缩放压缩
+		 *
+		 * @param src                   源图片
+		 * @param newWidth              新宽度
+		 * @param newHeight             新高度
+		 * @param recycle               是否回收
+		 * @return                      缩放压缩后的图片
+		 */
+		public static Bitmap compressByScale(final Bitmap src, final int newWidth, final int newHeight, final boolean recycle) {
+			return scale(src, newWidth, newHeight, recycle);
+		}
+		
+		/**
+		 * 缩放图片
+		 *
+		 * @param src                   源图片
+		 * @param scaleWidth            缩放宽度倍数
+		 * @param scaleHeight           缩放高度倍数
+		 * @param recycle               是否回收
+		 * @return                      缩放后的图片
+		 */
+		private static Bitmap scale(final Bitmap src, final float scaleWidth, final float scaleHeight, final boolean recycle) {
+			if (src == null || src.getWidth() == 0 || src.getHeight() == 0) {
+				return null;
+			}
+			Matrix matrix = new Matrix();
+			matrix.setScale(scaleWidth, scaleHeight);
+			Bitmap ret = Bitmap.createBitmap(src, 0, 0, src.getWidth(), src.getHeight(), matrix, true);
+			if (recycle && !src.isRecycled()) {
+				src.recycle();
+			}
+			return ret;
+		}
+		
+
+4.Bitmap回收问题
+	回收方法：
+		if (bitmap != null && !bitmap.isRecycled()) {
+			bitmap.recycle();
+			bitmap = null;
+		}
+	注意：非立即回收，看系统什么时候有空闲会回收
+5.缓存原理
+	1.LruCache原理
+		LruCache是个泛型类，内部采用LinkedHashMap来实现缓存机制，它提供get方法和put方法来获取缓存和添加缓存，
+		其最重要的方法trimToSize是用来移除最少使用的缓存和使用最久的缓存，并添加最新的缓存到队列中。
+6.Bitmap复用机制：
+	看代码：
+		@RequiresApi(api = Build.VERSION_CODES.KITKAT)
+		private void initBitmap() {
+			BitmapFactory.Options options = new BitmapFactory.Options();
+			// 图片复用，这个属性必须设置；
+			options.inMutable = true;
+			// 手动设置缩放比例，使其取整数，方便计算、观察数据；
+			options.inDensity = 320;
+			options.inTargetDensity = 320;
+			Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.bg_autumn_tree_min, options);
+			// 对象内存地址；
+			Log.i("ycBitmap", "bitmap = " + bitmap);
+			Log.i("ycBitmap", "ByteCount = " + bitmap.getByteCount() + ":::bitmap：AllocationByteCount = " + bitmap.getAllocationByteCount());
+			// 使用inBitmap属性，这个属性必须设置；
+			options.inBitmap = bitmap; options.inDensity = 320;
+			// 设置缩放宽高为原始宽高一半；
+			options.inTargetDensity = 160;
+			options.inMutable = true;
+			Bitmap bitmapReuse = BitmapFactory.decodeResource(getResources(), R.drawable.bg_kites_min, options);
+			// 复用对象的内存地址；
+			Log.i("ycBitmap", "bitmapReuse = " + bitmapReuse);
+			Log.i("ycBitmap", "bitmap：ByteCount = " + bitmap.getByteCount() + ":::bitmap：AllocationByteCount = " + bitmap.getAllocationByteCount());
+			Log.i("ycBitmap", "bitmapReuse：ByteCount = " + bitmapReuse.getByteCount() + ":::bitmapReuse：AllocationByteCount = " + bitmapReuse.getAllocationByteCount());
+
+			//11-26 18:24:07.971 15470-15470/com.yc.cn.ycbanner I/ycBitmap: bitmap = android.graphics.Bitmap@9739bff
+			//11-26 18:24:07.972 15470-15470/com.yc.cn.ycbanner I/ycBitmap: bitmap：ByteCount = 4346880:::bitmap：AllocationByteCount = 4346880
+			//11-26 18:24:07.994 15470-15470/com.yc.cn.ycbanner I/ycBitmap: bitmapReuse = android.graphics.Bitmap@9739bff
+			//11-26 18:24:07.994 15470-15470/com.yc.cn.ycbanner I/ycBitmap: bitmap：ByteCount = 1228800:::bitmap：AllocationByteCount = 4346880
+			//11-26 18:24:07.994 15470-15470/com.yc.cn.ycbanner I/ycBitmap: bitmapReuse：ByteCount = 1228800:::bitmapReuse：AllocationByteCount = 4346880
+		}
+7.getByteCount()和getAllocationByteCount()区别？
+	getAllocationByteCount()表示在内存中实际分配的大小
+	getByteCount表示存储该Bitmap的色素需要多少内存
+		1.一般情况两者是相等的，
+		2.在一些特殊情况下，getAllocationByteCount获取的值可能会比getByteCount大：
+		比如：Bitmap在复用的时候，复用前后的getAllocationByteCount都是相等的，系统不会重复分配，但是getByteCount可能会比复用前更小。
+
+	
+	
+

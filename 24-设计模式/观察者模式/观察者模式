@@ -1,0 +1,84 @@
+观察者模式
+
+定义：现实生活中常常会出现一个对象的状态改变会引起多个对象的状态改变，
+如公众号和订阅者，订阅者先在公众号上订阅该公众号，公众号有消息时，将消息推送给，每个订阅者，
+这就是一个典型的观察者模式：
+
+某个对象和多个对象之间存在订阅关系，对象状态改变时，需要通知其他对象
+
+特点
+1.降低了目标和观察者之间的耦合关系，符合依赖倒置原则
+2.目标和观察者之间建立了一套触发机制
+
+
+
+结构
+抽象观察者：Observer
+具体观察者A：ObserverA
+具体观察者B：ObserverB
+抽象被观察者：Observed，内部包含一个添加和删除观察者的方法，并抽象一个通知观察者的方法
+具体被观察者：ConcreteObserved，实现抽象观察者的通知方法
+
+UML
+
+代码
+抽象观察者：Observer
+public interface Observer{
+	void response();
+}
+具体观察者A：ObserverA
+public class ObserverA implements Observer{
+	public void response(){
+		System.out.println("ObserverA:"+this);
+	}
+}
+具体观察者B：ObserverB
+public class ObserverB implements Observer{
+	public void response(){
+		System.out.println("ObserverB:"+this);
+	}
+}
+抽象被观察者：Observed
+public abstract class Observed<T> {
+    protected ArrayList<T> list = new ArrayList<>();
+    public void add(T observer){
+        list.add(observer);
+    }
+    public void remove(T observer){
+        list.remove(observer);
+    }
+    public abstract void notifyObserver();
+}
+具体被观察者：ConcreteObserved
+
+public class ConcreteObserved<T extends Observer> extends Observed<T>{
+    @Override
+    public void notifyObserver() {
+        for(Object observer:list){
+            ((T)observer).response();
+        }
+    }
+}
+客户端：
+main(){
+	Observed<Observer> observed = new ConcreteObserved<>();
+	observed.add(new ObserverA());
+	observed.add(new ObserverA());
+	observed.add(new ObserverB());
+	observed.add(new ObserverB());
+
+	observed.notifyObserver();
+
+}
+结果：
+ObserverA:com.android.yuhb.test.sjmode.model_observer.ObserverA@694f9431
+ObserverA:com.android.yuhb.test.sjmode.model_observer.ObserverA@f2a0b8e
+ObserverB:com.android.yuhb.test.sjmode.model_observer.ObserverB@593634ad
+ObserverB:com.android.yuhb.test.sjmode.model_observer.ObserverB@20fa23c1
+
+应用场景
+1.需要实现类似订阅关系，如android里面的广播机制
+2.一个对象和其他多个对象之间有依赖关系
+
+扩展
+

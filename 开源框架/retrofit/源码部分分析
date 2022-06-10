@@ -1,0 +1,363 @@
+
+public <T> T create(final Class<T> service) {
+    validateServiceInterface(service); 
+//是否需要提前验证，默认是不需要validateEagerly：false
+//
+    return (T)
+        Proxy.newProxyInstance(
+            service.getClassLoader(),
+            new Class<?>[] {service},
+            new InvocationHandler() {
+              private final Platform platform = Platform.get();
+              private final Object[] emptyArgs = new Object[0];
+
+              @Override
+              public @Nullable Object invoke(Object proxy, Method method, @Nullable Object[] args)
+                  throws Throwable {
+                // If the method is a method from Object then defer to normal invocation.
+                if (method.getDeclaringClass() == Object.class) {
+                  return method.invoke(this, args);
+                }
+                args = args != null ? args : emptyArgs;
+                return platform.isDefaultMethod(method)
+                    ? platform.invokeDefaultMethod(method, service, proxy, args)
+                    : loadServiceMethod(method).invoke(args);//关注点5
+              }
+            });
+  }
+
+
+//是否需要提前验证，默认是不需要validateEagerly：false，既不需要提前验证，我们根据Android平台的逻辑来，这里先跳过
+private void validateServiceInterface(Class<?> service) {
+
+...
+    if (validateEagerly) {
+      Platform platform = Platform.get();
+      for (Method method : service.getDeclaredMethods()) {//依次取出请求接口中的方法
+		//这里两个判断一个是否是默认Method，另外一个是否是静态方法，两种都满足，才会调用loadServiceMethod：
+		//isDefaultMethod的逻辑：hasJava8Types && method.isDefault();前面分析我们hasJava8Types = 默认为false，
+        if (!platform.isDefaultMethod(method) && !Modifier.isStatic(method.getModifiers())) {
+          loadServiceMethod(method);
+        }
+      }
+    }
+
+...
+}
+//回到create方法：
+//这里通过动态代理方式，在运行期动态创建了一个请求接口的代理类
+//实际是对接口方法调用loadServiceMethod进行解析，并执行接口方法
+
+Proxy.newProxyInstance(
+            service.getClassLoader(),
+            new Class<?>[] {service},
+            new InvocationHandler() {
+              private final Platform platform = Platform.get();
+              private final Object[] emptyArgs = new Object[0];
+
+              @Override
+              public @Nullable Object invoke(Object proxy, Method method, @Nullable Object[] args)
+                  throws Throwable {
+                ...
+                return platform.isDefaultMethod(method)
+                    ? platform.invokeDefaultMethod(method, service, proxy, args)
+                    : loadServiceMethod(method).invoke(args);
+					//我们的网络请求接口一般都会走到这里，我们直接来分析loadServiceMethod
+              }
+            });
+：
+
+总结：Retrofit的create方法使用动态代理的方式在运行期创建了一个请求接口的代理类
+
+模块2：Call<Result> call = request.login()
+之前分析过request是一个请求接口的代理类：调用login方法
+这个方法会调用动态代理的invoke方法：这个方法内部会调用loadServiceMethod(method).invoke方法
+我们先来分析下loadServiceMethod：
+
+ServiceMethod<?> loadServiceMethod(Method method) {
+//这个serviceMethodCache是一个LinkedHashMap。从map中获取一个ServiceMethod对象
+    ServiceMethod<?> result = serviceMethodCache.get(method);
+//如果上面获取到ServiceMethod缓存，则直接返回result。不用继续执行下面操作
+    if (result != null) return result;
+//这里使用同步操作，防止多线程引起数据错误
+    synchronized (serviceMethodCache) {
+//再次从serviceMethodCache中获取ServiceMethod缓存对象，如果没有则调用ServiceMethod.parseAnnotations(this, method);
+      result = serviceMethodCache.get(method);
+      if (result == null) {
+//这里调用ServiceMethod.parseAnnotations(this, method);解析方法
+        result = ServiceMethod.parseAnnotations(this, method);//关注点1..分析内部操作可以看出来这里返回的是一个CallAdapted对象
+//将解析后的方法注解信息放入到serviceMethodCache缓存中
+        serviceMethodCache.put(method, result);//
+      }
+    }
+//返回解析后的数据
+    return result;
+}
+总结loadServiceMethod：去缓存中获取ServiceMethod对象信息，这个对象包含了我们创建请求的所有信息，
+如果没有缓存，则调用ServiceMethod.parseAnnotations通过解析数据获取ServiceMethod请求信息
+//关注点1：
+ServiceMethod.java中
+  static <T> ServiceMethod<T> parseAnnotations(Retrofit retrofit, Method method) {
+    RequestFactory requestFactory = RequestFactory.parseAnnotations(retrofit, method);//关注点2
+	...
+    return HttpServiceMethod.parseAnnotations(retrofit, method, requestFactory);//关注点3
+  }
+
+//来看关注点2：
+//看到这里也是使用了建造者模式创建了一个RequestFactory：
+  static RequestFactory parseAnnotations(Retrofit retrofit, Method method) {
+    return new Builder(retrofit, method).build();
+  }
+//进入Builder.build()方法中看看
+	RequestFactory build() {
+      for (Annotation annotation : methodAnnotations) {
+		//这里我们对方法注解进行解析
+        parseMethodAnnotation(annotation);//关注点3
+      }
+//这里开始一直到返回处都是对注解的检测是否合规   
+...
+	if (!hasBody) {//这两个判断表示isMultipart和isFormEncoded修饰的情况下，一定需要有Body
+        if (isMultipart) {
+          throw methodError(
+              method,
+              "Multipart can only be specified on HTTP methods with request body (e.g., @POST).");
+        }
+        if (isFormEncoded) {
+          throw methodError(
+              method,
+              "FormUrlEncoded can only be specified on HTTP methods with "
+                  + "request body (e.g., @POST).");
+        }
+     }
+
+...
+//返回一个RequestFactory并持有这个Builder类
+      return new RequestFactory(this); 
+    }
+//继续查看RequestFactory构造方法：
+RequestFactory(Builder builder) {
+    method = builder.method;
+    baseUrl = builder.retrofit.baseUrl;
+    httpMethod = builder.httpMethod;
+    relativeUrl = builder.relativeUrl;
+    headers = builder.headers;
+    contentType = builder.contentType;
+    hasBody = builder.hasBody;
+    isFormEncoded = builder.isFormEncoded;
+    isMultipart = builder.isMultipart;
+    parameterHandlers = builder.parameterHandlers;
+    isKotlinSuspendFunction = builder.isKotlinSuspendFunction;
+  }
+//可以看到这个类持有了一个网络请求的所有信息：
+//method，baseUrl，httpMethod，headers，contentType，hasBody，isFormEncoded，isMultipart，isKotlinSuspendFunction等等信息
+
+//回到关注点1：
+  static <T> ServiceMethod<T> parseAnnotations(Retrofit retrofit, Method method) {
+    RequestFactory requestFactory = RequestFactory.parseAnnotations(retrofit, method);//关注点2
+	...
+    return HttpServiceMethod.parseAnnotations(retrofit, method, requestFactory);//关注点3
+  }
+//刚才分析了关注点2中会返回一个请求的所有信息，在关注点3处作为HttpServiceMethod.parseAnnotations的参数传入
+//我们继续看下面的HttpServiceMethod.parseAnnotations
+  static <ResponseT, ReturnT> HttpServiceMethod<ResponseT, ReturnT> parseAnnotations(
+      Retrofit retrofit, Method method, RequestFactory requestFactory) {
+    boolean isKotlinSuspendFunction = requestFactory.isKotlinSuspendFunction;//判断是否是Kotlin suspend方法
+   
+    Annotation[] annotations = method.getAnnotations();//获取method的注解信息
+    Type adapterType;
+    //这里返回一个网络请求适配器，内部是使用之前设置的适配器工厂DefaultCallAdapterFactory创建一个请求适配器
+    CallAdapter<ResponseT, ReturnT> callAdapter = createCallAdapter(retrofit, method, adapterType, annotations);//关注点x1：
+    ...
+	//这里返回一个响应数据转换器ResponseConverter，内部是使用之前设置的响应转换器工厂创建一个响应转换器
+    Converter<ResponseBody, ResponseT> responseConverter =
+        createResponseConverter(retrofit, method, responseType)；//后面我们分析这里：记关注点x2；
+
+	//网络请求器默认为okhttp3.Call.Factory
+    okhttp3.Call.Factory callFactory = retrofit.callFactory;
+	//目前是用的Java不是kotlin协程挂起函数，返回的是一个CallAdapted
+	//内部元素：包含所有注解信息的requestFactory，网络请求器callFactory，响应数据转换器responseConverter还有网络适配器callAdapter
+    if (!isKotlinSuspendFunction) {
+      return new CallAdapted<>(requestFactory, callFactory, responseConverter, callAdapter);
+    } else if (continuationWantsResponse) {
+      //noinspection unchecked Kotlin compiler guarantees ReturnT to be Object.
+      return (HttpServiceMethod<ResponseT, ReturnT>)
+          new SuspendForResponse<>(...);
+    } else {
+//如果是协程挂起函数则返回一个SuspendForBody
+      //noinspection unchecked Kotlin compiler guarantees ReturnT to be Object.
+      return (HttpServiceMethod<ResponseT, ReturnT>)
+          new SuspendForBody<>(...);
+    }
+  }
+来看关注点x1：
+CallAdapter<ResponseT, ReturnT> callAdapter = createCallAdapter(retrofit, method, adapterType, annotations);//关注点x1：
+一层一层进入最终调用到：DefaultCallAdapterFactory的get方法
+public CallAdapter<?, ?> get(Type returnType, Annotation[] annotations, Retrofit retrofit) {
+	return new CallAdapter<Object, Call<?>>() {
+                public Type responseType() {
+                    return responseType;
+                }
+
+                public Call<Object> adapt(Call<Object> call) {
+                    return (Call)(executor == null ? call : new DefaultCallAdapterFactory.ExecutorCallbackCall(executor, call));
+                }
+            };
+}
+看到这里返回了一个CallAdapter实现了adapt方法
+adapt方法返回一个ExecutorCallbackCall，我们来看这个类内部信息
+static final class ExecutorCallbackCall<T> implements Call<T> {
+	final Executor callbackExecutor;
+	final Call<T> delegate;
+
+	ExecutorCallbackCall(Executor callbackExecutor, Call<T> delegate) {
+		this.callbackExecutor = callbackExecutor;
+		this.delegate = delegate;
+	}
+
+	public void enqueue(final Callback<T> callback) {}
+	public Response<T> execute() throws IOException {}
+}
+这个类是一个网路请求器，内部调用代理模式Okhttp的请求
+来看关注点x2：
+Converter<ResponseBody, ResponseT> responseConverter = createResponseConverter(retrofit, method, responseType)；
+看如何创建的：
+	private static <ResponseT> Converter<ResponseBody, ResponseT> createResponseConverter(
+      Retrofit retrofit, Method method, Type responseType) {
+		
+		return retrofit.responseBodyConverter(responseType, annotations);
+		
+	}
+	//继续跟进responseBodyConverter
+	public <T> Converter<ResponseBody, T> responseBodyConverter(Type type, Annotation[] annotations) {
+		return nextResponseBodyConverter(null, type, annotations);
+	}
+	//继续
+	public <T> Converter<ResponseBody, T> nextResponseBodyConverter(
+		for (int i = start, count = converterFactories.size(); i < count; i++) {
+		  Converter<ResponseBody, ?> converter =
+			  converterFactories.get(i).responseBodyConverter(type, annotations, this);
+		  if (converter != null) {
+			//noinspection unchecked
+			return (Converter<ResponseBody, T>) converter;
+		  }
+		}
+	}
+	可以看到这里面是通过遍历converterFactories，来创建一个Converter。
+	这里的converterFactory: = GsonConverterFactory
+	找到GsonConverterFactory的responseBodyConverter方法：
+	  public Converter<ResponseBody, ?> responseBodyConverter(
+		Type type, Annotation[] annotations, Retrofit retrofit) {
+		TypeAdapter<?> adapter = gson.getAdapter(TypeToken.get(type));
+		return new GsonResponseBodyConverter<>(gson, adapter);
+	  }
+	这里创建了一个GsonResponseBodyConverter转换器，所以之后数据转换就是通过这个转换器
+	篇幅太长不再深入，需要看具体如何转换可以去看里面代码
+
+总结下我们的loadServiceMethod：内部通过对注解进行解析
+并对每个方法创建了一个包含网络请求的所有信息的CallAdapted对象这个CallAdapted是ServiceMethod的子类
+内部元素：包含所有注解信息的requestFactory，网络请求器callFactory，响应数据转换器responseConverter还有网络适配器callAdapter
+
+然后在关注点5：执行了CallAdapted对象的invoke方法
+来看下这个方法：
+   static final class CallAdapted<ResponseT, ReturnT> extends HttpServiceMethod<ResponseT, ReturnT> {
+    private final CallAdapter<ResponseT, ReturnT> callAdapter;
+	...
+    @Override
+    protected ReturnT adapt(Call<ResponseT> call, Object[] args) {
+      return callAdapter.adapt(call);
+    }
+  }
+//这个方法内部并没有invoke方法，猜测应该是在父类中，去看他的父类HttpServiceMethod
+abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<ReturnT> {
+  final @Nullable ReturnT invoke(Object[] args) {
+    Call<ResponseT> call = new OkHttpCall<>(requestFactory, args, callFactory, responseConverter);
+    return adapt(call, args);
+  }
+}
+//可以看到这个方法会创建一个OkHttpCall对象，并将请求信息传递给他，了解OkHttp的源码的同学都知道这个已经走到了Okhttp层面了
+//并回调adapt，这个方法在子类CallAdapted中实现，我们来看子类中的实现：
+    @Override
+    protected ReturnT adapt(Call<ResponseT> call, Object[] args) {
+      return callAdapter.adapt(call);
+    }
+//直接调用了网络请求适配器的callAdapter的adapt方法：这个callAdapter = DefaultCallAdapterFactory中的内部类CallAdapter，在
+//下面进入DefaultCallAdapterFactory内部类中的adapt方法看看
+//这个内部类在DefaultCallAdapterFactory.get方法中实现
+DefaultCallAdapterFactory.java
+public @Nullable CallAdapter<?, ?> get(
+      Type returnType, Annotation[] annotations, Retrofit retrofit) {
+    ...
+    final Executor executor =
+        Utils.isAnnotationPresent(annotations, SkipCallbackExecutor.class)
+            ? null
+            : callbackExecutor;
+
+    return new CallAdapter<Object, Call<?>>() {
+      @Override
+      public Type responseType() {
+        return responseType;
+      }
+
+      @Override
+      public Call<Object> adapt(Call<Object> call) {
+        return executor == null ? call : new ExecutorCallbackCall<>(executor, call);
+		//这里返回了一个ExecutorCallbackCall
+		//包含元素：executor：线程回调执行器 前面分析过Android平台是一个MainThreadExcutor
+		//包含元素：call：之前分析过是OkHttpCall的一个对象
+		
+      }
+    };
+  }
+从以上分析可知：
+我们的invoke方法最终返回的是一个ExecutorCallbackCall的网络执行器：
+这和使用中：Call<T> call = request.login()对应上
+所以这个call = ExecutorCallbackCall的实例对象，后期调用同步和异步操作都是在这个基础上的
+
+步骤1.3：我们使用异步来分析
+call.enqueue()
+从步骤2中给我们分析出call = ExecutorCallbackCall的实例对象
+那我们把源码定位到ExecutorCallbackCall类中：
+    static final class ExecutorCallbackCall<T> implements Call<T> {
+		final Executor callbackExecutor;//回调执行器用于线程切换
+		final Call<T> delegate;//这个Call = OkHttpCall
+
+		@Override
+		public void enqueue(final Callback<T> callback) {
+		  delegate.enqueue(
+			  new Callback<T>() {
+				@Override
+				public void onResponse(Call<T> call, final Response<T> response) {
+				  callbackExecutor.execute(
+					  () -> {
+						if (delegate.isCanceled()) {
+						  // Emulate OkHttp's behavior of throwing/delivering an IOException on
+						  // cancellation.
+						  callback.onFailure(ExecutorCallbackCall.this, new IOException("Canceled"));
+						} else {
+						  callback.onResponse(ExecutorCallbackCall.this, response);
+						}
+					  });
+				}
+
+				@Override
+				public void onFailure(Call<T> call, final Throwable t) {
+				  callbackExecutor.execute(() -> callback.onFailure(ExecutorCallbackCall.this, t));
+				}
+			  });
+    }
+1.可以看到这里面使用了代理模式：将请求转发给OkHttpCall的enqueue方法，详细对OkHttp了解的同学对这块已经很熟悉了
+2.数据响应成功后通过回调执行器CallbackExcutor将数据返回
+到这里，我们已经分析了，从接口-注解到数据通过回调执行器返回的过程
+整个网络逻辑已经分析完毕
+请求过程中的UML图如下：
+
+
+
+
+
+
+
+
+
+
+

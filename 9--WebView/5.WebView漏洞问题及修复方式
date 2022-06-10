@@ -1,0 +1,118 @@
+WebView使用漏洞：
+1.WebView 任意代码执行漏洞
+	出现该漏洞的原因有三个：
+	1.WebView 中 addJavascriptInterface（） 接口
+	2.WebView 内置导出的 searchBoxJavaBridge_对象
+	3.WebView 内置导出的 accessibility 和 accessibilityTraversalObject 对象
+
+
+	1.addJavascriptInterface 接口引起远程代码执行漏洞
+		A. 漏洞产生原因：
+			JS调用Android的其中一个方式是通过addJavascriptInterface接口进行对象映射：
+				webView.addJavascriptInterface(new JSObject(), "myObj");
+				// 参数1：Android的本地对象
+				// 参数2：JS的对象
+				// 通过对象映射将Android中的本地对象和JS中的对象进行关联，从而实现JS调用Android的对象和方法
+			所以当js获取android对象后，可以通过这个android对象调用android系统中任意类和方法：包括系统类runtime，从而任意执行本地代码。
+			具体获取runtime类的方法：
+			1.结合java反射机制：window[obj].getClass().forName("java.lang.Runtime")  ;
+			
+			2.getMethod("getRuntime",null).invoke(null,null).exec(cmdArgs);
+			通过以上两步就可以实现远程调用本地手机中的命令，造成手机信息泄露
+			当一些 APP 通过扫描二维码打开一个外部网页时，攻击者就可以执行这段 js 代码进行漏洞攻击。
+		B:解决方案：
+			B1. Android 4.2版本之后：
+				Google 在Android 4.2 版本中规定对被调用的函数以 @JavascriptInterface进行注解从而避免漏洞攻击
+			B2. Android 4.2版本之前:
+				之前是采用“拦截prompt”进行漏洞修复
+				1.继承WebView，重写addJavascriptInterface方法，内部维护一个map映射关系
+				2.每次在加载WebView页面前执行一段本地代码：
+					为什么要这么做：
+					2.1：让js调用这里面的方法，并调用prompt将方法名称和参数等信息传递给本地android；
+					2.2：android层面在onJsPrompt（）中 ，解析传递过来的方法名称和参数，然后去之前重写的addJavascriptInterface方法中设置的Map中找寻对应的类
+						 和方法，最终通过反射的方式调用本地类的方法。
+				细节1：加载上述JS代码的时机：
+				由于当 WebView 跳转到下一个页面时，之前加载的 JS 可能已经失效，所以，通常需要在以下方法中加载 JS：
+					onLoadResource（）；
+					doUpdateVisitedHistory（）；
+					onPageStarted（）；
+					onPageFinished（）；
+					onReceivedTitle（）；
+					onProgressChanged（）；
+				细节2：需要过滤掉 Object 类的方法：
+
+				
+					具体需要加载的JS代码如下：
+					javascript:(function JsAddJavascriptInterface_(){  
+						// window.jsInterface 表示在window上声明了一个Js对象
+
+						//   jsInterface = 注册的对象名
+						// 它注册了两个方法，onButtonClick(arg0)和onImageClick(arg0, arg1, arg2)
+						// 如果有返回值，就添加上return
+							if (typeof(window.jsInterface)!='undefined') {      
+								console.log('window.jsInterface_js_interface_name is exist!!');}   
+							else {  
+								window.jsInterface = {     
+
+							 // 声明方法形式：方法名: function(参数)
+									onButtonClick:function(arg0) {   
+						// prompt（）返回约定的字符串
+						// 该字符串可自己定义
+						// 包含特定的标识符MyApp和 JSON 字符串（方法名，参数，对象名等）    
+										return prompt('MyApp:'+JSON.stringify({obj:'jsInterface',func:'onButtonClick',args:[arg0]}));  
+									},  
+									  
+
+									onImageClick:function(arg0,arg1,arg2) {   
+								 return
+						prompt('MyApp:'+JSON.stringify({obj:'jsInterface',func:'onImageClick',args:[arg0,arg1,arg2]}));  
+									},  
+								};  
+							}  
+						}  
+						)()
+
+						// 当JS调用 onButtonClick（） 或 onImageClick（） 时，就会回调到Android中的 onJsPrompt （）
+						// 我们解析出方法名，参数，对象名
+						// 再通过反射机制调用Java对象的方法
+	
+	
+	2.searchBoxJavaBridge_接口引起远程代码执行漏洞
+		在Android 3.0以下，Android系统会默认通过searchBoxJavaBridge_的Js接口给 WebView 添加一个JS映射对象：searchBoxJavaBridge_对象
+		该接口可能被利用，实现远程任意代码。
+		解决方法：删除searchBoxJavaBridge_接口：removeJavascriptInterface（）；
+	3.accessibility和 accessibilityTraversal接口引起远程代码执行漏洞
+		同上
+2.密码明文存储漏洞
+	1.原因：WebView默认开启密码保存提醒：mWebView.setSavePassword(true)`
+		如果用户在输入密码时：选择了“是”，则会将密码保存在本地/data/data/com.package.name/databases/webview.db 中
+		这样就有被盗取的风险
+	2.解决方案：关闭密码保存提醒：mWebView.setSavePassword(false)
+3.域控制不严格漏洞
+	1.问题分析：
+		即 A 应用可以通过 B 应用导出的 Activity 让 B 应用加载一个恶意的 file 协议的 url，
+		从而可以获取 B 应用的内部私有文件，从而带来数据泄露威胁
+	2.解决方案：
+		1.对于不需要使用 file 协议的应用，禁用 file 协议；
+			// 禁用 file 协议；
+			setAllowFileAccess(false); 禁用 file 协议
+			setAllowFileAccessFromFileURLs(false);设置是否允许通过 file url 加载的 Js代码读取其他的本地文件，本地js的代码无法读取其他本地文件
+			setAllowUniversalAccessFromFileURLs(false);设置是否允许通过 file url 加载的 Javascript 可以访问其他的源(包括http、https等源)，本地js无法访问http和https方法
+		2.对于需要使用 file 协议的应用，禁止 file 协议加载 JavaScript。
+			// 需要使用 file 协议
+			setAllowFileAccess(true); 开启file协议
+			setAllowFileAccessFromFileURLs(false);禁用file协议读取本地文件
+			setAllowUniversalAccessFromFileURLs(false)禁用file协议读取远程文件
+			// 禁止 file 协议加载 JavaScript
+			if (url.startsWith("file://") {这样即使是file协议过来，也会禁用webview使用js，不会导致信息泄露
+				setJavaScriptEnabled(false);设置是否允许 WebView 使用 JavaScript（默认是不允许）
+			} else {
+				setJavaScriptEnabled(true);
+			}
+
+	`
+			
+			
+			
+
+		

@@ -1,0 +1,110 @@
+流畅度场景：
+1.滑动列表掉帧
+2.窗口动画不连贯
+3.重启手机进入桌面卡顿
+
+产生流畅度问题的原因：主线程执行message任务超时，超过一定的阈值
+
+
+
+知识储备：
+
+1.流畅度指标：fps 如60fps表示 60次画面更新/s  120fps表示 120次画面更新/s
+如果120fps的情况下，每秒画面只更新了110次，那就是出现了掉帧，可以使用工具检测到
+
+影响fps的因素：app原因，系统原因，还有整机原因，硬件层问题，我们一般分析的是自身app这块
+
+
+
+
+2.了解卡顿原理
+	1.应用一帧渲染的整体流程：为了知道卡顿是如何产生的，我们需要知道主线程的一帧是如何工作的
+	两个角度看：
+		1.执行顺序看:一帧执行顺序.webp
+			从 Choreographer 收到 Vsync 开始，到 SurfaceFlinger/HWC 合成一帧结束
+		
+		2.从工具systrace看:从systrace角度.webp
+			
+	上面执行步骤有一个地方超时都可能导致卡顿掉帧。
+	多个层面分析卡顿问题：UiThread RenderThread SystemServer进程 SurfaceFlinger进程，Linux区域
+
+
+	2.卡顿简单定义：稳定输出的画面出现几帧显示同一帧画面，用户感知为卡顿不流畅，也就是所说的：smooth or jank
+		1.从现象看：连续的动画播放或者滑动的时候，如果出现2帧或2帧以上显示同一画面，我们就认为出现了卡顿现象
+		2.从SurfaceFlinger角度看：一个vSync信号周期内，app没有提供用来合成的buffer，那么SurfaceFlinger就不会调用合成逻辑，显示屏下一帧会显示上一帧动画，我们也认为是出现了卡顿
+		3.从app角度看：一个周期内app没有queueBuffer到SurfaceFlinger的BufferQueue 中，我们认为出现了卡顿，和第一种角度是一致的
+		
+	3.逻辑卡顿：本身绘制流程没问题，导致卡顿原因是，两个buffer数据一样。
+
+3.系统运行机制简介
+
+	1.App主线程运行原理
+	2.Handler ，Looper机制
+	3.屏幕刷新机制和Vsync
+	4.Choreographer机制
+	5.Buffer流程和TripleBuffer
+	6.Input 流程。
+
+	1.App主线程运行原理：
+		app进程在被孵化进程fork出来后，会调用ActivityThread的main方法：进行主线程的初始化工作
+
+	2.Handler ，Looper机制：这部分可以查看之前分析的Handler机制原理，有详细的分析和问题总结
+
+	3.屏幕刷新机制和Vsync
+		屏幕刷新率：硬件显示器每秒更新画面的次数
+		FPS：软件层面对应每秒可以产生多少画面
+		Vsync：将屏幕刷新时间和FPS软件产生的buffer时间同步起来，防止出现撕裂的情况
+		
+	4.Choreographer机制
+		Choreographer 扮演 Android 渲染链路中承上启下的角色
+		承上：
+			负责接收和处理app的各种更新消息和回调，等到Vsync信号来的时候，统一按流程处理：input时间，animation动画，Traversal（三大绘制方法measure，layout，draw）
+			判断卡顿情况，记录CallBack耗时等
+
+		启下：负责注册和接收Vsync信号
+			接收 Vsync 事件回调：FrameDisplayEventReceiver.onVsync
+			请求：Vsync(FrameDisplayEventReceiver.scheduleVsync) 
+	5.Buffer 流程和 TripleBuffer
+		在 Android App 的渲染流程里面，App 就是个生产者(Producer) ，而 SurfaceFlinger 是一个消费者(Consumer)，所以上面的流程就可以翻译为。
+		1、当 App 需要 Buffer 时，它通过调用 dequeueBuffer（）并指定 Buffer 的宽度，高度，像素格式和使用标志，从 BufferQueue 请求释放 Buffer。
+		2、App 可以用 cpu 进行渲染也可以调用用 gpu 来进行渲染，渲染完成后，通过调用 queueBuffer（）将缓冲区返回到 App 对应的 BufferQueue(如果是 gpu 渲染的话，这里还有个 gpu 处理的过程，所以这个 Buffer 不会马上可用，需要等 GPU 渲染完成)。
+		3、SurfaceFlinger 在收到 Vsync 信号之后，开始准备合成，使用 acquireBuffer（）获取 App 对应的 BufferQueue 中的 Buffer 并进行合成操作
+		4.合成结束后，SurfaceFlinger 将通过调用 releaseBuffer（）将 Buffer 返回到 App 对应的 BufferQueue。
+		
+		知道了 Buffer 流转的过程，下面需要说明的是，在目前的大部分系统上，每个应用都有三个 Buffer 轮转使用，来减少由于 Buffer 在某个流程耗时过长导致应用无 Buffer 可用而出现卡顿情况。
+		三个 Buffer 的好处：
+			1、缓解掉帧 :从上图 Double Buffer 和 Triple Buffer 的对比图可以看到，在这种情况下（出现连续主线程超时），三个 Buffer 的轮转有助于缓解掉帧出现的次数（从掉帧两次 -> 只掉帧一次）。，App 主线程超时不一定会导致掉帧，由于 Triple Buffer 的存在，部分 App 端的掉帧(主要是由于 GPU 导致)，到 SurfaceFlinger 这里未必是掉帧，这是看 Systrace 的时候需要注意的一个点。
+			2、减少主线程和渲染线程等待时间 ：双 Buffer 的轮转，App 主线程有时候必须要等待 SurfaceFlinger(消费者)释放 Buffer 后，才能获取 Buffer 进行生产，这时候就有个问题，现在大部分手机 SurfaceFlinger 和 App 同时收到 Vsync 信号，如果出现 App 主线程等待 SurfaceFlinger(消费者)释放 Buffer，那么势必会让 App 主线程的执行时间延后。
+			3.降低 GPU 和 SurfaceFlinger 瓶颈 ：这个比较好理解，双 Buffer 的时候，App 生产的 Buffer 必须要及时拿去让 GPU 进行渲染，然后 SurfaceFlinger 才能进行合成，一旦 GPU 超时，就很容易出现 SurfaceFlinger 无法及时合成而导致掉帧；在三个 Buffer 轮转的时候，App 生产的 Buffer 可以及早进入 BufferQueue，让 GPU 去进行渲染（因为不需要等待，就算这里积累了 2 个 Buffer，下下一帧才去合成，这里也会提早进行，而不是在真正使用之前去匆忙让 GPU 去渲染），另外 SurfaceFlinger 本身的负载如果比较大，三个 Buffer 轮转也会有效降低 dequeueBuffer 的等待时间。
+		
+		坏处就是 Buffer 多了会占用内存。
+
+	6.Input 流程
+		Android 系统是由事件驱动的，而 input 是最常见的事件之一，用户的点击、滑动、长按等操作，都属于 input 事件驱动，其中的核心就是 InputReader 和 InputDispatcher。InputReader 和 InputDispatcher 是跑在 SystemServer 里面的两个 Native 线程，负责读取和分发 Input 事件，我们分析 Systrace 的 Input 事件流，首先是找到这里
+		1.InputReader从EventHub里面读取事件，传递给InputDispatcher进行事件分发
+		2.InputDispatcher 在拿到 InputReader 获取的事件之后，对事件进行包装和分发 (也就是发给对应的)。
+		3.OutboundQueue 里面放的是即将要被派发给对应 AppConnection 的事件
+		4.WaitQueue 里面记录的是已经派发给 AppConnection 但是 App 还在处理没有返回处理成功的事件。
+		5.PendingInputEventQueue 里面记录的是 App 需要处理的 Input 事件，这里可以看到已经到了应用进程。
+		6.deliverInputEvent 标识 App UI Thread 被 Input 事件唤醒。
+		7.InputResponse 标识 Input 事件区域，这里可以看到一个 Input_Down 事件 + 若干个 Input_Move 事件 + 一个 Input_Up 事件的处理阶段都被算到了这里。
+		8.App 响应 Input 事件 ：这里是滑动然后松手，也就是我们熟悉的桌面滑动的操作，桌面随着手指的滑动更新画面，松手后触发 Fling 继续滑动，从 Systrace 就可以看到整个事件的流程。
+
+
+
+4.systrace工具使用
+	两种方式可以获取
+	推荐使用python命令
+	也可以使用Android Device Monitor获取工具获取：Android\Sdk\tools\monitor.bat
+	通过在代码中埋点插入标签，可以查看各个方法中的耗时情况分析
+	java层的通过android.os.Trace类完成，native层通过ATrace宏完成
+	
+
+
+
+
+
+
+
+
+	

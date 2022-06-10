@@ -1,0 +1,70 @@
+Service面试题：
+1.两种启动方式的区别：
+	生命周期：
+	start： onCreate->onStartCommand->onDestroy
+	bind: onCreate->onBind->onUnbind->onDestroy
+	使用场景：
+	start：一般启动的服务是独立运行的，不依赖调用者，调用者也不关心服务启动成功或者失败
+	bind：服务是依赖客户端调用的，服务为客户端提供接口服务，通过ipc机制通讯实现远程调用
+2.service的启动流程
+	A进程调用startService或者bindService，同过AMS的代理类调用到AMS中的启动服务的方法，在调用realStartService之前会判断进程是否启动，
+	如果应用进程未启动，则先去请求孵化zygote进程创建进程服务B，创建成功后，发送请求给AMS，AMS收到应用创建成功的请求，重新调用realStartService方法
+	最终回调到应用进程的ApplicationThread的创建服务application并启动服务生命周期的过程
+3.Service与Activity怎么实现通信
+	通过binder机制通讯：
+		Activity在服务绑定成功后，会返回一个服务端的代理类，通过这个代理类，内部实现ipc功能，实现远程调用；
+		具体是AIDL通讯过程：
+		InterfaceXXX xxx = InterfaceXXX.Stub.asInterface(obj)这个obj = BinderProxy(BpBinder(handle))
+		xxx在使用过程中会调用transact方法，将需要发送的数据放到Parcel中，实际调用的是BinderProxy = transact
+		最后会调用到BpBinder的BpBinder->transact方法，IPCThreadState::self()->transact,最终调用到驱动中，驱动通过传入的handle找到对应的binder_ref，通过binder_ref找到binder_node，
+		通过binder_node找到binder_proc，并将数据放到binder_proc下面的线程池里面的某个线程的todo链表中，并唤醒线程，服务端在接收到数据之后，解析数据，根据code调用对应的服务实例的方法
+		
+4.IntentService是什么,IntentService原理，应用场景及其与Service的区别
+	参考IntentService详解
+5.Service 的 onStartCommand 方法有几种返回值?各代表什么意思?
+		START_NOT_STICKY
+	在执行完 onStartCommand 后,服务被异常 kill 掉,系统不会自动重启该服务
+		START_STICKY
+	重传 Intent。使用这个返回值时,如果在执行完 onStartCommand 后,服务被异 常 kill 掉,系统会自动重启该服务 ，并
+	且onStartCommand方法会执行,onStartCommand方法中的intent值为null。适用于媒体播放器或类似服务。
+		START_REDELIVER_INTEN
+	使用这个返回值时,服务被异 常 kill 掉,系统会自动重启该服务,并将 Intent 的值传入。
+	适用于主动执行应该立即恢复的作业（例如下载文件）的服务。
+
+6.进程保活的方式有哪几种？ adj 提高进程保留优先级方式
+    方案1:启动一个像素的Activity保活
+		具体：监听屏幕亮屏和暗屏广播，当接收到暗屏时，启动一个透明的一个像素的Activity，在亮屏时，关闭这个Activity
+	方案2：调用Service的startForeGround
+		具体：api<18 :调用startForeground(NOTIFICATION_ID, new Notification());
+			  api>=18:启用一个通知并拉起另外一个服务，另外服务启用通知，并关闭通知，关闭服务，也可以提高进程的优先级
+			  2.1调用startForeground(NOTIFICATION_ID, builder.build());
+			  2.2并启动一个服务InnerService，在InnerService中startForeground(NOTIFICATION_ID, builder.build())，这个id要和需要保活的服务通知id一致
+			  2.3InnerService调用stopForeground(true)和manager.cancel(NOTIFICATION_ID);stopSelf();取消服务
+			  
+			    Notification.Builder builder = new Notification.Builder(this);
+				builder.setSmallIcon(R.mipmap.ic_launcher);
+				startForeground(NOTIFICATION_ID, builder.build());
+				startService(new Intent(this, InnerService.class));
+			
+				class InnerService
+					startForeground(NOTIFICATION_ID, builder.build()); 通需要保活的NOTIFICATION_ID
+					stopForeground(true);
+					NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+					manager.cancel(NOTIFICATION_ID);
+					stopSelf();
+	方案3：相互唤醒，很多互联网应用都使用的这种方式
+		A-B：A死了B收到信息唤醒A 
+		B-A：B死了A收到信息唤醒B
+	方案4：JobSheduler，可以根据间隔时间启动服务
+	方案5：粘性服务&与系统服务捆绑
+			根据onStartService的返回值
+			START_STICKY
+			如果系统在onStartCommand返回后被销毁，系统将会重新创建服务并依次调用onCreate和onStartCommand
+			START_NOT_STICKY
+			如果系统在onStartCommand返回后被销毁，如果返回该值，则在执行完onStartCommand方法后如果Service被杀掉系统将不会重启该服务。
+			START_REDELIVER_INTENT
+			START_STICKY的兼容版本，不同的是其不保证服务被杀后一定能重启
+	方案6：使用NotificationListenerService监听通知栏信息
+			监听到信息就重新拉起需要启动的服务
+	
+

@@ -1,0 +1,76 @@
+排序算法：
+
+
+冒泡排序：
+
+选择排序：
+插入
+归并
+希尔
+快速
+堆排序
+
+查找：
+
+无序链表中给的顺序查找：遍历链表
+
+有序数组中的：二分查找：
+
+二叉查找树：
+
+左子节点<父节点  
+右子节点>左子节点
+
+java实现:
+1.定制二叉树节点：public class BSTree<T extends Comparable<T>> {
+	
+2.查找
+	递归版本的代码
+	private BSTNode<T> search(BSTNode<T> x, T key) {
+	非递归版本的代码
+	private BSTNode<T> iterativeSearch(BSTNode<T> x, T key) {
+3. 最大值和最小值
+	private BSTNode<T> maximum(BSTNode<T> tree) {
+	private BSTNode<T> minimum(BSTNode<T> tree) {
+4.前驱和后继
+节点的前驱：是该节点的左子树中的最大节点。
+	找结点(x)的前驱结点。即，查找"二叉树中数据值小于该结点"的"最大结点"。
+	1. // 如果x存在左孩子，则"x的前驱结点"为 "以其左孩子为根的子树的最大结点"。
+	2.  // 如果x没有左孩子。则x有以下两种可能：
+    // (01) x是"一个右孩子"，则"x的前驱结点"为 "它的父结点"。
+    // (01) x是"一个左孩子"，则查找"x的最低的父结点，并且该父结点要具有右孩子"，找到的这个"最低的父结点"就是"x的前驱结点"。
+
+节点的后继：是该节点的右子树中的最小节点。
+	 找结点(x)的后继结点。即，查找"二叉树中数据值大于该结点"的"最小结点"。
+	 1.// 如果x存在右孩子，则"x的后继结点"为 "以其右孩子为根的子树的最小结点"。
+	 2.// 如果x没有右孩子。则x有以下两种可能：
+		// (01) x是"一个左孩子"，则"x的后继结点"为 "它的父结点"。
+		// (02) x是"一个右孩子"，则查找"x的最低的父结点，并且该父结点要具有左孩子"，找到的这个"最低的父结点"就是"x的后继结点"。
+前驱
+public BSTNode<T> predecessor(BSTNode<T> x) {
+后继
+public BSTNode<T> successor(BSTNode<T> x) {
+
+5.插入
+private void insert(BSTree<T> bst, BSTNode<T> z) {
+
+6.删除
+private BSTNode<T> remove(BSTree<T> bst, BSTNode<T> z) {
+	
+7.打印
+private void print(BSTNode<T> tree, T key, int direction) {
+
+8.销毁
+private void destroy(BSTNode<T> tree) {
+
+9.遍历：
+前序
+中序
+后续
+
+
+平衡查找树
+
+散列表
+
+

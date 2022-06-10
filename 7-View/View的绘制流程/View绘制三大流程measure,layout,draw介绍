@@ -1,0 +1,389 @@
+performMeasure；
+performLayout；
+performDraw();
+
+1.performMeasure测量
+	private void performTraversals() {
+		...
+		int childWidthMeasureSpec = getRootMeasureSpec(mWidth, lp.width);分析1
+		int childHeightMeasureSpec = getRootMeasureSpec(mHeight, lp.height);
+		performMeasure(childWidthMeasureSpec, childHeightMeasureSpec);分析2
+		...
+		performLayout(lp, mWidth, mHeight);分析3
+		...
+		performDraw();分析4
+	
+	
+	}
+	这个是View的绘制三大流程入口
+	分析1：
+	private static int getRootMeasureSpec(int windowSize, int rootDimension) {
+        int measureSpec;
+        switch (rootDimension) {
+
+        case ViewGroup.LayoutParams.MATCH_PARENT:
+            // Window can't resize. Force root view to be windowSize.
+            measureSpec = MeasureSpec.makeMeasureSpec(windowSize, MeasureSpec.EXACTLY);
+            break;
+        case ViewGroup.LayoutParams.WRAP_CONTENT:
+            // Window can resize. Set max size for root view.
+            measureSpec = MeasureSpec.makeMeasureSpec(windowSize, MeasureSpec.AT_MOST);
+            break;
+        default:
+            // Window wants to be an exact size. Force root view to be that size.
+            measureSpec = MeasureSpec.makeMeasureSpec(rootDimension, MeasureSpec.EXACTLY);
+            break;
+        }
+        return measureSpec;
+    }
+	该方法主要是获取根布局的测量数据：测量模式和测量大小，可以看到不管是MATCH_PARENT还是WRAP_CONTENT，size= windowSize
+	
+	分析2：
+	private void performMeasure(int childWidthMeasureSpec, int childHeightMeasureSpec) {
+		...
+        try {
+            mView.measure(childWidthMeasureSpec, childHeightMeasureSpec);
+        } finally {
+            Trace.traceEnd(Trace.TRACE_TAG_VIEW);
+        }
+    }
+	mView = new DecorView，所以此处调用的是DecorView的measure方法，这个方法在父类View中实现
+	
+	public final void measure(int widthMeasureSpec, int heightMeasureSpec) {
+		...
+		onMeasure(widthMeasureSpec, heightMeasureSpec);
+		...
+	}
+	发现调用的是子类DecorView的onMeasure方法
+	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+		...
+		这中间对widthMeasureSpec和heightMeasureSpec重新做了一些赋值
+		...
+		super.onMeasure(widthMeasureSpec, heightMeasureSpec);父类FrameLayout执行	
+	}
+	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int count = getChildCount();
+
+        final boolean measureMatchParentChildren =
+                MeasureSpec.getMode(widthMeasureSpec) != MeasureSpec.EXACTLY ||
+                MeasureSpec.getMode(heightMeasureSpec) != MeasureSpec.EXACTLY;
+        mMatchParentChildren.clear();
+
+        int maxHeight = 0;
+        int maxWidth = 0;
+        int childState = 0;
+
+        for (int i = 0; i < count; i++) {
+            final View child = getChildAt(i);
+            if (mMeasureAllChildren || child.getVisibility() != GONE) {
+                measureChildWithMargins(child, widthMeasureSpec, 0, heightMeasureSpec, 0);这里对子view进行了测量
+                final LayoutParams lp = (LayoutParams) child.getLayoutParams();
+                maxWidth = Math.max(maxWidth,
+                        child.getMeasuredWidth() + lp.leftMargin + lp.rightMargin);
+                maxHeight = Math.max(maxHeight,
+                        child.getMeasuredHeight() + lp.topMargin + lp.bottomMargin);
+                childState = combineMeasuredStates(childState, child.getMeasuredState());
+                if (measureMatchParentChildren) {
+                    if (lp.width == LayoutParams.MATCH_PARENT ||
+                            lp.height == LayoutParams.MATCH_PARENT) {
+                        mMatchParentChildren.add(child);
+                    }
+                }
+            }
+        }
+		...
+		setMeasuredDimension(resolveSizeAndState(maxWidth, widthMeasureSpec, childState),
+                resolveSizeAndState(maxHeight, heightMeasureSpec,
+                        childState << MEASURED_HEIGHT_STATE_SHIFT));这里设置测量后的view的模式和大小
+	}
+	protected void measureChildWithMargins(View child,
+            int parentWidthMeasureSpec, int widthUsed,
+            int parentHeightMeasureSpec, int heightUsed) {
+        final MarginLayoutParams lp = (MarginLayoutParams) child.getLayoutParams();
+
+        final int childWidthMeasureSpec = getChildMeasureSpec(parentWidthMeasureSpec,分析5
+                mPaddingLeft + mPaddingRight + lp.leftMargin + lp.rightMargin
+                        + widthUsed, lp.width);
+        final int childHeightMeasureSpec = getChildMeasureSpec(parentHeightMeasureSpec,
+                mPaddingTop + mPaddingBottom + lp.topMargin + lp.bottomMargin
+                        + heightUsed, lp.height);
+
+        child.measure(childWidthMeasureSpec, childHeightMeasureSpec);在这里调用子View的测量方法，通开始一样测量。
+    }
+	
+	分析5：这个比较关键，根据父View的测量大小和模式，判断子View的测量大小和模式
+	public static int getChildMeasureSpec(int spec, int padding, int childDimension) {
+        int specMode = MeasureSpec.getMode(spec);
+        int specSize = MeasureSpec.getSize(spec);
+
+        int size = Math.max(0, specSize - padding);
+
+        int resultSize = 0;
+        int resultMode = 0;
+
+        switch (specMode) {
+        // Parent has imposed an exact size on us
+        case MeasureSpec.EXACTLY:父类传入的模式EXACTLY
+            if (childDimension >= 0) {
+                resultSize = childDimension;如果子类是确定的，就使用子view指定的大小
+                resultMode = MeasureSpec.EXACTLY;
+            } else if (childDimension == LayoutParams.MATCH_PARENT) {子类MATCH_PARENT，就给他父类提供的大小
+                // Child wants to be our size. So be it.
+                resultSize = size;
+                resultMode = MeasureSpec.EXACTLY;
+            } else if (childDimension == LayoutParams.WRAP_CONTENT) {子类WRAP_CONTENT，就提供一个最大值给子View，最大不能超过resultSize
+                // Child wants to determine its own size. It can't be
+                // bigger than us.
+                resultSize = size;
+                resultMode = MeasureSpec.AT_MOST;
+            }
+            break;
+
+        // Parent has imposed a maximum size on us
+        case MeasureSpec.AT_MOST:
+            if (childDimension >= 0) {
+                // Child wants a specific size... so be it如果子类是确定的，就使用子view指定的大小
+                resultSize = childDimension;
+                resultMode = MeasureSpec.EXACTLY;
+            } else if (childDimension == LayoutParams.MATCH_PARENT) {子类MATCH_PARENT，就给他父类提供的大小，父View是AT_MOST，他也最大是这个size也、模式AT_MOST
+                // Child wants to be our size, but our size is not fixed.
+                // Constrain child to not be bigger than us.
+                resultSize = size;
+                resultMode = MeasureSpec.AT_MOST;
+            } else if (childDimension == LayoutParams.WRAP_CONTENT) {子类WRAP_CONTENT，就给他父类提供的大小，父View是AT_MOST，他也最大是这个size也、模式AT_MOST
+                // Child wants to determine its own size. It can't be
+                // bigger than us.
+                resultSize = size;
+                resultMode = MeasureSpec.AT_MOST;
+            }
+            break;
+
+        // Parent asked to see how big we want to be
+        case MeasureSpec.UNSPECIFIED:
+            if (childDimension >= 0) {
+                // Child wants a specific size... let him have it
+                resultSize = childDimension;
+                resultMode = MeasureSpec.EXACTLY;
+            } else if (childDimension == LayoutParams.MATCH_PARENT) {
+                // Child wants to be our size... find out how big it should
+                // be
+                resultSize = View.sUseZeroUnspecifiedMeasureSpec ? 0 : size;
+                resultMode = MeasureSpec.UNSPECIFIED;
+            } else if (childDimension == LayoutParams.WRAP_CONTENT) {
+                // Child wants to determine its own size.... find out how
+                // big it should be
+                resultSize = View.sUseZeroUnspecifiedMeasureSpec ? 0 : size;
+                resultMode = MeasureSpec.UNSPECIFIED;
+            }
+            break;
+        }
+        //noinspection ResourceType
+        return MeasureSpec.makeMeasureSpec(resultSize, resultMode);
+    }
+
+	总结：getChildMeasureSpec里面值
+	如果父模式是EXACTLY,说明是父View的大小是固定的
+		子View大小设置的是一个固定值，那就给子View的大小也设置固定值，模式为EXACTLY
+		子View大小设置的是MATCH_PARENT，因为父View是固定大小，所以可以肯定子View大小也设置固定值，模式为EXACTLY
+		子View大小设置的是WRAP_CONTENT，因为父View是固定大小，所以可以让子View大小自己设定，但是最大不能超过父View，所以模式是AT_MOST，最大为父View的大小
+	如果父模式是AT_MOST,说明是父View的大小是不固定的，但是有个最大值
+		子View大小设置的是一个固定值，那就给子View的大小也设置固定值，模式为EXACTLY
+		子View大小设置的是MATCH_PARENT，因为父View是View有个最大值，可以设置为父view状态一样，模式AT_MOST最大不超过父view的大小
+		子View大小设置的是WRAP_CONTENT，因为父View是有个最大值，可以设置为父view状态一样，模式AT_MOST最大不超过父view的大小
+	
+performLayout：布局
+	private void performLayout(WindowManager.LayoutParams lp, int desiredWindowWidth,..){
+		final View host = mView;mView = DecorView
+		host.layout(0, 0, host.getMeasuredWidth(), host.getMeasuredHeight()); DecorView的测量大小
+	}
+	
+	public void layout(int l, int t, int r, int b) {
+		...
+		onLayout(changed, l, t, r, b);
+	}
+	DecorView:
+	@Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);调用父类的onlayout
+			layoutChildren(left, top, right, bottom, false /* no force left gravity */);
+				
+        getOutsets(mOutsets);
+        if (mOutsets.left > 0) {
+            offsetLeftAndRight(-mOutsets.left);
+        }
+        if (mOutsets.top > 0) {
+            offsetTopAndBottom(-mOutsets.top);
+        }
+        if (mApplyFloatingVerticalInsets) {
+            offsetTopAndBottom(mFloatingInsets.top);
+        }
+        if (mApplyFloatingHorizontalInsets) {
+            offsetLeftAndRight(mFloatingInsets.left);
+        }
+
+        // If the application changed its SystemUI metrics, we might also have to adapt
+        // our shadow elevation.
+        updateElevation();
+        mAllowUpdateElevation = true;
+
+        if (changed && mResizeMode == RESIZE_MODE_DOCKED_DIVIDER) {
+            getViewRootImpl().requestInvalidateRootRenderNode();
+        }
+    }
+	
+	void layoutChildren(int left, int top, int right, int bottom, boolean forceLeftGravity) {
+        final int count = getChildCount();
+
+        final int parentLeft = getPaddingLeftWithForeground();
+        final int parentRight = right - left - getPaddingRightWithForeground();
+
+        final int parentTop = getPaddingTopWithForeground();
+        final int parentBottom = bottom - top - getPaddingBottomWithForeground();
+
+        for (int i = 0; i < count; i++) {
+            final View child = getChildAt(i);
+            if (child.getVisibility() != GONE) {
+                final LayoutParams lp = (LayoutParams) child.getLayoutParams();
+
+                final int width = child.getMeasuredWidth();
+                final int height = child.getMeasuredHeight();
+
+                int childLeft;
+                int childTop;
+
+                int gravity = lp.gravity;
+                if (gravity == -1) {
+                    gravity = DEFAULT_CHILD_GRAVITY;
+                }
+
+                final int layoutDirection = getLayoutDirection();
+                final int absoluteGravity = Gravity.getAbsoluteGravity(gravity, layoutDirection);
+                final int verticalGravity = gravity & Gravity.VERTICAL_GRAVITY_MASK;
+
+                switch (absoluteGravity & Gravity.HORIZONTAL_GRAVITY_MASK) {
+                    case Gravity.CENTER_HORIZONTAL:
+                        childLeft = parentLeft + (parentRight - parentLeft - width) / 2 +
+                        lp.leftMargin - lp.rightMargin;
+                        break;
+                    case Gravity.RIGHT:
+                        if (!forceLeftGravity) {
+                            childLeft = parentRight - width - lp.rightMargin;
+                            break;
+                        }
+                    case Gravity.LEFT:
+                    default:
+                        childLeft = parentLeft + lp.leftMargin;
+                }
+
+                switch (verticalGravity) {
+                    case Gravity.TOP:
+                        childTop = parentTop + lp.topMargin;
+                        break;
+                    case Gravity.CENTER_VERTICAL:
+                        childTop = parentTop + (parentBottom - parentTop - height) / 2 +
+                        lp.topMargin - lp.bottomMargin;
+                        break;
+                    case Gravity.BOTTOM:
+                        childTop = parentBottom - height - lp.bottomMargin;
+                        break;
+                    default:
+                        childTop = parentTop + lp.topMargin;
+                }
+
+                child.layout(childLeft, childTop, childLeft + width, childTop + height);循环遍历子View调用子View的layout方法
+            }
+        }
+    }
+	总结：performLayout操作是一层一层给子View进行布局，具体位置是根据传入的参数和需求共同决定
+	
+	
+通过测量和在父View中的位置布局操作就可以确定子view具体在windows中的位置和大小
+
+3.performDraw:绘制
+	View中：
+	public void draw(Canvas canvas) {
+		// Step 1, draw the background, if needed
+		if (!dirtyOpaque) {
+            drawBackground(canvas);绘制背景
+        }
+		// Step 3, draw the content
+        if (!dirtyOpaque) onDraw(canvas);绘制当前视图
+		// Step 4, draw the children
+        dispatchDraw(canvas);绘制子View
+		// Step 6, draw decorations (foreground, scrollbars)
+        onDrawForeground(canvas);绘制前景滚动条等
+		// Step 7, draw the default focus highlight
+        drawDefaultFocusHighlight(canvas);绘制默认获取焦点高亮显示
+	}
+
+	ViewGroup中：
+	protected void dispatchDraw(Canvas canvas) {
+		...
+		for (int i = 0; i < childrenCount; i++) {
+            while (transientIndex >= 0 && mTransientIndices.get(transientIndex) == i) {
+                final View transientChild = mTransientViews.get(transientIndex);
+                if ((transientChild.mViewFlags & VISIBILITY_MASK) == VISIBLE ||
+                        transientChild.getAnimation() != null) {
+                    more |= drawChild(canvas, transientChild, drawingTime);分析1
+                }
+                transientIndex++;
+                if (transientIndex >= transientCount) {
+                    transientIndex = -1;
+                }
+            }
+
+            final int childIndex = getAndVerifyPreorderedIndex(childrenCount, i, customOrder);
+            final View child = getAndVerifyPreorderedView(preorderedList, children, childIndex);
+            if ((child.mViewFlags & VISIBILITY_MASK) == VISIBLE || child.getAnimation() != null) {
+                more |= drawChild(canvas, child, drawingTime);
+            }
+        }
+		....	
+	}
+	分析1：
+	protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
+        return child.draw(canvas, this, drawingTime);在这里调用了子View的draw方法去绘制子View
+    }
+	
+	总结：performDraw方法中主要做了绘制背景，绘制当前视图，绘制子View绘制滚动条等信息
+	如果是自定义View则一般会调用到onDraw方法，不会调用到dispatchDraw，内部空实现
+	如果是自定义ViewGroup则会回调到dispatchDraw，内部实现了绘制子View的操作，在ViewGroup中实现
+	
+View的绘制流程大总结：
+
+	首先在Activity执行完OnResume后，调用了performTraversals方法
+	里面实现了performMeasure,performLayout,和performDraw三大流程
+	分别对应View的测量，定位和绘制流程
+	1.performMeasure测量方式是自上而下，先测量父View的模式和大小，在子View中根据父View的模式和大小，再根据自身的宽高模式，计算出自身的模式和大小
+		如果父模式是EXACTLY,说明是父View的大小是固定的
+		子View大小设置的是一个固定值，那就给子View的大小也设置固定值，模式为EXACTLY
+		子View大小设置的是MATCH_PARENT，因为父View是固定大小，所以可以肯定子View大小也设置固定值，模式为EXACTLY
+		子View大小设置的是WRAP_CONTENT，因为父View是固定大小，所以可以让子View大小自己设定，但是最大不能超过父View，所以模式是AT_MOST，最大为父View的大小
+	如果父模式是AT_MOST,说明是父View的大小是不固定的，但是有个最大值
+		子View大小设置的是一个固定值，那就给子View的大小也设置固定值，模式为EXACTLY
+		子View大小设置的是MATCH_PARENT，因为父View是View有个最大值，可以设置为父view状态一样，模式AT_MOST最大不超过父view的大小
+		子View大小设置的是WRAP_CONTENT，因为父View是有个最大值，可以设置为父view状态一样，模式AT_MOST最大不超过父view的大小
+	也可以在onMeasure方法中根据需求自定义大小。
+	2.performLayout：子View在window中的位置也是根据自己需求定义
+	3.performDraw方法中主要做了绘制背景，绘制当前视图，绘制子View绘制滚动条等信息
+	如果是自定义View则一般会调用到onDraw方法，不会调用到dispatchDraw，内部空实现
+	如果是自定义ViewGroup则会回调到dispatchDraw，内部实现了绘制子View的操作，在ViewGroup中实现
+
+	
+
+
+
+
+
+
+	
+	
+
+
+		
+	
+	
+	
+	
+			
+		

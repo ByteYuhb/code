@@ -1,0 +1,250 @@
+JavaPoet
+1.MethodSpec：表示一个方法
+	MethodSpec main = MethodSpec.methodBuilder("main")//设置方法名
+		.addModifiers(Modifier.PUBLIC, Modifier.STATIC)//设置方法的属性 public或者static
+		.returns(void.class)//设置返回值类型
+		.addParameter(String[].class, "args") //设置方法参数
+		.addStatement("$T.out.println($S)", System.class, "Hello, JavaPoet!")//方法内部代码填充
+		.build();
+2.TypeSpec ：表示一个类
+	TypeSpec helloWorld = TypeSpec.classBuilder("HelloWorld")
+		.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+		.addMethod(main)
+		.build();
+3.JavaFile：创建java文件
+	JavaFile javaFile = JavaFile.builder("com.example.helloworld", helloWorld)
+		  .build();
+4.java文件写入源码：
+	javaFile.writeTo(processingEnv.getFiler())
+
+5.使用beginControlFlow和nextControlFlow和endControlFlow表示括号开始和else和结束
+	MethodSpec main = MethodSpec.methodBuilder("main")
+		.addStatement("long now = $T.currentTimeMillis()", System.class)
+		.beginControlFlow("if ($T.currentTimeMillis() < now)", System.class)
+		.addStatement("$T.out.println($S)", System.class, "Time travelling, woo hoo!")
+		.nextControlFlow("else if ($T.currentTimeMillis() == now)", System.class)
+		.addStatement("$T.out.println($S)", System.class, "Time stood still!")
+		.nextControlFlow("else")
+		.addStatement("$T.out.println($S)", System.class, "Ok, time still moving forward")
+		.endControlFlow()
+		.build();
+	也可以表示异常方法：
+	MethodSpec main = MethodSpec.methodBuilder("main")
+    .beginControlFlow("try")
+    .addStatement("throw new Exception($S)", "Failed")
+    .nextControlFlow("catch ($T e)", Exception.class)
+    .addStatement("throw new $T(e)", RuntimeException.class)
+    .endControlFlow()
+    .build();
+6.
+	$L：表示字面量：
+		private MethodSpec computeRange(String name, int from, int to, String op) {
+		  return MethodSpec.methodBuilder(name)
+			  .returns(int.class)
+			  .addStatement("int result = 0")
+			  .beginControlFlow("for (int i = $L; i < $L; i++)", from, to)
+			  .addStatement("result = result $L i", op)
+			  .endControlFlow()
+			  .addStatement("return result")
+			  .build();
+		}
+	$S：表示字符串类型
+		private static MethodSpec whatsMyName(String name) {
+		  return MethodSpec.methodBuilder(name)
+			  .returns(String.class)
+			  .addStatement("return $S", name)
+			  .build();
+		}
+	
+	$T ：表示对象类型
+		MethodSpec today = MethodSpec.methodBuilder("today")
+							.returns(Date.class)
+							.addStatement("return new $T()", Date.class)
+							.build();	
+	$N ：代表Names
+		如方法调用
+		MethodSpec hexDigit = MethodSpec.methodBuilder("hexDigit")
+			.addParameter(int.class, "i")
+			.returns(char.class)
+			.addStatement("return (char) (i < 10 ? i + '0' : i - 10 + 'a')")
+			.build();
+
+		MethodSpec byteToHex = MethodSpec.methodBuilder("byteToHex")
+			.addParameter(int.class, "b")
+			.returns(String.class)
+			.addStatement("char[] result = new char[2]")
+			.addStatement("result[0] = $N((b >>> 4) & 0xf)", hexDigit)
+			.addStatement("result[1] = $N(b & 0xf)", hexDigit)
+			.addStatement("return new String(result)")
+			.build();
+7.指向不存在的class：The ClassName type is very important, and you'll need it frequently when you're using JavaPoet.非常重要的一个属性ClassName
+	ClassName hoverboard = ClassName.get("com.mattel", "Hoverboard");
+	MethodSpec today = MethodSpec.methodBuilder("tomorrow")
+		.returns(hoverboard)
+		.addStatement("return new $T()", hoverboard)
+		.build();
+
+8.ClassName	
+	1.ClassName hoverboard = ClassName.get("com.mattel", "Hoverboard");
+		ClassName list = ClassName.get("java.util", "List");
+		ClassName arrayList = ClassName.get("java.util", "ArrayList");
+	2.创建List<Hoverboard>
+		ParameterizedTypeName.get(list, hoverboard);
+		
+		MethodSpec beyond = MethodSpec.methodBuilder("beyond")
+		.returns(listOfHoverboards)
+		.addStatement("$T result = new $T<>()", listOfHoverboards, arrayList)
+		.addStatement("result.add(new $T())", hoverboard)
+		.addStatement("result.add(new $T())", hoverboard)
+		.addStatement("result.add(new $T())", hoverboard)
+		.addStatement("return result")
+		.build();
+9.导入静态类
+	ClassName namedBoards = ClassName.get("com.mattel", "Hoverboard", "Boards");
+	JavaFile.builder("com.example.helloworld", hello)
+    .addStaticImport(hoverboard, "createNimbus")
+    .addStaticImport(namedBoards, "*")
+    .addStaticImport(Collections.class, "*")
+    .build();
+10.多个参数样式：
+	Relative Arguments：
+		CodeBlock.builder().add("I ate $L $L", 3, "tacos")
+		类似于我们打印日志方式 %d %s
+	Positional Arguments：根据index来判断参数
+		CodeBlock.builder().add("I ate $2L $1L", "tacos", 3)
+	Named Arguments：通过键值对来判断
+		Map<String, Object> map = new LinkedHashMap<>();
+		map.put("food", "tacos");
+		map.put("count", 3);
+		CodeBlock.builder().addNamed("I ate $count:L $food:L", map)
+11.构造器：Constructors
+	MethodSpec flux = MethodSpec.constructorBuilder()
+		.addModifiers(Modifier.PUBLIC)
+		.addParameter(String.class, "greeting")
+		.addStatement("this.$N = $N", "greeting", "greeting")
+		.build();
+
+	TypeSpec helloWorld = TypeSpec.classBuilder("HelloWorld")
+		.addModifiers(Modifier.PUBLIC)
+		.addField(String.class, "greeting", Modifier.PRIVATE, Modifier.FINAL)
+		.addMethod(flux)
+		.build();
+12.参数：Parameters
+	ParameterSpec android = ParameterSpec.builder(String.class, "android")
+		.addModifiers(Modifier.FINAL)
+		.build();
+
+	MethodSpec welcomeOverlords = MethodSpec.methodBuilder("welcomeOverlords")
+		.addParameter(android)
+		.addParameter(String.class, "robot", Modifier.FINAL)
+		.build();
+13.属性：Fields
+	FieldSpec android = FieldSpec.builder(String.class, "android")
+		.addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+		.build();
+
+	TypeSpec helloWorld = TypeSpec.classBuilder("HelloWorld")
+		.addModifiers(Modifier.PUBLIC)
+		.addField(android)
+		.addField(String.class, "robot", Modifier.PRIVATE, Modifier.FINAL)
+		.build();
+	
+	对属性赋初始值
+	FieldSpec android = FieldSpec.builder(String.class, "android")
+		.addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+		.initializer("$S + $L", "Lollipop v.", 5.0d)
+		.build();
+14.接口：Interfaces
+	TypeSpec helloWorld = TypeSpec.interfaceBuilder("HelloWorld")
+		.addModifiers(Modifier.PUBLIC)
+		.addField(FieldSpec.builder(String.class, "ONLY_THING_THAT_IS_CONSTANT")
+			.addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+			.initializer("$S", "change")
+			.build())
+		.addMethod(MethodSpec.methodBuilder("beep")
+			.addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+			.build())
+		.build();
+15.枚举：Enums
+	TypeSpec helloWorld = TypeSpec.enumBuilder("Roshambo")
+    .addModifiers(Modifier.PUBLIC)
+    .addEnumConstant("ROCK")
+    .addEnumConstant("SCISSORS")
+    .addEnumConstant("PAPER")
+    .build();
+16.匿名内部类：
+	TypeSpec comparator = TypeSpec.anonymousClassBuilder("")
+		.addSuperinterface(ParameterizedTypeName.get(Comparator.class, String.class))
+		.addMethod(MethodSpec.methodBuilder("compare")
+			.addAnnotation(Override.class)
+			.addModifiers(Modifier.PUBLIC)
+			.addParameter(String.class, "a")
+			.addParameter(String.class, "b")
+			.returns(int.class)
+			.addStatement("return $N.length() - $N.length()", "a", "b")
+			.build())
+		.build();
+
+	TypeSpec helloWorld = TypeSpec.classBuilder("HelloWorld")
+		.addMethod(MethodSpec.methodBuilder("sortByLength")
+			.addParameter(ParameterizedTypeName.get(List.class, String.class), "strings")
+			.addStatement("$T.sort($N, $L)", Collections.class, "strings", comparator)
+			.build())
+		.build();
+	
+	结果：
+	void sortByLength(List<String> strings) {
+	  Collections.sort(strings, new Comparator<String>() {
+		@Override
+		public int compare(String a, String b) {
+		  return a.length() - b.length();
+		}
+	  });
+	}
+17.注解：Annotations
+	MethodSpec toString = MethodSpec.methodBuilder("toString")
+		.addAnnotation(Override.class)
+		.returns(String.class)
+		.addModifiers(Modifier.PUBLIC)
+		.addStatement("return $S", "Hoverboard")
+		.build();
+	Use AnnotationSpec.builder() :
+	
+	MethodSpec logRecord = MethodSpec.methodBuilder("recordEvent")
+		.addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+		.addAnnotation(AnnotationSpec.builder(Headers.class)
+			.addMember("accept", "$S", "application/json; charset=utf-8")
+			.addMember("userAgent", "$S", "Square Cash")
+			.build())
+		.addParameter(LogRecord.class, "logRecord")
+		.returns(LogReceipt.class)
+		.build();
+		
+	结果：
+		@Headers(
+			accept = "application/json; charset=utf-8",
+			userAgent = "Square Cash"
+		)
+		LogReceipt recordEvent(LogRecord logRecord);
+	
+	MethodSpec logRecord = MethodSpec.methodBuilder("recordEvent")
+    .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+    .addAnnotation(AnnotationSpec.builder(HeaderList.class)
+        .addMember("value", "$L", AnnotationSpec.builder(Header.class)
+            .addMember("name", "$S", "Accept")
+            .addMember("value", "$S", "application/json; charset=utf-8")
+            .build())
+        .addMember("value", "$L", AnnotationSpec.builder(Header.class)
+            .addMember("name", "$S", "User-Agent")
+            .addMember("value", "$S", "Square Cash")
+            .build())
+        .build())
+    .addParameter(LogRecord.class, "logRecord")
+    .returns(LogReceipt.class)
+    .build();
+	结果：	
+		@HeaderList({
+			@Header(name = "Accept", value = "application/json; charset=utf-8"),
+			@Header(name = "User-Agent", value = "Square Cash")
+		})
+		LogReceipt recordEvent(LogRecord logRecord);

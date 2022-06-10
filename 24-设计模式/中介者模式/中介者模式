@@ -1,0 +1,88 @@
+中介者模式
+
+定义：定义一个中介对象来封装一系列对象的交互
+优点：符合迪米特法则，让对象之间解耦
+
+结构
+1.抽象中介者角色（Mediator）
+2.具体中介者（ConcreteMediator）：实现抽象中介
+3.抽象同事类(Colleage)：
+4.具体同事类(ConcreteColleage)
+
+UML
+
+代码
+1.抽象中介者：Meditor
+public abstract class Meditor{
+	public abstract void register(Colleage c);
+	public abstract void relay(Colleage c);
+}
+2.具体中介者（ConcreteMediator）
+public class ConcreteMediator extends Meditor{
+	List<Colleage> list = new ArrayList<>();
+	public ConcreteMediator(){
+	
+	}
+	public void register(Colleage c){
+		if(!list.contains()){
+			list.add(c);
+			c.setMediator(this);
+		}
+	}
+	public void relay(Colleage c){
+		for(Colleage obs:c){
+			if(!obs.equals(c)){
+				obs.receive();
+			}
+		}
+	}
+}
+
+3.抽象同事类：Colleage
+public abstract class Colleage{
+	Mediator mediator;
+	public void setMediator(Mediator mediator){
+		this.mediator = mediator;
+	}
+	public abstract void send(String str);
+	public abstract void receive(String str);
+}
+
+4.具体同事类：ConcreteColleage
+public class ConcreteColleage extends Colleage{
+	public String name;
+	public ConcreteColleage(String name){
+		this.name = name;
+	}
+	public void send(String str){
+		System.out.println(name+"发送："+str);
+		mediator.relay(this);
+	}
+	public void receive(String str){
+		System.out.println(name+"接收："+str);
+	}
+}
+
+main(){
+	Mediator mediator = new ConcreteMediator();
+	Colleage c1 = new ConcreteColleage("c1");
+	Colleage c2 = new ConcreteColleage("c2");
+	Colleage c3 = new ConcreteColleage("c3");
+	mediator.register(c1);
+	mediator.register(c3);
+	c1.send("我是c1！");
+	
+}
+
+应该出现的场景：
+c1发送：我是c1！
+c2接收：我是c1！
+c3接收：我是c1！
+
+
+
+使用场景
+1.当对象之间存在复杂的网状关系导致依赖关系混乱难以复用时
+2.当想创建一个运行时多个类之间而又不想生成子类的情况
+扩展
+实际开发过程中，会将抽象中介者去掉，并将具体中介者成为单例类，具体同事类不会持有中介者类的引用，而是在需要的时候去获取单例的中介者

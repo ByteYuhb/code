@@ -1,0 +1,97 @@
+1.Handler的内存泄露
+	引起：用户在延迟期间关闭了Activity就会导致内存泄露，
+	原因：Activity退出之后，因为msg中会持有handler的引用，handler是属于Activity的内部类，内部类会持有外部类的引用。
+		导致handler持有Activity的引用，导致Activity内存泄露。
+	解决方法：
+		将handler定义为静态内部类，在内部持有Activity的弱引用。并及时移除所有消息：
+	伪代码：
+		private static class SafeHandler extends Handler {
+
+			private WeakReference<HandlerActivity> ref;
+
+			public SafeHandler(HandlerActivity activity) {
+				this.ref = new WeakReference(activity);
+			}
+
+			@Override
+			public void handleMessage(final Message msg) {
+				HandlerActivity activity = ref.get();
+				if (activity != null) {
+					activity.handleMessage(msg);
+				}
+			}
+		}
+		在Activity中：
+		@Override
+		protected void onDestroy() {
+		  safeHandler.removeCallbacksAndMessages(null);
+		  super.onDestroy();
+		}
+
+2.为什么可以直接在主线程使用Handler，而不需要创建looper。
+	答：因为主线程在程序开始运行的时候就已经帮我们创建了looper。且该looper不能退出。
+
+3.Handler 里藏着的 Callback 能干什么？
+	答：查看源码：
+	 public void dispatchMessage(Message msg) {
+        if (msg.callback != null) {
+            handleCallback(msg);
+        } else {
+            if (mCallback != null) {
+                if (mCallback.handleMessage(msg)) {
+                    return;
+                }
+            }
+            handleMessage(msg);
+        }
+    }
+	可知：如果mCallback != null会调用mCallback.handleMessage(msg)，如果返回true，则不会调用Handler的handleMessage方法，即拦截了msg消息。
+	
+4.创建msg的最佳方式？
+	复用消息池中的msg。
+	message.obtain;
+	handler.obtainMessage;
+
+5.子线程里弹 Toast 的正确姿势	
+	new Thread(new Runnable() {
+	  @Override
+	  public void run() {
+		Looper.prepare();
+		Toast.makeText(HandlerActivity.this, "不会崩溃啦！", Toast.LENGTH_SHORT).show();
+		Looper.loop();
+	  }
+	}).start();
+	PS：子线程中需要自行调用looper.quit才能退出死循环。
+	
+6.妙用 Looper 机制
+	我们可以利用 Looper 的机制来帮助我们做一些事情：
+
+		1.将 Runnable post 到主线程执行；
+		2.利用 Looper 判断当前线程是否是主线程。
+		public final class MainThread {
+
+		private MainThread() {
+		}
+
+		private static final Handler HANDLER = new Handler(Looper.getMainLooper());
+
+		public static void run(@NonNull Runnable runnable) {
+			if (isMainThread()) {
+				runnable.run();
+			}else{
+				HANDLER.post(runnable);
+			}
+		}
+		//判断是否是主线程的方法。
+		public static boolean isMainThread() {
+			return Looper.myLooper() == Looper.getMainLooper();//在新线程中会创建ThreadLocalMap，浪费性能，可以使用下面方法。
+			or Looper.getMainLooper().getThread = Thread.currentThread();
+		}
+
+}
+
+
+
+	
+
+	

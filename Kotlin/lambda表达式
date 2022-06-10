@@ -1,0 +1,66 @@
+lambda表达式
+
+1.表达式定义
+	kotlin中lambda表达式定义如下
+	{param1:Type,param2:Type… -> ….}
+
+	例子：
+	{x:Int,y:String -> y.length + x}
+
+	在kotlin中如果要直接运行lambda，可以使用run{}来运行
+	run{45}
+
+2.kotlin中lambda表达式的约定
+	来看一个例子
+		val people = listOf<String>("adfd","bd","cad","d")
+		people.maxBy({str:String-> str.length})
+	约定1：如果lambda表达式是函数的最后一个参数，则可以将lambda表达式从函数参数中提取出来
+		people.maxBy(){str:String-> str.length}
+	约定2：如果包含lambda表达式为参数的函数只有一个参数，则可以将函数参数括号去掉
+		people.maxBy { str:String-> str.length }
+	约定3：lambda表达式的参数类型可以使用智能推导，可将参数类型简化掉
+		people.maxBy { str -> str.length }
+	约定4：如果lambda表达式只有一个参数，可以将参数使用方式简化掉，使用it替代
+		people.maxBy { it.length }
+	
+	
+	上面是一个参数的情况，下面来看下多个参数的情况
+	lambda表达式高阶用法
+
+	fun lambda1(a:Int, b:(String)->String){
+		println("$a ${b(a.toString())}")
+	}
+	fun lambda2(b:(String)->String,a:Int){
+		println("$a ${b.invoke(a.toString())}")
+	}
+	fun lambda3(b:(arg1:String,arg2:Int)->Int,a:String){
+		println("$a ${b.invoke(a,10)}")
+	}
+	调用：
+	fun call2(){
+		lambda1(10){"$it len:${it.length}"}
+		lambda2({"$it len:${it.length}"},10)
+		lambda3({str,i ->str.length+i},"345")
+	}
+	结果：
+	10 10 len:2
+	10 10 len:2
+	345 13
+
+3.lambda用途
+	1.作为一个单独的功能块使用
+	如下例子：
+	val sum = { x:Int, y:Int -> x+y}
+	println(sum(1,2))
+	结果：3
+	作为单独的功能块，如上所示，可以直接赋值给某个变量
+
+	2.作为函数参数的代码块
+	高阶函数用法，将lambda表达式作为参数传递，如上面的lambda1和lambda2，lambda3的情况
+
+	3.集合中的表达式
+	kotlin中集合中的很多操作都支持lambda,例如maxBy,map,fliter等
+	这种例子太多了，就不一一举例了。
+
+
+

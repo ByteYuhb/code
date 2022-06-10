@@ -1,0 +1,59 @@
+suspect 犯罪分子，嫌疑对象
+Narrow down缩小
+manual：手册
+async：异步
+sync：同步
+supply：供给，提供
+concurrently:同时
+session：会议，一段时间，一场
+Constrains：强迫，约束
+Perform：施行
+preemptive：抢先的
+evicted:被驱逐
+inactivity：不活跃
+redirects：重定向
+paragraph：段落
+incremental:递增的
+
+如何学习设计模式：
+1.需求驱动
+2.分析成功的模式应用项目
+3.在编程中领悟模式
+4.避免过度设计
+
+
+1.Android studio加载过程中，出现加载缓慢或者无法记在类库的时候，可以使用阿里云桥接：
+地址：maven{ url = "https://maven.aliyun.com/repository/public/"}
+2.Cannot query the value of property 'xxx' because configuration of project ':xxxxmodule' has not completed yet.
+可能原因是xxxxmodule中的sdk版本没有下载，需要到sdk manager中去下载对应的版本
+要具体错误具体看
+
+3.kotlin object对象表达式的作用：
+1.创建匿名内部类
+2.创建伴生对象
+3.创建单例类
+
+4.kotlin委托
+	委托类：
+	用来实现组合模式：
+	比如有一个接口：
+	interface Db{
+		fun save()
+	}
+	有两个实现类：
+	class Mydb 和class Yourdb
+	使用传统java模式实现:
+	class testdb(val db1:Db):Db{
+		fun save(){
+			db1.save()
+		}
+	}
+	如果使用委托模式：
+	class testdb(val db1:Db):Db by db1
+	这样就可以把所有的方法都委托给db1来处理
+	省略了很多样板代码，在testDb中需要把所有方法都实现一遍
+	
+	委托属性：
+	
+	
+	

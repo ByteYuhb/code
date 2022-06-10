@@ -1,0 +1,204 @@
+
+C++常用数据类型：
+	类型		长度(字节)
+	char:		 1
+	short int    2
+	int			 4
+	long int	 8
+	float		 4
+	double		 8
+	long double	 16
+	bool		 1
+	wchar_w		 2
+标识符：
+	1.标识符只标识变量，函数，方法，类，模块或者用户自定义的东西
+	2.由字母大小写，下划线和数字组成，但是不能使用数字开头
+	3.不允许使用标点字符：如@，&，%等
+	4.不能使用C++关键字
+	5.大小写是有区分的
+	6.属性标识符建议使用：形容词+名词   函数方法名：动词+名词
+关键字：系统使用的关键字
+alignas (since C++11)
+alignof (since C++11)
+and
+and_eq
+asm
+atomic_cancel (TM TS)
+atomic_commit (TM TS)
+atomic_noexcept (TM TS)
+auto (1)
+bitand
+bitor
+bool
+break
+case
+catch
+char
+char8_t (since C++20)
+char16_t (since C++11)
+char32_t (since C++11)
+class (1)
+compl
+concept (since C++20)
+const
+consteval (since C++20)
+constexpr (since C++11)
+constinit (since C++20)
+const_cast
+continue
+co_await (since C++20)
+co_return (since C++20)
+co_yield (since C++20)
+decltype (since C++11)
+default (1)
+delete (1)
+do
+double
+dynamic_cast
+else
+enum
+explicit
+export (1) (3)
+extern (1)
+false
+float
+for
+friend
+goto
+if
+inline (1)
+int
+long
+mutable (1)
+namespace
+new
+noexcept (since C++11)
+not
+not_eq
+nullptr (since C++11)
+operator
+or
+or_eq
+private
+protected
+public
+reflexpr (reflection TS)
+register (2)
+reinterpret_cast
+requires (since C++20)
+return
+short
+signed
+sizeof (1)
+static
+static_assert (since C++11)
+static_cast
+struct (1)
+switch
+synchronized (TM TS)
+template
+this
+thread_local (since C++11)
+throw
+true
+try
+typedef
+typeid
+typename
+union
+unsigned
+using (1)
+virtual
+void
+volatile
+wchar_t
+while
+xor
+xor_eq
+
+常量定义方法：
+	1：	#define iA   123
+	2:	const double PI = 3.1415;
+	两种方法区别：
+	1.define不会出现在编译器，编译器出错，比较难排查，const方法会出现在编译器，尽量使用const方法
+	
+注释：先写注释，在写代码，注释先标明实现步骤，更新代码后记得更新注释，注释要和代码保持一致
+
+数组vector操作：
+	vector<int> v1 = {1,2,3,4};
+	v1.push_back(5)尾部添加
+	v1.insert(--v1.end(),4);在倒数第二位置插入
+	v1.pop_back();弹出尾部
+	v1.erase(--v1.end());删除尾部
+	
+字符串常量：
+
+ascma
+
+unicode编码：utf-8 utf-16 utf-32
+字符串指针
+c风格字符创操作：strcopy strcmp strlen strcopy_s strcmp_s 
+	字符串连接溢出
+	用空间换时间获取字符串长度：使用一个或多个字节存储字符串大小
+c++风格字符串：
+	转C风格char：const char* s = string.c_str();
+	拷贝：string s2 = s1;
+	连接：s1+=s2;
+
+内存分配：堆heap栈stack 常量区，代码区
+内存泄露：new -->delete
+智能指针：unique_ptr,shared_ptr weak_ptr
+引用
+结构体内存布局：
+	内存对齐原则：
+	#pragma pack(1) 不用对齐填充
+函数重载
+
+函数指针和指针函数int(*p)(int,int)
+函数hack过程
+内联函数：空间换时间做法 inline标识，内联不一定能起作用，根据编译器优化策略 ：意识将函数直接拷贝到调用的函数体中，不需要重新启用一个函数调用，重新启用会启动新的栈空间，调用会有效率问题
+递归算法：斐波那契数列算法 Fib(n) = Fib(n-1)+Fib(n-2);n比较大时会重复调用很多相同给的方法，对性能消耗很大，可以优化下
+	尾递归  循环优化 动态规划
+
+深拷贝和浅拷贝
+深拷贝：写时复制
+C++移动语义：mov
+
+面向对象编程：三大特性：封装，继承，多态
+软件设计模式：23中常见模式
+	单例模式   观察者模式 list链表存储
+	void* NULL和nullptr
+	C语言中：NULL表示(void*)0空指针的意思
+	C++中：NULL表示0 ，nullptr表示(void*)0空指针
+	所以在C++中初始化指针可以使用nullptr
+强制类型转化：
+	const_cast：将const类型的变量转换为非const的
+	reinterpret_cast：很危险的一个强制类型转换的操作，重新解释类型，既不检查指向的内容，也不检查指针类型本身，要求转换前后的类型所占用内存大小一致，否则会报编译错误
+	static_cast
+	dynamic_cast
+适配器模式
+
+泛型：特化
+泛型编译器推导结果方式：
+STL
+仿函数functor
+map vector queue deque stack list 
+迭代器失效问题
+transform lambda表达式
+inline内联函数优化
+count count_if 二分查找 binary_search search
+
+next_permutation(arr12,arr12+3)全排列使用
+迭代器使用;正向 反向 常量迭代器
+RAII
+容器适配器：stack栈 queue priority_queue
+STL源码解析喉结
+空间配置器alloctor
+boost库
+多线程
+mutable
+thread
+
+Qt环境搭建
+QString ：indexof append mid QStringLeteral Qdebug QScopedPointer
+QThread

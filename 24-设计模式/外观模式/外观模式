@@ -1,0 +1,72 @@
+外观模式
+
+1.简述：
+	外观模式主要用于子系统较多，提供一个统一的接口给客户端调用，统一接口里面去调用各个子系统，让子系统和客户端解耦
+2.UML https://upload-images.jianshu.io/upload_images/944365-f8a19f7cc9771a71.png?imageMogr2/auto-orient/strip|imageView2/2/w/800/format/webp
+
+3.代码演示：
+	需求：小明爷爷每天起床要打开电视，打开灯，打开空调，睡觉时要关闭电视，关闭灯，关闭空调，但是行动不是很方便，于是小明设计了一个统一一键开关
+	system1 extends system{
+		openlight();
+		closelight();
+	}
+	system2 extends system{
+		openTv();
+		closeTv();
+	}
+	system3 extends system{
+		openAirCondition();
+		closeAirCondition();
+	}
+	
+	main(){
+		起床：
+		system1.openlight();
+		system2.openTv();
+		system3.openAirCondition();
+		
+		睡觉：
+		system1.closelight();
+		system2.closeTv();
+		system3.closeAirCondition();
+	}
+	可以看到正常调用，客户端和子系统是高度耦合的
+	现在使用外观模式：
+	创建一个统一的接口类SystemDefault；
+	class SystemDefault{
+		open(){
+			起床：
+			system1.openlight();
+			system2.openTv();
+			system3.openAirCondition();
+		}
+		
+		close(){
+			睡觉：
+			system1.closelight();
+			system2.closeTv();
+			system3.closeAirCondition();
+		}
+	
+	}
+	
+	void main(){
+		起床：SystemDefault.open()
+		睡觉：SystemDefault.close()
+	}
+特点：
+	优点:
+	1.降低了客户类和子系统的高度耦合，实现松耦合
+	2.简化了客户端调用接口
+	3.减少了编译依赖性
+	缺点：
+	1.在不引入抽象外观类的情况下，增加新的子系统可能需要修改外观类或客户端的源代码，违背了“开闭原则”
+	2.不能很好地限制客户使用子系统类，如果对客户访问子系统类做太多的限制则减少了可变性和灵活性。
+	
+应用场景：
+	1.要为一个复杂的子系统对外提供一个简单的接口
+	2.提供子系统的独立性
+	3.客户程序与多个子系统之间存在很大的依赖性
+	4.在层次化结构中，可以使用外观模式定义系统中每一层的入口
+	
+	

@@ -1,0 +1,15 @@
+1.A--B:
+A:没有指定屏幕方向，默认是竖屏
+B：指定了屏幕方向为横屏。
+使用startActivityForResult;
+
+B处理完后，返回A
+
+此时发现：
+1.在5.0机器上A的方向依然为竖屏
+2.在7.0机器上A的方向变为横屏，且之前的ActivityA被销毁，此时的A为一个新的实例
+对于第二种情况下：
+如果有Activity中有Fragment存在，会自动创建Fragment，使用的构造方法为默认的无参构造方法，如果此Fragment内部没有该构造方法，会报错：androidx.fragment.app.Fragment$InstantiationException
+
+对于第二种情况，如果为了防止出现横竖切换的情况，可以考虑，将A指定为某个屏幕方向。这样就不会出现旋转的情况了
+

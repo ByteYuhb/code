@@ -1,0 +1,69 @@
+IntentService
+1.介绍：
+	主要实现在服务中使用子线程处理intent请求，如一些耗时操作
+	1.服务中 2.子线程中
+1.使用方式
+	1.创建一个类继承IntentService
+		public void MyIntentService extends IntentService{}
+	2.实现父类IntentService的onHandleIntent方法，可以处理客户端传入的intent请求
+		public void onHandleIntent(intent){}
+	3.客户端调用startService方法传入Intent
+2.原理，源码解析’
+IntentService：
+	@Override
+    public void onCreate() {
+        // TODO: It would be nice to have an option to hold a partial wakelock
+        // during processing, and to have a static startService(Context, Intent)
+        // method that would launch the service & hand off a wakelock.
+
+        super.onCreate();
+		1.创建HandlerThread
+        HandlerThread thread = new HandlerThread("IntentService[" + mName + "]");
+        2.启动这个HandlerThread
+		3.thread.start();
+		获取HandlerThread线程的looper
+        4.mServiceLooper = thread.getLooper();
+		5.新建一个Handler并传入之前创建的HandlerThread对象的looper
+        mServiceHandler = new ServiceHandler(mServiceLooper);
+    }
+	
+	private final class ServiceHandler extends Handler {
+        public ServiceHandler(Looper looper) {
+            super(looper);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            onHandleIntent((Intent)msg.obj);
+            stopSelf(msg.arg1);
+        }
+    }
+	
+	@Override
+    public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
+        onStart(intent, startId);
+        return mRedelivery ? START_REDELIVER_INTENT : START_NOT_STICKY;
+    }
+	
+	@Override
+    public void onStart(@Nullable Intent intent, int startId) {
+        Message msg = mServiceHandler.obtainMessage();
+        msg.arg1 = startId;
+        msg.obj = intent;
+        mServiceHandler.sendMessage(msg);
+    }
+	
+	@Override
+    public void onDestroy() {
+        mServiceLooper.quit();
+    }
+	总结：通过上面的源码分析可知：
+	1.IntentService是Service的子类
+	2.在onCreate方法中默认开启了一个HandleThread，使用这个工作线程一一处理所以启动请求，请求处理完毕后自动停止服务。
+	3.只要实现onHandleIntent方法，因为是子线程，可以在这个方法内部做一些耗时的任务。
+	4.可以启动多次IntentService，每次请求都会以队列的方式在onHandleIntent方法中执行，所有请求执行完毕之后，才会终止服务
+
+3.使用场景
+	后台下载任务或者静默上传等场景
+	
+	

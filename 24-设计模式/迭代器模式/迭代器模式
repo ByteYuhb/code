@@ -1,0 +1,89 @@
+迭代器模式
+定义
+软件编程过程中经常需要将一个含集合数据结构的类进行遍历，如HashMap，HashSet等
+，内部就使用了一种迭代器模式。
+将遍历数据结构的操作单独使用一个迭代器类进行迭代，而不是直接在集合类中进行，为了就是隐藏具体类的结构。
+符合开闭原则和单一职责
+
+
+结构
+抽象聚合角色：（Aggregate）：定义了存储，添加，删除，以及创建迭代器对象的接口
+具体聚合角色（ConcreteAggregate）：抽象聚合角色的实现类
+抽象迭代器接口（Iterator）：包含访问和遍历聚合元素对象的接口，如first，next，hasNext等
+具体迭代器角色(ConcreteIterator):抽象迭代器的实现类
+UML
+
+代码
+抽象聚合角色：Aggregate
+public interface Aggregate<T>{
+    public void add(T o);
+    public void remove(T o);
+    public Iterator getIterator();
+}
+
+具体聚合角色（ConcreteAggregate）
+public class ConcreteAggregate<T> implements Aggregate<T>{
+    List<T> list = new ArrayList<>();
+
+    @Override
+    public void add(T o) {
+        list.add(o);
+    }
+
+    @Override
+    public void remove(T o) {
+        list.remove(o);
+    }
+
+    public Iterator getIterator(){
+        return new ConcreteIterator(list);
+    }
+}
+
+抽象迭代器接口（Iterator）
+public interface Iterator<T> {
+    public T first();
+    public T next();
+    public boolean hasNext();
+}
+
+具体迭代器角色(ConcreteIterator)
+public class ConcreteIterator<T> implements Iterator<T>{
+    List<T> list;
+    private int cur = -1;
+    public ConcreteIterator(List<T> list){
+        this.list = list;
+    }
+    public T first(){
+        return list.get(0);
+    }
+    public T next(){
+        return list.get(++cur);
+    }
+    public boolean hasNext(){
+        return cur<list.size()-1?true:false;
+    }
+}
+
+调试：
+main(){
+	Aggregate<String> agg = new ConcreteAggregate<>();
+	agg.add("a1");agg.add("a2");agg.add("a3");agg.add("a4");
+	Iterator<String> it = agg.getIterator();
+	System.out.println("first:"+it.first());
+	while(it.hasNext()){
+		System.out.print(it.next()+" ");
+	}
+}
+调试效果：
+first:a1
+a1 a2 a3 a4 
+
+应用场景
+1.需要为聚合对象提供多种遍历方式：如正序或者倒序
+2.需要为不同是的数据结构提供统一的遍历接口
+3.隐藏聚合对象的实现方式
+
+
+扩展
+和组合模式叠加使用，经常将迭代器潜藏在组合模式的容器构成类中

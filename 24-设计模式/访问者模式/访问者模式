@@ -1,0 +1,108 @@
+访问者模式
+软件编码过程中，有很多集合存在多种不同的元素，且每种元素有不同的处理方式：
+如医生开的药方上面有不同的元素：药名和每种药的加个，对划价员根据单价算总价，对药房的工作人员只关系药名和药量
+这个时候使用访问者模式就可以很好解决：将药方上面的药名和药价封装为两个元素，将药房工作人员和划价员看做访问者
+定义
+将作用于某种数据结构的操作分离出来，使其在不改变原有数据结构类的情况下，改变对数据结构的操作
+
+特点
+1.扩展性好，将操作分离出来，可以在不改变数据结构的前提下，改变对数据的操作
+2.复用性好：可以通过抽象访问者类定义数据结构的通用功能，将不同的数据结构在抽象访问者子类中实现
+
+结构：
+1.抽象访问者（Visitor）
+2.具体访问者(ConcreteVisitor)
+3.抽象元素（Element）
+4.具体元素（ConcreteElement）
+5.对象结构角色（ObjectStructrue）：是一个包含访问者集合的类。包含遍历容器中所有的元素的方法
+UML
+
+
+代码
+抽象访问者 Visitor
+public interface Visitor{
+	public String visit(Element e);
+}
+
+具体访问者：ConcreteVisitorA
+public class ConcreteVisitorA implements Visitor{
+	public String visit(Element e){
+		if(e instanceof ConcreteElementA){
+			return "visitorA->elementA";
+		}else if(e instanceof ConcreteElementB){
+			return "visitorA->elementB";
+		}
+		return "";
+	}
+}
+具体访问者：ConcreteVisitorB
+public class ConcreteVisitorB implements Visitor{
+	public String visit(Element e){
+		if(e instanceof ConcreteElementA){
+			return "visitorB->elementA";
+		}else if(e instanceof ConcreteElementB){
+			return "visitorB->elementB";
+		}
+		return "";
+	}
+}
+
+抽象元素（Element）
+public interface Element{
+	public String accept(Visitor v);
+}
+具体元素A：
+public class ConcreteElementA{
+	public String accept(Visitor v){
+		v.visit(this);
+	}
+}
+具体元素B：
+public class ConcreteElementB{
+	public String accept(Visitor v){
+		v.visit(this);
+	}
+}
+数据结构类：
+public class ObjectStructrue{
+	List<Element> list = new ArrayList<>();
+	public ObjectStructrue(){
+	
+	}
+	public String accept(Visitor v){
+		Iterator<Element> it = list.iterator();
+		String tmp = "";
+		while(it.hasNext()){
+			tmp+=((Element)it.next()).accept(v);
+		}
+		return tmp
+	}
+	public void add(Element e){
+		list.add(e);
+	}
+	public void remove(Element e){
+		list.remove(e);
+	}
+	
+}
+客户端：
+main(){
+	Element elementA = new ConcreteElementA();
+	Element elementB = new ConcreteElementB();
+	ObjectStructrue os = new ObjectStructrue();
+	os.add(elementA);
+	os.add(elementB);
+	Visitor visitA = new ConcreteVisitorA();
+	System.out.println(os.accept(visitA));
+	
+	Visitor visitB = new ConcreteVisitorB();
+	System.out.println(os.accept(visitB));
+	
+}
+应用场景
+1.对象稳定。但是算法经常变化
+2.对象结构中的对象需要提供多种不同且不一样的操作，可以使用访问模式将对象操作分离出来，避免算法修改影响原有数据结构
+
+扩展
+1.与迭代器模式联用
+2.与组合模式联用

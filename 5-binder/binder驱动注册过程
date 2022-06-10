@@ -1,0 +1,8 @@
+驱动注册过程：
+APP:  open()     read()     write()     close()
+驱动：dri_open() dri_read() dri_write() dri_close()
+
+驱动在加载的时候，
+1.创建一个file_oprations,里面包含dri_open() dri_read() dri_write() dri_close()等方法
+2.调用rigister_device，向内核注册驱动程序
+3.应用程序在使用驱动程序的时候调用open函数就可以访问到驱动程序里面的dri_open函数。

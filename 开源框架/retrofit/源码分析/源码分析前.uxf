@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>14</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>294</x>
+      <y>406</y>
+      <w>266</w>
+      <h>126</h>
+    </coordinates>
+    <panel_attributes>CallAdapted
+--
+--
+callAdapter:CallAdapter
+adapt():T
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>112</x>
+      <y>0</y>
+      <w>686</w>
+      <h>126</h>
+    </coordinates>
+    <panel_attributes>/ServiceMethod/
+--
+
+--
+&lt;T&gt; parseAnnotations(Retrofit retrofit, Method method):ServiceMethod&lt;T&gt;
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>0</x>
+      <y>224</y>
+      <w>1022</w>
+      <h>126</h>
+    </coordinates>
+    <panel_attributes>/HttpServiceMethod/
+--
+requestFactory:RequestFactory
+callFactory:okhttp3.Call.Factory
+responseConverter:Converter
+
+--
+static parseAnnotations():HttpServiceMethod
+final invoke():
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>434</x>
+      <y>112</y>
+      <w>42</w>
+      <h>140</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;80.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>434</x>
+      <y>336</y>
+      <w>42</w>
+      <h>98</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;50.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>42</x>
+      <y>630</y>
+      <w>588</w>
+      <h>84</h>
+    </coordinates>
+    <panel_attributes>protected ReturnT adapt(Call&lt;ResponseT&gt; call, Object[] args) {
+     return callAdapter.adapt(call);
+}</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>322</x>
+      <y>518</y>
+      <w>350</w>
+      <h>140</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.&gt;
+&lt;&lt;使用了适配器模式,,
+DefaultCallAdapterFactory
+内部使用get方法创建的CallAdapter&gt;&gt;</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;80.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>700</x>
+      <y>392</y>
+      <w>364</w>
+      <h>112</h>
+    </coordinates>
+    <panel_attributes>DefaultCallAdapterFactory
+--
+--
+get():CallAdapter</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>672</x>
+      <y>644</y>
+      <w>896</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>public CallAdapter&lt;?, ?&gt; get(){
+	return new CallAdapter&lt;Object, Call&lt;?&gt;&gt;() {
+                public Type responseType() {
+                    return responseType;
+                }
+
+                public Call&lt;Object&gt; adapt(Call&lt;Object&gt; call) {
+                    return (Call)(executor == null ? call : new DefaultCallAdapterFactory.ExecutorCallbackCall(executor, call));
+                }
+            };
+
+}</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>854</x>
+      <y>490</y>
+      <w>406</w>
+      <h>182</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.
+&lt;&lt;这里的get方法返回一个CallAdapter对象&gt;&gt;</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;110.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>546</x>
+      <y>448</y>
+      <w>168</w>
+      <h>42</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;10.0;100.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>224</x>
+      <y>700</y>
+      <w>560</w>
+      <h>126</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>380.0;70.0;10.0;70.0;10.0;10.0</additional_attributes>
+  </element>
+</diagram>

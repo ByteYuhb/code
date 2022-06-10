@@ -1,0 +1,115 @@
+命令模式
+
+定义：
+	为了是请求方和实现解耦，比如去吃早餐，服务员拿菜单给客户点菜，点好菜后将菜单拿给后台不同厨师做菜
+	这里的客户是请求方，菜单就是命令，厨师就是实现方
+
+优点：
+	1.引入了中间件抽象接口，降低系统的耦合度
+	2.扩展性好
+	3.可以很方便的实现Undo和Redo等操作
+	4.可以和组合模式联合，创建出宏命令
+	结构：
+	1.抽象命令类（Command）：
+	2.具体命令实现类（ConcreteCommand）：内部包含一个实现者，可以有多个命令实现类
+	3.实现者（Receiver）：实现命令需要做的事情
+	4.调用者（Invoker）：调用命令方
+UML
+
+
+代码
+
+	抽象命令：Command
+	public interface Command{
+		void excute();
+		void stop();
+	}
+	调用者：Invoker
+	public class Invoker{
+		Command command;
+		public Invoker(Command command){
+			this.command = command;
+		}
+		public void setCommamd(){
+			this.command = command;
+		}
+		public call(){
+			command.excute();
+		}
+		public stop(){
+			command.stop();
+		}
+	}
+	抽象实现者：
+	public interface Receiver{
+		void action();
+		void stop;
+	}
+	具体实现者A
+	public class ReceiverA implements Receiver{
+		void action(){
+			//here do CmdA
+		}
+		void stop(){
+			//here do stop A
+		}
+	}
+	具体实现者B
+	public class ReceiverB implements Receiver{
+		void action(){
+			//here do CmdB
+		}
+		void stop(){
+			//here do stop B
+		}
+	}
+	命令执行A:
+	public class ConcreteCommandA implements Command{
+		Receiver receiverA:
+		public ConcreteCommand(){
+			this.receiverA = new ReceiverA();
+		}
+		public void excute(){
+			receiverA.action();
+		}
+		public void stop(){
+			receiverA.stop();
+		}
+	}
+	命令执行B:
+	public class ConcreteCommandB implements Command{
+		Receiver receiverB:
+		public ConcreteCommand(){
+			this.receiverB = new ReceiverB();
+		}
+		public void excute(){
+			receiverB.action();
+		}
+		public void stop(){
+			receiverB.stop();
+		}
+	}
+	
+	
+	调试：
+	main(){
+		Invoker invoker = new Invoker(new ConcreteCommandA());
+		invoker.call();//执行的是A命令，最终由ReceiverA实现
+		
+		Invoker invoker = new Invoker(new ConcreteCommandB());
+		invoker.call();//执行的是B命令，最终由ReceiverB实现
+		
+		invoker.stop();//停止命令操作
+	}
+最终通过抽象Command的方式将调用者和实现者解耦
+
+
+场景
+1.调用者和接收者需要解耦，调用者和接收者可以使两者互不联系
+2.系统请求经常删除或者增加命令时
+3.需要执行一组命令时，可以使用宏命令模式
+4.当命令需要执行Undo或者Redo操作时，可以考虑把命令封装起来，用备忘录模式实现
+
+扩展：
+和组合模式结合使用，实现宏命令模式
+

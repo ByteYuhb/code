@@ -1,0 +1,64 @@
+策略模式：
+现实生活中遇到实现目标可以有很多方法的情况：如去旅游，可以坐飞机，坐客车，做火车等方法。这种情况就可以使用策略模式
+使用一个抽象接口封装了需要实现的目标方法，
+使用几个具体类去实现这个抽象接口目标方法，
+使用一个环境类;持有一个策略类的引用，提供给客户端调用
+
+抽象接口（Strategy）：
+具体实现（ConcreteStrategy）：
+环境类（Context）：持有策略类的一个引用
+
+UML
+
+代码'
+抽象接口：
+public interface Strategy(){
+	void strategyMethod();
+}
+
+具体实现
+public class ConcreteStrategyA extends Strategy{
+	void strategyMethod(){
+		System.out.println("ConcreteStrategyA");
+	}
+}
+
+public class ConcreteStrategyB extends Strategy{
+	void strategyMethod(){
+		System.out.println("ConcreteStrategyB");
+	}
+}
+
+环境类：
+public class Context(){
+	Strategy strategy;
+	public Context(Strategy strategy){
+		this.strategy = strategy
+	}
+	void strategyMethod(){
+		strategy.strategyMethod();
+	}
+	public void setStrategy(Strategy strategy){
+		this.strategy = strategy;
+	}
+	public Strategy getStrategy(){
+		return strategy;
+	}
+
+}
+
+客户端：
+main(){
+	Context context = new Context(new ConcreteStrategyA());
+	context.strategyMethod();//打印A
+	
+	Context context = new Context(new ConcreteStrategyB());
+	context.strategyMethod();//打印B
+	
+
+}
+
+使用场景：
+1.一个系统需要动态在几种算法中选择一种，可以将算法封装到策略类中
+2.系统要求使用算法的客户不应该知道具体算法的实现，可以将算法和数据结构封装到策略类中
+

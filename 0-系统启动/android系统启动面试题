@@ -1,0 +1,43 @@
+Android系统启动过程面试题
+
+1.zygote进程为什么不启用binder机制？
+	1.原因是因为fork只能拷贝当前线程，不支持多线程的fork。
+	如果zygote使用binder的多线程模型与system_server进程进行通讯的话，fork()出的App进程的binder通讯没法用，那么只能再使用exec()启动一个新进程。
+	但是exec()启动的新进程不再包含zygote进程的信息，那这样的就失去了fork的作用了，
+	fork的原理就是copy-on-write机制，zygote进程中已经启动了虚拟机、进行资源和类的预加载以及各种初始化操作，App进程用时拷贝即可。
+	所以最终zygote采用的方案就是socket + epoll，然后fork出子进程后再在子进程中启动binder线程池。
+	2.还有个原因就是如果在多线程中fork进程 可能会造成死锁。例如父进程的当前线程正在等待另外一个工作线程释放锁，而fork只会拷贝当前线程至子进程中。
+	子进程启动后当前线程会一直等待工作线程的锁，但父进程的工作线程并没有拷贝到子进程，所以会造成死锁。
+2.孵化应用进程这种事为什么不交给SystemServer来做，而专门设计一个Zygote
+	1.孵化进程是所有android进程的母体，zygote进程在启动的时候做了很多耗时的操作，如启动虚拟机，注册jni方法，预加载系统资源等，子进程通过使用fork孵化进程的方式继承了这些资源
+	并可直接使用而不需要重新加载，提高了应用启动的速度和性能。
+	2.为什么不直接使用SystemServer来孵化呢，因为SystemServer中启动和注册了很多系统服务，这些在应用子进程中都是不需要的。
+
+3.Android系统启动过程
+	1.当点击开机键后，会启动引导程序，引导程序会将linux系统拉起来，并启动第一个init进程，
+	2.init进程会创建和挂载文件系统，初始化和启动系统服务，并给子进程创建信号处理函数防止出现僵尸进程，启动孵化zygote进程
+	3.进入zygote进程后，会启动java虚拟机，注册jni方法和预加载类和资源，并使用jni方法调用到ZygoteInit的main方法
+	4.在ZygoteInit中创建一个Server端的socket用于客户端发出创建应用进程的请求，预加载类和资源和启动SystemServer进程，并等待AMS的创建进程请求
+	5.SystemServer进程启动后，会启动和注册一系列系统服务，并启动Launcher应用
+4.fork机制
+	fork的作用是复制一个当前进程副本，且子进程和父进程共享物理内存地址，且内核会将他们内存页的权限设置为read_only，父子进程如果只是对内存进行读取是没有问题的
+	但是如果有一方发起了对数据进行写入的操作，由于内存给的权限是read_only，就会触发页异常的中断，
+	陷入kernel的一个中断例程，中断例程中，kernel就会 把触发的异常的页复制一份，于是父子进程各自持有独立的一份。这也是linux进程的Copy_On_Write机制，
+	好处：
+	减少分配和复制大量资源时带来的瞬间延时
+	减少不必要的资源分配，比如fork时不是所有的页面都需要父类里面的资源
+
+5.SystemServer，ServiceManager，SystemServiceManager的关系
+	1.SystemServer是孵化进程启动后，开启的第一个系统服务进程，该进程主要作用是启动和注册android系统依赖的各种服务并启动桌面Launcher
+	
+	2.ServiceManager调用addService和getService方法可以将服务注册到系统服务管理进程SM中和在SM中获取服务，
+	ServiceManager的addService其实是调用的ServiceManagerProxy代理类的addService和getService操作，ServiceManagerProxy内部包含一个BpBinder，这个BpBinder的handle为0，表示服务端为SM进程
+	驱动程序在收到handle=0时，可以得到SM的binder_proc，可以通过操作这个binder_proc，将数据放到他的todo链表中并唤醒线程，从而在SM进程中通过name获取Service端的handle返回给驱动，
+	驱动收到这个handle，则会从SM的binder_proc中找到服务端的binder_ref，通过binder_ref找到binder_node，并给客户端的binder_proc创建一个binder_ref，这个binder_ref的binder_node指向服务端的binder_node
+	并把生产的binder_ref的desc序号返回给客户端，客户端通过这个desc，将desc包裹在BpBinder里面，将BpBinder包裹在BinderProxy对象中，
+	使用服务的过程会调用RPC层的BinderProxy.transact发送数据，最终到内核里面会使用到被BpBinder包裹的desc，通过这个desc从客户端的binder_ref中找到binder_node，通过binder_node找到binder_proc
+	并将数据放到服务端的binder_proc下面的binder_thread线程的todo链表中，并唤醒线程，线程被唤醒后，首先会获取数据的cookie值，里面存储的是服务注册的时候放入的服务对象的地址，最终会调用到BBinder的transact，最终调用到服务端的IBinder对象的方法
+
+	3.SystemServiceManager是在SystemServer启动之后生成的一个系统服务管理者，里面有个ArrayList<SystemService>，很多启动的服务都注册到这个list里面，相当于是一个服务的管理者
+	
+	

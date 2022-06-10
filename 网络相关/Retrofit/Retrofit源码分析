@@ -1,0 +1,144 @@
+Retrofit源码分析：
+
+1.Retrofit流程：
+	发送：App应用层-->Retrofit-->OkHttp-->服务器
+	接收：App应用层<--Retrofit<--OkHttp<--服务器
+2.使用步骤：
+	1.创建Retrofit实例：
+		 Retrofit retrofit = new Retrofit.Builder()
+                                 .baseUrl("http://fanyi.youdao.com/")
+                                 .addConverterFactory(GsonConverterFactory.create())
+                                 .build();
+
+2.源码分析
+	1.Retrofit.Builder()构造方法：设置了Platform
+	public Builder() {
+      this(Platform.get());-->Platform.get():通过或者虚拟机name来确定平台android还是java8
+								findPlatform()
+									return "Dalvik".equals(System.getProperty("java.vm.name"))
+										? new Android() //
+										: new Platform(true);
+		
+		Builder(Platform platform) {
+		  this.platform = platform;
+		}
+    }
+	2.baseUrl("http://fanyi.youdao.com/")设置url：host
+		baseUrl(HttpUrl.get(baseUrl)) -->HttpUrl.get(baseUrl)
+											return new Builder().parse(null, url).build();解析HOST：URL，返回一个HttpUrl
+			 List<String> pathSegments = baseUrl.pathSegments();
+			 if (!"".equals(pathSegments.get(pathSegments.size() - 1))) {
+				throw new IllegalArgumentException("baseUrl must end in /: " + baseUrl);
+			 }
+			 this.baseUrl = baseUrl;分段解析baseUrl并设置到Builder类中
+	3.addConverterFactory(GsonConverterFactory.create())设置数据解析器
+		converterFactories.add(Objects.requireNonNull(factory, "factory == null"));将数据解析器放到converterFactories这个list中
+	4.build()
+		okhttp3.Call.Factory callFactory = this.callFactory;获取默认的网络请求接收器Call的Factory 
+		if (callFactory == null) {
+			callFactory = new OkHttpClient();默认为空，所以默认的网络请求接收器Call为一个OkHttpClient 设置了请求构造器：callFactory
+		}
+		callbackExecutor = platform.defaultCallbackExecutor();设置了回调执行器(用于切换子线程到主线程)
+		callAdapterFactories.addAll(platform.defaultCallAdapterFactories(callbackExecutor));设置了请求适配器callAdapterFactories
+		converterFactories.add(new BuiltInConverters());-->BuiltInConvertersg构造方法  待考察											
+		converterFactories.addAll(this.converterFactories);
+		converterFactories.addAll(platform.defaultConverterFactories());
+		return new Retrofit(
+          callFactory, 一个OkHttpClient
+          baseUrl, 一个HttpUrl
+          unmodifiableList(converterFactories),数据解析器
+          unmodifiableList(callAdapterFactories),网络请求适配器
+          callbackExecutor, 回调执行器
+          validateEagerly);
+								
+	2.创建网络请求接收器
+		GetRequest_Interface request = retrofit.create(GetRequest_Interface.class);内部通过动态代理生成一个GetRequest_Interface接口的实例
+			Proxy.newProxyInstance(new InvocationHandler() {
+				invoke(Object proxy, Method method, @Nullable Object[] args){
+						loadServiceMethod(method).invoke(args);
+							result = ServiceMethod.parseAnnotations(this, method);解析注解和参数，
+							serviceMethodCache.put(method, result);将注解信息放到Retrofit的serviceMethodCache的map中，key就是这个method的hash值
+				}
+			})
+	3.调用getCall获取网络请求
+		Call<Translation> call = request.getCall();
+			这里会调用到上个步骤的InvocationHandler的invoke方法，动态代理原理
+				loadServiceMethod(method).invoke(args);
+					result = ServiceMethod.parseAnnotations(this, method);解析注解和参数，
+						HttpServiceMethod.parseAnnotations(retrofit, method, requestFactory)
+							 CallAdapter<ResponseT, ReturnT> callAdapter = createCallAdapter(retrofit, method, adapterType, annotations);创建CallAdapter
+								retrofit.callAdapter(returnType, annotations);
+									nextCallAdapter(null, returnType, annotations);
+										CallAdapter<?, ?> adapter = callAdapterFactories.get(i).get(returnType, annotations, this);callAdapterFactories中有一个DefaultCallAdapterFactory
+												DefaultCallAdapterFactory.get();
+													new CallAdapter<Object, Call<?>>() {
+														实现了：public Call<Object> adapt(Call<Object> call) {
+																	return executor == null ? call : new ExecutorCallbackCall<>(executor, call);
+																}
+													}
+										return adapter;
+							 return new CallAdapted<>(requestFactory, callFactory, responseConverter, callAdapter);
+					serviceMethodCache.put(method, result);将注解信息放到Retrofit的serviceMethodCache的map中，key就是这个method的hash值，类：CallAdapted
+					result为CallAdapted实例，CallAdapted中包含一个CallAdapter实例，CallAdapter中实现了adapt方法
+				invoke(args)-->CallAdapted.invoke-->实际父类HttpServiceMethod执行invoke
+									Call<ResponseT> call = new OkHttpCall<>(requestFactory, args, callFactory, responseConverter);call为OkHttpCall
+									adapt(call, args);子类CallAdapted执行
+										callAdapter.adapt(call);这个callAdapter为前面实现了的CallAdapter
+											executor == null ? call : new ExecutorCallbackCall<>(executor, call);
+												return new ExecutorCallbackCall<>(executor, call);最后返回一个ExecutorCallbackCall类
+													delegate.enqueue(
+													  new Callback<T>() {
+														@Override
+														public void onResponse(Call<T> call, final Response<T> response) {
+														  callbackExecutor.execute(
+															  () -> {
+																if (delegate.isCanceled()) {
+																  // Emulate OkHttp's behavior of throwing/delivering an IOException on
+																  // cancellation.
+																  callback.onFailure(ExecutorCallbackCall.this, new IOException("Canceled"));
+																} else {
+																  callback.onResponse(ExecutorCallbackCall.this, response);
+																}
+															  });
+														}
+
+														@Override
+														public void onFailure(Call<T> call, final Throwable t) {
+														  callbackExecutor.execute(() -> callback.onFailure(ExecutorCallbackCall.this, t));
+														}
+													  });
+													  }
+													
+										
+											
+											
+										
+										
+										
+	4.异步调用请求
+		call.enqueue(new Callback<Translation>() {}call为ExecutorCallbackCall的一个子类
+			调用了delegate.enqueue delegate为一个代理类call为OkHttpCall
+					call = rawCall = createRawCall();
+						okhttp3.Call call = callFactory.newCall(requestFactory.create(args));callFactory为retrofit.callFactory 类：OkHttpClient
+							RealCall.newRealCall(this, request, false /* for web socket */);
+						call.enqueue(new okhttp3.Callback() {
+							onResponse(okhttp3.Call call, okhttp3.Response rawResponse) {
+								response = parseResponse(rawResponse);解析返回数据
+									
+								callback.onResponse(OkHttpCall.this, response);回调返回数据
+							}
+							onFailure(okhttp3.Call call, IOException e) {
+								callFailure(e);
+							}
+						
+						
+						}}
+								
+							
+							
+			
+				
+			
+															
+
+	

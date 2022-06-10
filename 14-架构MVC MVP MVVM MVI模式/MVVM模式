@@ -1,0 +1,131 @@
+MVVM模式：
+
+M：model层和MVP的model层是一个东西
+V：View层：xml,Activity,adapter,view等
+VM：viewmodel层，用于处理和view层的交互和model层的交互粘合剂
+
+1.交互模式：
+
+	View  <-- databinding---> ViewModel <---- ------> Model
+
+2.view和vm通过databinding实现双向数据绑定：
+	view层的状态发生变化会通知到vm层，vm层数据发生变化会通知view层，这就是双向数据绑定
+	
+3.特点：
+	优点：
+		1.低耦合：相比MVP模式，View层和Controller层耦合度进一度降低，
+			视图（View）可以独立于Model变化和修改，一个ViewModel可以绑定到不同的”View”上，当View变化的时候Model可以不变，当Model变化的时候View也可以不变。
+		2.可重用性，可以把一些视图逻辑放在一个ViewModel里面，让很多view重用这段视图逻辑。
+		3.独立开发，开发人员可以专注于业务逻辑和数据的开发（ViewModel），设计人员可以专注于页面设计，使用Expression Blend可以很容易设计界面并生成xml代码。
+		4.可测试，界面向来是比较难于测试的，而现在测试可以针对ViewModel来写
+	缺点：针对每个需要和Model交互的界面都需要绑定一个ViewModel，如果View的逻辑复杂则代码量大
+
+4.使用方式
+	1.在module的gradle下面：
+		1.1：设置dataBinding：
+		buildFeatures{
+			dataBinding true
+		}
+	2.在Activity的xml中：
+		<data>
+			<variable
+				name="model"
+				type="com.landicorp.android.shouyinbao.chinalife.db.viewmodels.LoginModel" />    
+		</data>
+		这之后xml中可以使用这个model的方法和内部属性
+	3.在Activity中：
+		binding = DataBindingUtil.setContentView(this,R.layout.activity_login);解析xml到binding中
+		binding.setModel(CustomViewModelProvider.providerLoginModel(this));设置viewmodel
+        binding.setLifecycleOwner(this);设置vm的生命周期
+		其中：
+			CustomViewModelProvider.java:通用创建ViewModel的方式
+				public class CustomViewModelProvider {
+					public static LoginModel providerLoginModel(Context context){
+						UserRepository repository = RepositoryProvider.providerUserRepository(context);
+						return new ViewModelProvider((ViewModelStoreOwner) context,new UserLoginFactory(repository,context)).get(LoginModel.class);
+					}				
+				}
+			
+			UserLoginFactory.java:反射创建ViewModel
+			public class UserLoginFactory extends ViewModelProvider.NewInstanceFactory{
+				private UserRepository repository;
+				private Context context;
+				public UserLoginFactory(UserRepository repository, Context context){
+					this.repository = repository;
+					this.context = context;
+				}
+				@NonNull
+				@Override
+				public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
+					Class[] params = {UserRepository.class,Context.class};
+					try {
+						return modelClass.getDeclaredConstructor(params).newInstance(repository,context);
+					} catch (NoSuchMethodException e) {
+						e.printStackTrace();
+					} catch (IllegalAccessException e) {
+						e.printStackTrace();
+					} catch (InstantiationException e) {
+						e.printStackTrace();
+					} catch (InvocationTargetException e) {
+						e.printStackTrace();
+					}
+					return null;
+
+				}
+			}
+	4.创建一个BindingAdapter类：EditTextBindingAdapter	
+		public class EditTextBindingAdapter {
+			// 文本监听器
+			@BindingAdapter("addTextChangedListener")
+			public static  void addTextChangedListener(EditText editText, TextWatcher simpleWatcher) {
+				editText.addTextChangedListener(simpleWatcher);
+			}
+
+			// 文本监听器
+			@BindingAdapter("addCaged")
+			public static void addCaged(EditText editText, TextWatcher simpleWatcher) {
+				editText.addTextChangedListener(simpleWatcher);
+			}
+			// 文本监听器
+			@BindingAdapter("onFocusChange")
+			public static void onFocusChange(EditText editText,boolean changed) {
+				if(changed){
+					editText.requestFocus();
+					editText.requestFocusFromTouch();
+				}
+
+			}
+			// 文本监听器
+			@BindingAdapter("onFocusChange")
+			public static void onFocusChange(TextView btn, boolean changed) {
+				if(changed){
+					btn.requestFocus();
+					btn.requestFocusFromTouch();
+				}
+
+			}
+		}
+	5.在xml文件中
+		<EditText
+			android:layout_width="0dp"
+			android:layout_height="match_parent"
+			android:layout_weight="4"
+			app:addCaged="@{model.accountWatcher}"
+			android:text="@{model.acount}"
+			android:id="@+id/id_account"
+			android:singleLine="true"
+			android:inputType="number"
+			android:background="@null"
+			/>
+		
+		调用了app:addCaged：
+			这个方法会对editText.addTextChangedListener(simpleWatcher)，创建一个textchanged的监听动作，这个simpleWatcher对象是在vm中生成的
+		调用app:onFocusChange:
+			这个方法会在View获取焦点时回调EditTextBindingAdapter的onFocusChange(EditText editText,boolean changed)方法
+		其实上面的操作实现了View的状态发生改变时，可以通知到VM，
+		VM接收到View的状态改变时，可以调用acount.setValue(charSequence.toString());改变acount的值时，EditText的值也自动变化了：
+		其中 MutableLiveData<String> acount = new MutableLiveData<>();
+		
+		通过上面的分析，DataBinding实现了双向数据绑定的操作：即View中的状态发生改变时，可以立即通知到vm，vm中的数据发生改变时,会自动刷新UI状态
+		
+		

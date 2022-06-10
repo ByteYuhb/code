@@ -1,0 +1,197 @@
+JNI
+
+1.简介：
+	主要用于java层和C或者C++层的接口调用
+2.特点：
+	1.安全性高 2.跨平台 3.运行效率高
+3.核心类和方法
+	
+基本数据类型转换：
+
+Java    Native   Sign
+byte    jbyte    B
+char 	jchar    C
+double  jdouble  D
+float	jfloat	 F
+int 	jint 	 I
+short	jshort   S
+long 	jlong	 J
+boolean jboolean Z
+void 	void 	 V
+
+引用数据类型转换
+
+Java		Native			Sign
+所有对象 	jobject			L+classname+;
+Class		jclass			Ljava/lang/Class;
+String		jstring			Ljava/lang/String;
+Throwable 	jthrowable 		Ljava/lang/Throwable;
+Object[] 	jobjectArray 	[L+classname+;
+byte[]    	jbyteArray     		[B
+char[] 		jcharArray     		[C
+double[]  	jdoubleArray   		[D
+float[]		jfloatArray 	 	[F
+int[] 		jintArray 	 		[I
+short[]		jshortArray    		[S
+long[] 		jlongArray 	 		[J
+boolean[] 	jbooleanArray  		[Z
+
+
+方法签名：
+格式：
+如1：
+	void native_init(){
+		签名信息：()V
+	}
+如2：
+	String native_str(Object obj,String str){
+		签名信息:(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;
+		return "";
+	}
+
+
+继承关系：
+	所有的类都继承jobject
+	所有的数据都继承jArray
+	
+JNIEnv类：
+	MainActivity.java
+		public class MainActivity extends AppCompatActivity {
+
+			// Used to load the 'native-lib' library on application startup.
+			static {
+				System.loadLibrary("native-lib");
+			}
+
+			@Override
+			protected void onCreate(Bundle savedInstanceState) {
+				super.onCreate(savedInstanceState);
+				setContentView(R.layout.activity_main);
+
+				// Example of a call to a native method
+				TextView tv = findViewById(R.id.sample_text);
+				tv.setText(stringFromJNI_1("com/allinpay/myapplication/EventListener"));
+			}
+
+			/**
+			 * A native method that is implemented by the 'native-lib' native library,
+			 * which is packaged with this application.
+			 */
+			public native String stringFromJNI();
+			public native String stringFromJNI_1(String str);
+		}
+
+	native_lib.cpp
+		JNIEXPORT jstring JNICALL
+		Java_com_allinpay_myapplication_MainActivity_stringFromJNI_11(JNIEnv *env, jobject thiz,
+																	  jstring str) {
+			/* jstring转字符串char**/
+			const  char* c_str = env->GetStringUTFChars(str, NULL);
+			std:: string s1 = "你好我是native";
+			/*将string转换为jstring格式*/
+			jstring js1 = env->NewStringUTF(s1.c_str());
+			/*将jstring转换为string格式*/
+			std:: string s2 = c_str;
+			//获取class类
+			jclass testClass = env->FindClass(c_str);
+			if(testClass==NULL){
+				return NULL;
+			}
+			//获取无参数构造方法
+			jmethodID  construction_no_param = env->GetMethodID(testClass,"<init>","()V");
+			//获取方法签名为(Object,String)void的方法
+			jmethodID  construction_has_param = env->GetMethodID(testClass,"<init>","(Ljava/lang/Object;Ljava/lang/String;)V");//获取方法签名为(Object,String)void的方法			
+			/*获取testClass类的对象*/
+			jobject  obj = env->NewObject(testClass,construction_has_param,thiz,env->NewStringUTF(s1.c_str()));
+			/*获取testClass类的getString方法*/
+			jmethodID m_getString = env->GetMethodID(testClass,"getString","()Ljava/lang/String;");
+			/*调用testClass类的对象obj的getString方法*/
+			jstring r_getString = static_cast<jstring> (env->CallObjectMethod(obj,m_getString));
+			/*获取testClass类的getSubString静态方法*/
+			jmethodID  m_static_getSubString = env->GetStaticMethodID(testClass,"getSubString","(II)Ljava/lang/String;");
+			/*调用testClass类的getSubString静态方法*/
+			jstring r_getSubString = static_cast<jstring>(env->CallStaticObjectMethod(testClass,
+																					  m_static_getSubString,0,2));
+			/*获取testClass类的对象obj的obj属性*/
+			jfieldID f_obj = env->GetFieldID(testClass,"obj","Ljava/lang/Object;");
+			/*获取testClass类的对象obj的obj属性value*/
+			jobject  j_obj = env->GetObjectField(obj,f_obj);
+			/*释放资源*/
+			env->ReleaseStringUTFChars(str,c_str);
+			return r_getSubString;
+		}
+	EventListener.java
+		public class EventListener {
+			private static String st = "nature";
+			public Object obj;
+			public String string;
+			public EventListener(Object obj,String string){
+				this.obj = obj;
+				this.string = string;
+			}
+			public EventListener(){
+				this.obj = null;
+				this.string = "string";
+			}
+			public String getString(){
+				return string;
+			}
+			public static String getSubString(int begin,int end){
+				return st.substring(begin,end);
+			}
+		}
+	以上是jni调用的基本使用方式：包括了常用的jni属性调用和方法调用
+	
+动态注册：
+	代码如下：
+		#include "dy_register.h"
+		#include <jni.h>
+		#include <assert.h>
+		#include <string>
+
+
+		#define JNI_CLASS_NAME "com/allinpay/myapplication/MainActivity" //java路径
+		jstring stringForJNI(JNIEnv *env,jclass clazz){
+			std::string hello = "hello";
+			return env->NewStringUTF(hello.c_str());
+		}
+		jstring stringFromJNI_1(JNIEnv *env,jclass clazz){
+			std::string hello = "hello:stringFromJNI_1";
+			return env->NewStringUTF(hello.c_str());
+		}
+		static JNINativeMethod gMethods[] = {
+				{"stringFromJNI","()Ljava/lang/String;",(void *)stringForJNI},
+				{"stringFromJNI_1","(Ljava/lang/String;)Ljava/lang/String;",(void *)stringFromJNI_1}
+
+		};
+
+
+
+		static int registerMethods(JNIEnv *env, const char *className, JNINativeMethod *gMethods, int numMethods){
+			jclass clazz = env->FindClass(className);
+			if(clazz == NULL){
+				return JNI_ERR;
+			}
+			//注册JNI方法
+			if(env->RegisterNatives(clazz,gMethods,numMethods)<0){
+				return JNI_FALSE;
+			}
+			return JNI_TRUE;
+
+		}
+		extern "C" JNIEXPORT
+		jint JNI_OnLoad(JavaVM *vm, void *reserved) {
+			JNIEnv *env = NULL;
+			if(vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK){
+			return JNI_ERR;
+			}
+			assert(env != NULL);
+			if(!registerMethods(env,JNI_CLASS_NAME,gMethods,sizeof(gMethods)/sizeof(gMethods[0]))){
+				return JNI_ERR;
+			}
+			return JNI_VERSION_1_6;
+		}
+
+ 
+
+		

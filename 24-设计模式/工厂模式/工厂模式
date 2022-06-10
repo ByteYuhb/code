@@ -1,0 +1,303 @@
+工厂模式
+现实生活中，
+原始社会自给自足（没有工厂），
+农耕社会小作坊（简单工厂，民间酒坊），
+工业革命流水线（工厂方法，自产自销），
+现代产业链代工厂（抽象工厂，富士康）。
+我们的项目代码同样是由简到繁一步一步迭代而来的，但对于调用者来说，却越来越简单。
+
+简单工厂模式:
+
+我们把被创建的对象称为“产品”，把创建产品的对象称为“工厂”。如果要创建的产品不多，只要一个工厂类就可以完成，这种模式叫“简单工厂模式”。
+结构图：
+
+代码实现：
+public class Client {
+    public static void main(String[] args) {
+    }
+
+    //抽象产品
+    public interface Product {
+        void show();
+    }
+
+    //具体产品：ProductA
+    static class ConcreteProduct1 implements Product {
+        public void show() {
+            System.out.println("具体产品1显示...");
+        }
+    }
+
+    //具体产品：ProductB
+    static class ConcreteProduct2 implements Product {
+        public void show() {
+            System.out.println("具体产品2显示...");
+        }
+    }
+
+    final class Const {
+        static final int PRODUCT_A = 0;
+        static final int PRODUCT_B = 1;
+        static final int PRODUCT_C = 2;
+    }
+
+    static class SimpleFactory {
+        public static Product makeProduct(int kind) {
+            switch (kind) {
+                case Const.PRODUCT_A:
+                    return new ConcreteProduct1();
+                case Const.PRODUCT_B:
+                    return new ConcreteProduct2();
+            }
+            return null;
+        }
+    }
+}
+
+
+应用场景：
+产品种类较少的时候，可以使用简单工厂模式；客户端只需要传入工厂类的参数，并不需要关系产品如何实现
+
+
+工厂方法模式
+工厂方法是在简单工厂的基础上把工厂抽象化，每个产品对应一个工厂实现类。
+这样就将客户和产品之间隔开：
+结构：
+
+代码：
+package FactoryMethod;
+
+public class AbstractFactoryTest {
+    public static void main(String[] args) {
+        try {
+            Product a;
+            AbstractFactory af;
+            af = (AbstractFactory) ReadXML1.getObject();
+            a = af.newProduct();
+            a.show();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+}
+
+//抽象产品：提供了产品的接口
+interface Product {
+    public void show();
+}
+
+//具体产品1：实现抽象产品中的抽象方法
+class ConcreteProduct1 implements Product {
+    public void show() {
+        System.out.println("具体产品1显示...");
+    }
+}
+
+//具体产品2：实现抽象产品中的抽象方法
+class ConcreteProduct2 implements Product {
+    public void show() {
+        System.out.println("具体产品2显示...");
+    }
+}
+
+//抽象工厂：提供了厂品的生成方法
+interface AbstractFactory {
+    public Product newProduct();
+}
+
+//具体工厂1：实现了厂品的生成方法
+class ConcreteFactory1 implements AbstractFactory {
+    public Product newProduct() {
+        System.out.println("具体工厂1生成-->具体产品1...");
+        return new ConcreteProduct1();
+    }
+}
+
+//具体工厂2：实现了厂品的生成方法
+class ConcreteFactory2 implements AbstractFactory {
+    public Product newProduct() {
+        System.out.println("具体工厂2生成-->具体产品2...");
+        return new ConcreteProduct2();
+    }
+}
+
+应用场景：
+1.客户只知道创建产品的工厂，不知道具体的产品名称
+2.创建对象的任务由多个具体子工厂中的某一个完成，而抽象工厂只提供创建产品的接口
+3.客户不关心创建产品的细节，只关心产品的品牌
+
+抽象工厂模式
+
+元素：
+1.抽象工厂 AbstractFarm
+2.具体实现工厂1,2,3 SGFarm SRFarm SHFarm
+3.抽象产品			Animal 					Plant
+4.具体产品1,2,3，Horse Cattle			Vegetables Fruits
+结构
+代码：
+package AbstractFactory;
+
+import java.awt.*;
+import javax.swing.*;
+
+public class FarmTest {
+    public static void main(String[] args) {
+        try {
+            Farm f;
+            Animal a;
+            Plant p;
+            f = (Farm) ReadXML.getObject();
+            a = f.newAnimal();
+            p = f.newPlant();
+            a.show();
+            p.show();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+}
+
+//抽象产品：动物类
+interface Animal {
+    public void show();
+}
+
+//具体产品：马类
+class Horse implements Animal {
+    JScrollPane sp;
+    JFrame jf = new JFrame("抽象工厂模式测试");
+
+    public Horse() {
+        Container contentPane = jf.getContentPane();
+        JPanel p1 = new JPanel();
+        p1.setLayout(new GridLayout(1, 1));
+        p1.setBorder(BorderFactory.createTitledBorder("动物：马"));
+        sp = new JScrollPane(p1);
+        contentPane.add(sp, BorderLayout.CENTER);
+        JLabel l1 = new JLabel(new ImageIcon("src/A_Horse.jpg"));
+        p1.add(l1);
+        jf.pack();
+        jf.setVisible(false);
+        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//用户点击窗口关闭
+    }
+
+    public void show() {
+        jf.setVisible(true);
+    }
+}
+
+//具体产品：牛类
+class Cattle implements Animal {
+    JScrollPane sp;
+    JFrame jf = new JFrame("抽象工厂模式测试");
+
+    public Cattle() {
+        Container contentPane = jf.getContentPane();
+        JPanel p1 = new JPanel();
+        p1.setLayout(new GridLayout(1, 1));
+        p1.setBorder(BorderFactory.createTitledBorder("动物：牛"));
+        sp = new JScrollPane(p1);
+        contentPane.add(sp, BorderLayout.CENTER);
+        JLabel l1 = new JLabel(new ImageIcon("src/A_Cattle.jpg"));
+        p1.add(l1);
+        jf.pack();
+        jf.setVisible(false);
+        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//用户点击窗口关闭
+    }
+
+    public void show() {
+        jf.setVisible(true);
+    }
+}
+
+//抽象产品：植物类
+interface Plant {
+    public void show();
+}
+
+//具体产品：水果类
+class Fruitage implements Plant {
+    JScrollPane sp;
+    JFrame jf = new JFrame("抽象工厂模式测试");
+
+    public Fruitage() {
+        Container contentPane = jf.getContentPane();
+        JPanel p1 = new JPanel();
+        p1.setLayout(new GridLayout(1, 1));
+        p1.setBorder(BorderFactory.createTitledBorder("植物：水果"));
+        sp = new JScrollPane(p1);
+        contentPane.add(sp, BorderLayout.CENTER);
+        JLabel l1 = new JLabel(new ImageIcon("src/P_Fruitage.jpg"));
+        p1.add(l1);
+        jf.pack();
+        jf.setVisible(false);
+        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//用户点击窗口关闭
+    }
+
+    public void show() {
+        jf.setVisible(true);
+    }
+}
+
+//具体产品：蔬菜类
+class Vegetables implements Plant {
+    JScrollPane sp;
+    JFrame jf = new JFrame("抽象工厂模式测试");
+
+    public Vegetables() {
+        Container contentPane = jf.getContentPane();
+        JPanel p1 = new JPanel();
+        p1.setLayout(new GridLayout(1, 1));
+        p1.setBorder(BorderFactory.createTitledBorder("植物：蔬菜"));
+        sp = new JScrollPane(p1);
+        contentPane.add(sp, BorderLayout.CENTER);
+        JLabel l1 = new JLabel(new ImageIcon("src/P_Vegetables.jpg"));
+        p1.add(l1);
+        jf.pack();
+        jf.setVisible(false);
+        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//用户点击窗口关闭
+    }
+
+    public void show() {
+        jf.setVisible(true);
+    }
+}
+
+//抽象工厂：农场类
+interface Farm {
+    public Animal newAnimal();
+
+    public Plant newPlant();
+}
+
+//具体工厂：韶关农场类
+class SGfarm implements Farm {
+    public Animal newAnimal() {
+        System.out.println("新牛出生！");
+        return new Cattle();
+    }
+
+    public Plant newPlant() {
+        System.out.println("蔬菜长成！");
+        return new Vegetables();
+    }
+}
+
+//具体工厂：上饶农场类
+class SRfarm implements Farm {
+    public Animal newAnimal() {
+        System.out.println("新马出生！");
+        return new Horse();
+    }
+
+    public Plant newPlant() {
+        System.out.println("水果长成！");
+        return new Fruitage();
+    }
+}
+应用场景：
+1.当需要创建的对象是一系列相互关联或相互依赖的产品族时，如电器工厂中的电视机、洗衣机、空调等。
+2.系统中有多个产品族，但每次只使用其中的某一族产品。如有人只喜欢穿某一个品牌的衣服和鞋。
+3.系统中提供了产品的类库，且所有产品的接口相同，客户端不依赖产品实例的创建细节和内部结构。
+
+

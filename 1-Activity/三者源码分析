@@ -1,0 +1,215 @@
+1.ActivityRecord 
+2.TaskRecord
+3.ActivityStack
+
+先看下三者之间的关系：ActivityRecord-TaskRecord-ActivityStack三者关系.eddx
+
+可以看出三者之间是包含的关系；
+来看各自的源码：
+
+ActivityStack：
+	 frameworks/base/services/core/java/com/android/server/am/ActivityStack.java
+class ActivityStack<T extends StackWindowController> extends ConfigurationContainer
+        implements StackWindowListener{
+	private final RecentTasks mRecentTasks;最近的Task任务，可以在回退任务栈中看到该任务
+	/**
+     * The back history of all previous (and possibly still
+     * running) activities.  It contains #TaskRecord objects.
+     */
+    private final ArrayList<TaskRecord> mTaskHistory = new ArrayList<>();TaskRecord集合
+	/**
+     * List of running activities, sorted by recent usage.
+     * The first entry in the list is the least recently used.
+     * It contains HistoryRecord objects.
+     */
+    final ArrayList<ActivityRecord> mLRUActivities = new ArrayList<>();包括最新缓存使用的Activity，这样就不用每次都去遍历TaskRecord集合中的ActivityRecord，浪费资源
+	/** Run all ActivityStacks through this */
+    protected final ActivityStackSupervisor mStackSupervisor;
+	
+	TaskRecord createTaskRecord(int taskId, ActivityInfo info, Intent intent,
+            IVoiceInteractionSession voiceSession, IVoiceInteractor voiceInteractor,
+            boolean toTop, int type) {
+        TaskRecord task = new TaskRecord(mService, taskId, info, intent, voiceSession,新建一个TaskRecord
+                voiceInteractor, type);
+        // add the task to stack first, mTaskPositioner might need the stack association
+        addTask(task, toTop, "createTaskRecord");    
+        return task;
+    }
+	//添加Task
+	void addTask(final TaskRecord task, final boolean toTop, String reason) {
+
+		addTask(task, toTop ? MAX_VALUE : 0, true /* schedulePictureInPictureModeChange */, reason);
+
+		//其他代码略
+	}
+	// TODO: This shouldn't allow automatic reparenting. Remove the call to preAddTask and deal
+    // with the fall-out...
+	//添加Task到指定位置
+    void addTask(final TaskRecord task, int position, boolean schedulePictureInPictureModeChange,
+            String reason) {
+        // TODO: Is this remove really needed? Need to look into the call path for the other addTask
+        mTaskHistory.remove(task);
+        position = getAdjustedPositionForTask(task, position, null /* starting */);
+        final boolean toTop = position >= mTaskHistory.size();
+        final ActivityStack prevStack = preAddTask(task, reason, toTop);
+
+        mTaskHistory.add(position, task);
+        task.setStack(this);
+
+        if (toTop) {
+            updateTaskReturnToForTopInsertion(task);
+        }
+
+        updateTaskMovement(task, toTop);
+
+        postAddTask(task, prevStack, schedulePictureInPictureModeChange);
+    }
+}
+ActivityStack小结：
+	1.里面存储了一个TaskRecord的List集合
+	2.持有一个ActivityStackSupervisor对象，这个对象是用来管理ActivityStack
+
+
+ActivityStackSupervisor：
+	frameworks/base/services/core/java/com/android/server/am/ActivityStackSupervisor.java
+    
+    public class ActivityStackSupervisor extends ConfigurationContainer implements DisplayListener {
+
+        ActivityStack mHomeStack;//管理的是Launcher相关的任务
+
+        ActivityStack mFocusedStack;//管理非Launcher相关的任务
+        
+        //创建ActivityStack
+        ActivityStack createStack(int stackId, ActivityStackSupervisor.ActivityDisplay display, boolean onTop) {
+            switch (stackId) {
+                case PINNED_STACK_ID:
+                    //PinnedActivityStack是ActivityStack的子类
+                    return new PinnedActivityStack(display, stackId, this, mRecentTasks, onTop);
+                default:
+                    //创建一个ActivityStack
+                    return new ActivityStack(display, stackId, this, mRecentTasks, onTop);
+            }
+        }
+
+    }
+ActivityStackSupervisor小结：
+	1.里面存储了两个ActivityStack，分别对应Launcher和非Launcher任务
+	2.内部调用了创建ActivityStack的构造方法
+	3.AMS初始化的时候会创建一个ActivityStackSupervisor
+	
+
+
+。：
+	frameworks/base/services/core/java/com/android/server/am/TaskRecord.java
+    
+    final class TaskRecord extends ConfigurationContainer implements TaskWindowContainerListener {
+        final int taskId;       //任务ID
+        final ArrayList<ActivityRecord> mActivities;   //使用一个ArrayList来保存所有的ActivityRecord
+        private ActivityStack mStack;   //TaskRecord所在的ActivityStack
+        
+        //构造方法
+        TaskRecord(ActivityManagerService service, int _taskId, ActivityInfo info, Intent _intent,
+                   IVoiceInteractionSession _voiceSession, IVoiceInteractor _voiceInteractor, int type) {
+            
+        }
+        
+        //添加Activity到顶部
+        void addActivityToTop(com.android.server.am.ActivityRecord r) {
+            addActivityAtIndex(mActivities.size(), r);
+        }
+        
+        //添加Activity到指定的索引位置
+        void addActivityAtIndex(int index, ActivityRecord r) {
+            //...
+
+            r.setTask(this);//为ActivityRecord设置TaskRecord，就是这里建立的联系
+
+            //...
+            
+            index = Math.min(size, index);
+            mActivities.add(index, r);//添加到mActivities
+            
+            //...
+        }
+
+        //其他代码略
+    }
+	
+TaskRecord总结：
+	1.可以看到TaskRecord中使用了一个ArrayList来保存所有的ActivityRecord
+	2.同样，TaskRecord中的mStack表示其所在的ActivityStack
+	3.startActivity()时也会创建一个TaskRecord
+	
+	frameworks/base/services/core/java/com/android/server/am/ActivityStarter.java
+    
+    class ActivityStarter {
+
+        private int setTaskFromReuseOrCreateNewTask(TaskRecord taskToAffiliate, int preferredLaunchStackId, ActivityStack topStack) {
+            mTargetStack = computeStackFocus(mStartActivity, true, mLaunchBounds, mLaunchFlags, mOptions);
+
+            if (mReuseTask == null) {
+                //创建一个createTaskRecord，实际上是调用ActivityStack里面的createTaskRecord（）方法，ActivityStack下面会讲到
+                final TaskRecord task = mTargetStack.createTaskRecord(
+                        mSupervisor.getNextTaskIdForUserLocked(mStartActivity.userId),
+                        mNewTaskInfo != null ? mNewTaskInfo : mStartActivity.info,
+                        mNewTaskIntent != null ? mNewTaskIntent : mIntent, mVoiceSession,
+                        mVoiceInteractor, !mLaunchTaskBehind /* toTop */, mStartActivity.mActivityType);
+
+                //其他代码略
+            }
+        }
+    }
+
+ActivityRecord：
+	历史栈中的一个条目，代表一个activity
+	frameworks/base/services/core/java/com/android/server/am/ActivityRecord.java
+    
+    final class ActivityRecord extends ConfigurationContainer implements AppWindowContainerListener {
+
+        final ActivityManagerService service; // owner
+        final IApplicationToken.Stub appToken; // window manager token
+        AppWindowContainerController mWindowContainerController;
+        final ActivityInfo info; // all about me
+        final ApplicationInfo appInfo; // information about activity's app
+        
+        //省略其他成员变量
+        
+        //ActivityRecord所在的TaskRecord
+        private TaskRecord task;        // the task this is in.
+        
+        //构造方法，需要传递大量信息
+        ActivityRecord(ActivityManagerService _service, ProcessRecord _caller, int _launchedFromPid,
+                       int _launchedFromUid, String _launchedFromPackage, Intent _intent, String _resolvedType,
+                       ActivityInfo aInfo, Configuration _configuration,
+                       com.android.server.am.ActivityRecord _resultTo, String _resultWho, int _reqCode,
+                       boolean _componentSpecified, boolean _rootVoiceInteraction,
+                       ActivityStackSupervisor supervisor, ActivityOptions options,
+                       com.android.server.am.ActivityRecord sourceRecord) {
+        
+        }
+    }
+ActivityRecord总结：
+	1.实际上，ActivityRecord中存在着大量的成员变量，包含了一个Activity的所有信息。
+	2.ActivityRecord中的成员变量task表示其所在的TaskRecord，由此可以看出：ActivityRecord与TaskRecord建立了联系。
+	3.startActivity()时会创建一个ActivityRecord：
+	frameworks/base/services/core/java/com/android/server/am/ActivityStarter.java
+
+    class ActivityStarter {
+        private int startActivity(IApplicationThread caller, Intent intent, Intent ephemeralIntent,
+                                  String resolvedType, ActivityInfo aInfo, ResolveInfo rInfo,
+                                  IVoiceInteractionSession voiceSession, IVoiceInteractor voiceInteractor,
+                                  IBinder resultTo, String resultWho, int requestCode, int callingPid, int callingUid,
+                                  String callingPackage, int realCallingPid, int realCallingUid, int startFlags,
+                                  ActivityOptions options, boolean ignoreTargetSecurity, boolean componentSpecified,
+                                  com.android.server.am.ActivityRecord[] outActivity, TaskRecord inTask) {
+
+            //其他代码略
+            
+            ActivityRecord r = new ActivityRecord(mService, callerApp, callingPid, callingUid,
+                    callingPackage, intent, resolvedType, aInfo, mService.getGlobalConfiguration(),
+                    resultRecord, resultWho, requestCode, componentSpecified, voiceSession != null,
+                    mSupervisor, options, sourceRecord);
+                    
+            //其他代码略
+        }
+    }

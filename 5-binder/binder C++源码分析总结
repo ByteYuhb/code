@@ -1,0 +1,30 @@
+C++binder通讯源码分析总结：
+
+流程：
+test_server.cpp
+1.sp<ProcessState> proc(ProcessState::self());内部打开binder驱动，并调用了mmap
+2.sp<IServiceManager> sm = defaultServiceManager();内部获取的sm = new BpServiceManager(new BpBinder(handle))
+3.sm->addService(String16("hello"), new BnHelloService())
+	3.1：调用BpServiceManager的addService方法:
+	3.2：调用BpBinder的transact方法
+	3.3：调用IPCThreadState::self()->transact方法 IPCThreadState每个线程持有一个他的实例 通过key获取IPCThreadState实例，每个线程有唯一的key
+	3.4：调用err = writeTransactionData组数据
+	3.5：调用err = waitForResponse(reply)内部发送和接收数据调用ioctl方法并处理BR_REPLY命令，释放资源等操作
+	3.6：调用IPCThreadState::self()->joinThreadPool() 内部实现了等待客户端发送命令的循环，获取数据->处理数据->返回数据
+	
+	
+test_client.cpp
+
+1.sp<ProcessState> proc(ProcessState::self());内部打开binder驱动，并调用了mmap
+2.sp<IServiceManager> sm = defaultServiceManager();内部获取的sm = new BpServiceManager(new BpBinder(handle))
+3.sp<IBinder> binder = sm->getService(String16("hello"))获取服务的过程，内部调用了ioctl发送服务名称，并返回服务的handle
+4.sp<IHelloService> service = interface_cast<IHelloService>(binder);//强转为IHelloService，其实用的是代理模式
+5.service->sayhello(); 发送数据过程	
+	
+关键类：
+BpBinder.cpp一个代理类用于构建进程和线程中的通讯中介
+BBinder.cpp 返回数据需要强制转换为该类的子类，子类中需实现onTransact方法，在onTransact方法中可以根据code调用对应的函数
+BpServiceManager.cpp ServiceManager的一个代理类，调用sm->addService方法，可以将需要注册的Service放到sm的服务链表中
+ProcessState.cpp	表示一个进程，每个进程只有一个ProcessState
+IPCThreadState.cpp  表示一个线程，每个线程只有一个IPCThreadState实例，通过类似键值对方式保存和获取，如果为空就新创建一个IPCThreadState，并放入到键值对中
+	

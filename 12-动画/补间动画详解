@@ -1,0 +1,239 @@
+视图动画之补间动画
+1.简介
+	补间动画主要包括四大类：平移，缩放，透明度，旋转
+	
+2.使用场景
+	补间动画的使用场景主要包括：基础动画效果 & 特殊使用场景
+		基础动画效果：补间动画的标准动画分为4种：
+			平移动画（Translate）
+			缩放动画（scale）
+			旋转动画（rotate）
+			透明度动画（alpha
+		特殊的应用场景
+			Activity切换
+			Fragment切换
+			ListView子类的进出场效果
+3.使用方法
+基础动画效果
+	1.平移动画
+		Animation animation_translate = AnimationUtils.loadAnimation(this,R.anim.translate);//xml表示
+        /**移动动画TranslateAnimation类
+         * @param
+         * fromXDelta：x方向移动起始位置：0表示起始位置和原View坐标一直
+         * toXDelta:表示x方向移动的距离
+         * fromYDelta：y方向移动起始位置：0表示起始位置和原View坐标一直
+         * toYDelta:表示y方向移动的距离
+         */
+        Animation animation_translate = new TranslateAnimation(0,200,0,200);
+        animation_translate.setDuration(2000);//动画持续时间，必须设置才会有效果
+        animation_translate.setFillAfter(true);//视图是否停在结束位置
+        animation_translate.setFillBefore(true);//视图是否停在开始位置 FillAfter的优先级更高
+        animation_translate.setInterpolator(new AccelerateInterpolator());//设置插值器
+        animation_translate.setStartOffset(2000);//延迟动画时间
+        animation_translate.setRepeatMode(Animation.REVERSE);//重复模式 REVERSE：表示倒序播放  RESTART：正序播放
+        animation_translate.setRepeatCount(Animation.INFINITE);//重复次数 INFINITE：表示无限次重复，0表示不重复播放，其他值表示重复多少次
+        btn_translate.setOnClickListener(v -> btn_translate.startAnimation(animation_translate));
+	2.缩放动画
+		Animation animation_scale = AnimationUtils.loadAnimation(this,R.anim.scale);
+        /**ScaleAnimation：缩放动画类
+         * @param
+         * fromX：x缩放起始缩放大小，1表示原大小没有缩放
+         * toX：x方向缩放大小：如果是0表示x方向不可见，小余1，表示缩小，大于1表示放大
+         * fromY：y缩放起始缩放大小，1表示原大小没有缩放
+         * toY：y方向缩放大小：如果是0表示y方向不可见 小余1，表示缩小，大于1表示放大
+         * pivotXType:缩放轴点的x坐标模式
+         *      1.ABSOLUTE ：实际轴点坐标为原View的x坐标+上pivotXValue的值
+         *      2.RELATIVE_TO_SELF 实际轴点坐标为原View的x坐标+上（View的宽度*pivotXValue）的值
+         *      3.RELATIVE_TO_PARENT 实际轴点坐标为原View的x坐标+上（View的父容器宽度大小*pivotXValue）的值
+         * pivotXValue：轴点在X方向大小或者比例
+         * pivotYType:缩放轴点的Y坐标模式
+         *      1.ABSOLUTE ：实际轴点坐标为原View的y坐标+上pivotXValue的值
+         *      2.RELATIVE_TO_SELF 实际轴点坐标为原View的y坐标+上（View的高度*pivotYValue）的值
+         *      3.RELATIVE_TO_PARENT 实际轴点坐标为原View的y坐标+上（View的父容器高度大小*pivotYValue）的值
+         * pivotYValue：轴点在Y方向大小或者比例
+         */
+	
+        Animation animation_scale = new ScaleAnimation(1,0,1,0,Animation.RELATIVE_TO_SELF,0.5f,Animation.RELATIVE_TO_SELF,0.5f);
+        animation_scale.setDuration(2000);//必须设置。不然不会有动画效果
+        btn_scale.setOnClickListener(v -> btn_scale.startAnimation(animation_scale));
+	3.透明度动画
+		Animation animation_alpha = AnimationUtils.loadAnimation(this,R.anim.alpha);
+        /**AlphaAnimation 透明度动画
+         * @param
+         * fromAlpha：开始的透明度
+         * toAlpha：结束的透明度
+         */
+        Animation animation_alpha = new AlphaAnimation(1,0);
+        animation_alpha.setDuration(2000);
+        btn_alpha.setOnClickListener(v -> btn_alpha.startAnimation(animation_alpha));
+	4.旋转动画
+		Animation animation_rotate = AnimationUtils.loadAnimation(this,R.anim.rotate);
+        /**RotateAnimation：旋转动画类
+         * @param
+         * fromDegrees：开始旋转的角度
+         * toDegrees：结束旋转的角度
+         * pivotXType:缩放轴点的x坐标模式
+         *      1.ABSOLUTE ：实际轴点坐标为原View的x坐标+上pivotXValue的值
+         *      2.RELATIVE_TO_SELF 实际轴点坐标为原View的x坐标+上（View的宽度*pivotXValue）的值
+         *      3.RELATIVE_TO_PARENT 实际轴点坐标为原View的x坐标+上（View的父容器宽度大小*pivotXValue）的值
+         * pivotXValue：轴点在X方向大小或者比例
+         * pivotYType:缩放轴点的Y坐标模式
+         *      1.ABSOLUTE ：实际轴点坐标为原View的y坐标+上pivotXValue的值
+         *      2.RELATIVE_TO_SELF 实际轴点坐标为原View的y坐标+上（View的高度*pivotYValue）的值
+         *      3.RELATIVE_TO_PARENT 实际轴点坐标为原View的y坐标+上（View的父容器高度大小*pivotYValue）的值
+         * pivotYValue：轴点在Y方向大小或者比例
+         */
+        Animation animation_rotate = new RotateAnimation(0,180f,Animation.RELATIVE_TO_SELF,0.5f,Animation.RELATIVE_TO_SELF,0.5f);
+        animation_rotate.setDuration(2000);
+        btn_rotate.setOnClickListener(v -> btn_rotate.startAnimation(animation_rotate));
+特殊的应用场景：
+	1.Activity跳转：在Activity 调用跳转到另外一个Activity的时候，可以调用：overridePendingTransition(int enterAnim, int exitAnim)
+		enterAnim：表示需要启动的Activity进入效果
+		exitAnim：表示当前Activity需要退出的效果
+		
+		android已经为我们写好了很多效果：
+			如：
+				pop_in_right：从右边进入效果
+				<set xmlns:android="http://schemas.android.com/apk/res/android">
+					<translate 
+						android:fromXDelta="100%p" 
+						android:toXDelta="0"
+						android:duration="@android:integer/config_mediumAnimTime"/>
+					<alpha android:fromAlpha="0.0" android:toAlpha="1.0"
+							android:duration="@android:integer/config_shortAnimTime" />
+				</set>
+			可以看到fromXDelta = "100%p" ，这个p表示相对当前屏幕大小，100%p位置在屏幕最右边，如果是负数表示在屏幕左边位置
+				pop_out_left：从左边退出效果
+				<set xmlns:android="http://schemas.android.com/apk/res/android">
+					<translate android:fromXDelta="0" android:toXDelta="-100%p"
+							android:duration="@android:integer/config_mediumAnimTime"/>
+					<alpha android:fromAlpha="1.0" android:toAlpha="0.0"
+							android:duration="@android:integer/config_shortAnimTime" />
+				</set>
+			可以看到退出的时候，是从0退出到-100%p，整个Activity退出到左边
+	2.Fragment跳转效果：
+		// 方式1：系统预设
+		  // 通过setTransition(int transit)进行设置
+		  // transit参数说明
+		  // 1. FragmentTransaction.TRANSIT_NONE：无动画
+		  // 2. FragmentTransaction.TRANSIT_FRAGMENT_OPEN：标准的打开动画效果
+		  // 3. FragmentTransaction.TRANSIT_FRAGMENT_CLOSE：标准的关闭动画效果
+		  // 标准动画设置好后，在Fragment添加和移除的时候都会有。
+
+		  // 具体使用
+		  FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
+		  fragmentTransaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)；
+
+
+		// 方式2：自定义动画效果
+		  // 通过FragmentTransavtion.setCustomAnimations()设置
+		  // 此处的自定义动画效果同Activity，此处不再过多描述
+
+		  // 具体使用
+		  FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
+		  fragmentTransaction.setCustomAnimations(R.anim.in_from_right,R.anim.out_to_left);
+	3.视图组（ViewGroup）中子元素的出场效果
+		item_anim.xml
+			<set xmlns:android="http://schemas.android.com/apk/res/android">
+				<translate android:fromXDelta="100%p" android:toXDelta="0%p"
+						android:duration="400"/>
+				<alpha android:fromAlpha="0" android:toAlpha="1.0"
+						android:duration="@android:integer/config_shortAnimTime" />
+			</set>
+		方法1：
+			创建list_layout_anim.xml
+				<?xml version="1.0" encoding="utf-8"?>
+				<layoutAnimation xmlns:android="http://schemas.android.com/apk/res/android"
+					android:delay="0.5" //设置延迟时间
+					android:animationOrder="normal" 设置动画进入方式，normal：顺序进入  random：随机  reverse：倒序播放
+					android:animation="@anim/pop_in_right">
+
+
+				</layoutAnimation>
+			
+			在xml布局文件中，如RecyclerView或者ListView中设置android:layoutAnimation="@anim/list_layout_anim"
+			
+		方法2：
+			在java代码中：
+				LayoutAnimationController controller = new LayoutAnimationController(AnimationUtils.loadAnimation(this,R.anim.pop_in_right));
+				controller.setDelay(0.5f);
+				controller.setOrder(LayoutAnimationController.ORDER_NORMAL);
+				recycleView.setLayoutAnimation(controller);
+		以上两种方式都可以为List的item布局设置入场效果
+
+高级使用：
+	1.组合动画
+	2.监听动画
+	3.插值器
+	4.估值器
+	
+	
+	1.组合动画:
+		实际中很多需求都需要同时使用平移、缩放、旋转 & 透明度4种动画，即组合动画
+		组合动画使用方式：
+		
+		方法1：在xml中使用set关键字：
+			<set xmlns:android="http://schemas.android.com/apk/res/android">
+				<translate android:fromXDelta="100%p" android:toXDelta="0%p"
+						android:duration="400"/>
+				<alpha android:fromAlpha="0" android:toAlpha="1.0"
+						android:duration="@android:integer/config_shortAnimTime" />
+			</set>
+		
+		方法2：在java代码中：
+			AnimationSet set = new AnimationSet(true);
+			set.addAnimation(animation_scale);
+			set.addAnimation(animation_translate);
+			set.addAnimation(animation_alpha);
+			set.addAnimation(animation_rotate);
+			fl.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					fl.startAnimation(set);
+				}
+			});
+	2.监听动画
+		animation_alpha.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {
+                Log.d("TAG","onAnimationStart");
+            }
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                Log.d("TAG","onAnimationEnd");
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {
+                Log.d("TAG","onAnimationRepeat");
+            }
+        });
+	3.插值器
+	4.估值器
+		这两个内容比较复杂下一节讲解
+		
+			
+		
+		
+		
+	
+4.使用说明
+	补间动画基础使用场景中：
+	特别需要注意的是：
+	1.对于缩放和旋转，因为设计到旋转缩放轴点的问题，不同的轴点会产生不一定的效果。
+		pivotXType:缩放轴点的x坐标模式
+			 *      1.ABSOLUTE ：实际轴点坐标为原View的x坐标+上pivotXValue的值
+			 *      2.RELATIVE_TO_SELF 实际轴点坐标为原View的x坐标+上（View的宽度*pivotXValue）的值
+			 *      3.RELATIVE_TO_PARENT 实际轴点坐标为原View的x坐标+上（View的父容器宽度大小*pivotXValue）的值
+		pivotYType：同理
+	2.视图动画不会改变原来View的属性，比如在布局文件中的位置等，你看到的只是View在绘制的过程中的位置
+		所以如果移动到其他地方，设置了点击事件，也不会接收到，因为他的真实位置是在移动之前的初始位置
+		
+5.总结：
+	缺点：
+		1.视图动画只针对View类,如TextView，Button，LinerLayout等
+		2.只改变了视图特效，没有改变视图属性
+		3.动画效果单一，只能实现平移缩放，透明度和旋转四种效果
+	优点：使用方便，适用于只需要看动画效果的场景
+	

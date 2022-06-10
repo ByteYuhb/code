@@ -1,0 +1,93 @@
+1.标准建造模式
+
+1.模式说明：
+	1.1：隐藏对象的建造过程&细节，使得对象在不知道对象创建过程&细节的基本上，就可以直接创建复杂的对象
+	    方法：1.用户只需要给出对象的类型和参数 2.建造者模式按顺序创建复杂对象
+		
+2.作用：
+	2.1.降低创建复杂对象的复杂度
+	2.2.隔离创建对象的过程和表示
+	2.3.代码复用性&封装性好
+3.生活中的例子：
+	买汽车和生产汽车
+	买汽车的用户（使用者）只要说出型号和参数，工厂（生产者）就可以在用户不知如何生产的情况下组装出用户需要的汽车（对象）
+4.UML图 https://pic3.zhimg.com/80/v2-5a7bd484bf046798b86826e95ab894fa_720w.jpg
+
+5.例子说明：
+	1.指挥者（Director）与客户（Client）直接沟通
+	2.沟通后指挥者将需求(Builder)分发给(ConCreateBuilder)进行组装
+	3.产品建造着负责进行产品部件的构建
+	4.获取Product
+	代码：
+	1.生成一个Computer类（Product产品）
+	class Computer{
+		field cpu;必选
+		field ram;必选
+		field usbCount;可选
+		field keyBoard;可选
+		field dispaly;可选
+		
+		public Computer(field cpu,field ram){
+			this.cput = cpu;
+			this.ram = ram;
+		}
+		setusbCount{this.usbCount = usbCount};
+		setkeyBoard{this.keyBoard = keyBoard};
+		setdispaly{this.dispaly = dispaly};
+		
+		public void show(){
+			System.out.println("cpu"+cpu);
+			System.out.println("ram"+ram);
+			System.out.println("usbCount"+usbCount);
+			System.out.println("keyBoard"+keyBoard);
+		}
+	}
+	2.创建一个builder抽象类，包括创建产品的抽象方法
+	class abstract  ComputerBuilder{
+		abstract void buildCpu();
+		abstract void buildRam();
+		abstract void buildUsbCount();
+		abstract void buildKeyBoard();
+		abstract void buildDispaly();
+		abstract Computer getProduct();
+	}
+	
+	3.创建一个builder实现类
+	class MacComputerBuilder extends ComputerBuilder{
+		Computer computer;
+		public MacComputerBuilder(field cpu,field ram){
+			computer = new Computer(cpu,ram);
+		}
+		buildCpu(){computer.cpu = cpu }；
+		buildRam(){computer.ram = ram};
+		buildUsbCount(){
+			computer.usbCount = usbCount;
+		};
+		buildKeyBoard(){
+			computer.keyBoard = keyBoard;
+		};
+		buildDispaly(){
+			computer.dispaly = dispaly;
+		};
+		Computer getProduct(){
+			return computer;
+		};
+	}
+	4.创建一个指挥者，指挥者有一个方法是沟通成功后通知执行者去创建产品
+	class Director{
+		public Computer buildProduct(ComputerBuilder builder){
+			builder.buildUsbCount()
+			builder.buildKeyBoard()
+			builder.buildDispaly()
+			return builder.getProduct();
+		}
+	5.指挥者和用户确认需求
+	class Patter{
+		public static void main(int argc,string[] argv){
+			ComputerBuilder builder = new MacComputerBuilder("cpu","ram");
+			Computer cProduct = Director.buildProduct(builder);
+			cProduct.show();
+		}
+	}
+		
+	

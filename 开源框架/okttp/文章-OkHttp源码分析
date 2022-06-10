@@ -1,0 +1,54 @@
+## 前言：
+开发过程中经常需要使用到网络请求，而OkHttp作为第一代网络框架，经久不衰，在众多框架中脱颖而出，
+且在近期已被谷歌官方推荐使用，一定有其原因：
+今天我们就来讲下OkHttp这个高效框架背后的秘密。
+。。
+其他链接
+。。
+
+## 目录
+
+	目录图：
+
+## 简介
+OkHttp是一个高效的网络请求开源框架
+	有如下特点：
+	1.支持同一个主机的所有请求使用同一个套接字，这个特点让OkHttp对连接池的复用成为了可能
+	2.连接池的复用，大大减少了请求的延时
+	3.使用透明的Gzip压缩请求体大大缩小了请求传输大小，关于Gzip我们只需要知道其是一种高效的数据压缩方式即可
+	4.对于响应，OkHttp会对其做一个缓存，在某些情况下，可以使用缓存中的内容
+	5.基于拦截器的方式对请求进行阶段处理，可以自定义拦截器，方便对请求二次处理
+
+## 使用介绍
+	OkHttp使用起来非常方便
+	下面几行代码就可以实现一个简单的网络请求
+	public void testOkHttp(){
+		OkHttpClient client = new OkHttpClient();//步骤1：创建一个OkHttpClient，
+	
+        FormBody.Builder formBodyBuilder = new FormBody.Builder()
+                .add("key1","value1")
+                .add("key2","value2");//步骤2：配置网络请求body
+        RequestBody requestBody = formBodyBuilder.build();
+        Request.Builder requestBuilder = new Request.Builder().post(requestBody).url("http://host:port/api");//步骤3：配置网络请求体
+        Request request = requestBuilder.build();
+        Response response = client.newCall(request).execute();
+        p(response.body().bytes());//调用response.body().bytes()才会去取数据
+	}
+	步骤1：可以通过OkHttpClient.Builder配置一个新的OkHttpClient，重新配置连接超时时间，添加拦截器，添加代理，设置缓存策略等
+	步骤2：配置请求体：本例中配置的是Form表单格式的请求体，并添加了两个字段key1和key2
+	步骤3：这个步骤可以添加请求的url信息和添加RequestBody等操作
+	步骤4：创建网络请求执行器并执行execute操作，这里也可以使用enqueue异步调用请求
+	
+	关于OkHttp的其他高级用法，比如表单上送，文件上传，文件下载等操作可以参考下面这篇文章
+	Android开源库系列 之 OkHttp的具体使用方式
+
+	下面我从源码角度来分析下OkHttp的特点
+## 源码分析
+	此次分析的OkHttp版本：3.14.9
+	我们从使用流程角度来分析源码
+
+
+
+
+
+

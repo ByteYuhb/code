@@ -1,0 +1,41 @@
+BroadcastReceiver使用方式：
+1.注册方式：静态注册和动态注册
+
+1.1：静态注册：
+	伪代码：
+		1.创建一个BroadcastReceiver
+		class TestReceiver extends BroadcastReceiver{
+			field String userAction = "myaction";
+			method onReceive(intent){
+				if(userAction.equals(intent.getAction)){
+					doSomething();
+				}
+			}
+		}
+		2.在manfest中注册
+		<Receiver
+			name = "TestReceiver">
+			<intenFilter
+				action = "myaction"
+			/>
+		>
+1.2: 动态注册
+	伪代码：
+		1.创建一个BroadcastReceiver
+		class TestReceiver extends BroadcastReceiver{
+			field String userAction = "myaction";
+			method onReceive(intent){
+				if(userAction.equals(intent.getAction)){
+					doSomething();
+				}
+			}
+		}
+		2.在Activity中：
+		rigister():
+			IntentFilter filter  =  new IntentFilter();
+			filter.addAction(myaction);
+			registerReceiver(TestReceiver,filter);
+		send():
+			intent.setAction();设置action
+			intent.putExtras();设置传输的数据
+			sendBroadcast(intent); 发送广播

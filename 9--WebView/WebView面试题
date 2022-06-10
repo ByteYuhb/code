@@ -1,0 +1,34 @@
+面试题：
+1.如何提高WebView的加载速度
+   1.资源预加载
+		WebView对象预加载：在application创建的时候生成WebView对象。下次需要使用的时候，直接拿来用
+		H5资源预加载：在application创建的时候，直接加载H5页面，并缓存到本地，下次启动的时候可以直接从缓存中获取，提高速度
+   2.静态资源拦截
+		对于一些静态非频繁更改的资源如CSS文件，图片，字体等，可以程序安装的时候放在本地，在应用加载资源的时候，拦截资源获取的请求，从本地去获取
+
+2.WebView与 js的交互
+   WebView访问js：
+	1.调用loadUrl("javascript:jsMethod()")
+	2.调用evaluatejavascript();
+   
+   js访问WebView
+	1.通过WebView的addJavascriptInterface（）进行对象映射
+	2.通过 WebViewClient 的shouldOverrideUrlLoading ()方法回调拦截 url
+	3.Android通过 WebChromeClient 的onJsAlert()、onJsConfirm()、onJsPrompt（方法回调分别拦截JS对话框（即上述三个方法），得到他们的消息内容，然后解析即可。
+3.WebView的漏洞
+	1.addJavascriptInterface（）进行对象映射，js可以通过反射获取到Runtime实例，可以对计算机执行命令。对计算机造成攻击，信息泄露等风险
+		4.2以后通过给访问的方法添加注释解决
+		4.3以前通过采用拦截prompt（）的方式进行漏洞修复
+	2.密钥明文存储泄露
+		WebView默认开启密码保存提醒，如果开启，用户输入密码后会将密码保存到当前应用本地目录下，这样就会有密钥泄露的风险
+		解决方案：关闭密码保存提醒
+	3.域控制不严格漏洞
+		如果一个应用开启了对外调用，那么其他应用可以通过访问该Activity，并根据传过来的url，加载恶意的url。
+		解决方式：
+		 1.对不需要加载file协议的应用，直接禁用file协议：
+			setAllowFileAccess(false);setAllowFileAccessFromFileURLs(false); setAllowUniversalAccessFromFileURLs(false);
+		 2.对需要加载file协议的应用，直接禁用file协议加载JavaScript
+		 3.对Activity访问添加权限，只有声明了权限的应用才可以访问该Activity
+4.JsBridge原理
+	
+		 

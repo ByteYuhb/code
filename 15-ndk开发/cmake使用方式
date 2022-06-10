@@ -1,0 +1,89 @@
+//设置cmake最低版本号，防止有些高版本的api在低版本cmake下不能使用
+cmake_minimum_required(VERSION 3.10.2)
+//设置项目名称
+project("myapplication")
+
+//添加项目so库
+add_library( # Sets the name of the library.
+        dy-register-lib
+
+        # Sets the library as a shared library.
+        SHARED
+
+        # Provides a relative path to your source file(s).
+        dy_register.cpp people/people.cpp)
+//查找项目库
+find_library( # Sets the name of the path variable.
+              log-lib
+
+              # Specifies the name of the NDK library that
+              # you want CMake to locate.
+              log )
+//链接库
+target_link_libraries( # Specifies the target library.
+        dy-register-lib
+        # Links the target library to the log library
+        # included in the NDK.
+        ${log-lib} )
+
+
+cmake，日志查看
+调用
+message("CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
+message("CMAKE_SOURCE_DIR = ${CMAKE_SOURCE_DIR}")
+message(STATUS "PROJECT_SOURCE_DIR = ${PROJECT_SOURCE_DIR}")
+message(WARNING "CMAKE_BINARY_DIR = ${CMAKE_BINARY_DIR}")
+
+使用gradlew :app:externalNativeBuildRelease命令，可以查看日志
+-- PROJECT_SOURCE_DIR = E:/Work/BCM/Test201203/app/src/main/cpp
+CMAKE_CURRENT_SOURCE_DIR = E:/Work/BCM/Test201203/app/src/main/cpp
+CMAKE_SOURCE_DIR = E:/Work/BCM/Test201203/app/src/main/cpp
+CMake Warning at CMakeLists.txt:28 (message):
+  CMAKE_BINARY_DIR = E:/Work/BCM/Test201203/app/.cxx/cmake/release/x86
+-- Configuring done
+-- Generating done
+-- Build files have been written to: E:/Work/BCM/Test201203/app/.cxx/cmake/release/x86
+ninja: no work to do.
+Build multiple targets native-lib_x86_64 dy-register-lib_x86_64
+ninja: Entering directory `E:\Work\BCM\Test201203\app\.cxx\cmake\release\x86_64'
+[0/1] Re-running CMake...
+CMAKE_CURRENT_SOURCE_DIR = E:/Work/BCM/Test201203/app/src/main/cpp
+CMAKE_SOURCE_DIR = E:/Work/BCM/Test201203/app/src/main/cpp
+-- PROJECT_SOURCE_DIR = E:/Work/BCM/Test201203/app/src/main/cpp
+CMake Warning at CMakeLists.txt:28 (message):
+  CMAKE_BINARY_DIR = E:/Work/BCM/Test201203/app/.cxx/cmake/release/x86_64
+
+
+aux_source_directory(./generic SRC_LIST)获取当前目录下所有的cpp文件：获取相对路径
+add_library(xx.lib  shared  ${SRC_LIST})
+
+file(GLOB SRC_L "*.cpp")
+file(GLOB SRC_L_OBS "./observer/*.cpp")
+add_library(xx.lib  shared  ${SRC_L_OBS})这是获取绝对路径
+两种方法都可以用来查找file文件
+
+
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+设置包含目录
+
+link_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/libs
+)设置链接库搜索目录
+
+
+设置 target 需要链接的库
+target_link_libraries( # 目标库
+                       demo
+ 
+                       # 目标库需要链接的库
+                       # log-lib 是上面 find_library 指定的变量名
+                       ${log-lib} )
+
+
+target_link_libraries(demo libface.a) # 链接libface.a
+target_link_libraries(demo libface.so) # 链接libface.so
+

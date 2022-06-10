@@ -1,0 +1,75 @@
+责任链模式
+定义
+现实生活中有很多需要多个对象以此处理的场景：如采购审批流程，公司员工请假流程等
+如员工请假，如果按正常逻辑，可以需要经过部分领导，公司领导，总经理等依次审核
+，如果让员工依次取找这些人来处理，那肯定是不合理的，这个时候如果让员工-->部门领导-->公司领导-->总经理，这种顺序，
+上一个处理者只需要知道下一个处理者的情况下，将任务传递给下一个处理者，这样就可以很好地将请求执行下去。
+
+这个时候就用到了责任链模式：将请求对象和多个处理对象之间解耦，请求对象不需要知道多个对象之间是怎么处理的，只需要执行和他对接的那个对象就可以
+前一个的对象拥有下一个处理对象的引用，按链式传递下去
+
+结构
+
+抽象处理接口：
+具体处理类：一般含有多个形成链式
+客户端请求类：将请求发给责任链的第一个处理者
+
+
+
+uml
+
+代码
+抽象处理类：
+public abstract class Handler()
+	Handler next;
+	public void setNext(Handler next){
+		this.next = next;
+	}
+	public Handler getNext(){
+		return next;
+	}
+	public void abstract handlerReuqest(String request);
+}
+具体处理类：
+public class ConcreteHandlerA extends Handler{
+	public void handlerReuqest(String request){
+		System.out.println(request);
+		if(getNext!=null)
+			getNext().handlerReuqest(request+"B");
+	}
+}
+public class ConcreteHandlerB extends Handler{
+	public void handlerReuqest(String request){
+		System.out.println(request);
+		if(getNext!=null)
+			getNext().handlerReuqest(request+"C");
+	}
+}
+public class ConcreteHandlerC extends Handler{
+	public void handlerReuqest(String request){
+		System.out.println(request);
+		if(getNext!=null)
+			getNext().handlerReuqest(request+"over");
+	}
+}
+
+客户端：
+Client：
+main(){
+	Handler handlerA = new ConcreteHandlerA();
+	Handler handlerB = new ConcreteHandlerB();
+	Handler handlerC = new ConcreteHandlerC();
+	handlerA.setNext(handlerB);
+	handlerB.setNext(handlerC);
+	handlerA.handlerReuqest("request:");
+}
+使用场景
+1.多个对象处理同一个请求，且请求有先后顺序，可以使用责任链模式
+2.需要动态添加和删除处理者
+
+
+
+扩展
+1.纯粹的责任链模式：请求只能被自己或者下家处理
+2.非纯粹责任链模式：运行请求者将一部分呢请求处理后，将剩余部分传给下家处理，可以运行出现一个请求没有任何接收端处理的情况
+

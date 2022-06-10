@@ -1,0 +1,63 @@
+协程：
+协程作业：Job
+	一个Job的生命周期如下：
+	可以看到中途是可以取消的，一个协程作用域不一定都在一个线程中执行。
+
+	图：
+										  wait children
+	+-----+ start  +--------+ complete   +-------------+  finish  +-----------+
+	| New | -----> | Active | ---------> | Completing  | -------> | Completed |
+	+-----+        +--------+            +-------------+          +-----------+
+					 |  cancel / fail       |
+					 |     +----------------+
+					 |     |
+					 V     V
+				 +------------+                           finish  +-----------+
+				 | Cancelling | --------------------------------> | Cancelled |
+				 +------------+                                   +-----------+
+				 
+				 
+协程上下文CoroutineContext
+	包括了当前协程所有的信息，调度器，启动器，异常处理器，协程名称，协程id等都包括在这里面以Element的形式存在，获取方式通过各个Element的key，
+	重写了+和-的操作符，Element之间可以使用+-法操作，对于加法，如果context中没有这个key的Element，则添加新的Element，如果有这个key，则直接覆盖这个值
+协程调度器CoroutineDispatcher
+	协程之间线程的切换就是基于这个调度器，如果是Main则协程在UI线程上执行，如果是IO则协程在IO线程上执行，默认调度器适合在Cpu密集型的计算处理时候，类似于rxjava中的Computed调度器
+	
+协程启动器CoroutineStarter
+	启动器是表示协程以什么模式启动，4中常见模式
+	DEFAULT：默认启动器，启动后和启动一个新的线程类似，主线程和新的线程都是立即执行，所以可能会导致协程还没开始运行，就被主线程终止了
+	Lazy：懒汉模式，只有在协程调用挂起函数的时候，才会去执行
+	ATOMIC：阿童木模式，只有在协程被异步调用挂起函数的时候，对协程的取消操作才有效果
+	UNDISPATCHED：和ATOMIC类似，只有在协程调用取消操作的时候才有效果，不同之处在于，在协程被调用挂起函数之前，协程执行的现场和主线程是一个，
+	执行挂起函数后，协程执行的线程才会是调度器指定的线程
+	
+协程异常处理CoroutineExceptionHandler
+	一般情况下对于指定了全局CoroutineExceptionHandler的协程，在出现异常的时候，会将异常提交给父协程处理
+	如果没有指定异常处理器，则会将异常提交给系统处理，导致系统崩溃
+	
+	对于使用了SupervisorJob或者SupervisorScope的主从作用域模式：则异常会在本协程中处理，不会影响父协程和其他子协程，如果本协程没有设置异常处理器，则也会导致系统奔溃
+协程作用域CoroutineScope
+	协程作用域一般分为3种：
+	1.顶级作用域
+		顶级协程所在的作用域，没有父协程
+	2.协助作用域
+		子协程所在的作用域，有父协程
+	3.主从作用域
+		也是子协程所在的作用域，区别在于，主从作用域中的异常不会提交给父协程，自己会进行处理，如果没有设置异常处理器，则会导致系统崩溃
+		使用SupervisorJob和supervisorScope修饰的协程处于主从作用域
+协程suspend挂起函数：suspend关键字
+	在调用suspend函数的时候，会将协程挂起，等协程执行完毕后，会重新恢复协程执行，协程挂起是不阻塞原有线程的，原有线程在协程挂起后，会继续执行，如果恢复后，协程还有未执行的的代码，则会在新的线程或者原有线程空闲后重新运行协程
+Android中的MainScope和LifecycleScope还有viewModelScope
+	都是基于主从作用模式：Dispatcher.Main和superVisor
+	而LifecycleScope是除了上面主从模式，还是要了观察者模式，将LifecycleScope的job注册到Activity的生命周期中
+	viewModelScope也是注册了vm的生命周期，在vm生命周期结束的时候，会将viewModelScope取消调用
+	其他环节下的协程可以模仿MainScope的方式创建主从作用域的协程，这样在协程运行异常的时候不会影响主线程和其他线程
+
+使用协程对网络请求进行封装
+1.使用模式
+view->viewModel->repository->retrofit->okhttp->intercepter
+
+
+
+
+

@@ -1,0 +1,34 @@
+Application
+onCreate：
+1.严苟模式strictModel
+2.初始化sharePreference
+3.初始化语言模式
+4.初始化日志记录器Timer
+5.初始化数据库
+6.解析本地参数文件xml格式
+7.初始化8583数据域格式
+8.设置未捕获的异常，-使用dialog提示，dialog带倒计时
+9.初始化用户
+10.设置emv，aid，capk等参数
+11.启动ArkeService：
+   注意在android高版本上面8.0以上通知消息需要使用一个伪前台服务
+   启动交易的服务
+12：初始化签名文件缓存地址
+
+
+13.绑定usdk服务
+
+14.注册Activity的生命周期回调
+
+15.初始化audio语音
+
+
+rxbinding
+GreenDao：数据库
+每步操作记录pos状态
+
+navigationView
+
+
+
+

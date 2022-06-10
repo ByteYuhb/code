@@ -1,0 +1,361 @@
+okttp
+
+一个高效的http客户端处理框架
+特点：
+1.HTTP/2 支持允许对同一主机的所有请求共享一个套接字
+2.连接池复用，减少请求延迟
+3.透明 GZIP 缩小了下载大小
+4.使用响应缓存，去掉不必要的请求
+
+支持5.0以上版本
+网络异常会自动根据错误码修复，会从常见的连接错误中恢复
+如果客户端提供了备用地址，在第一地址连接失败的时候，会尝试启用备用地址
+okhttp支持最新的tls模式
+api使用简单，同时支持同步和异步请求
+
+依靠okio这个高效的io库，并支持kotlin标准库
+建议使用的时候更新到最新的版本，避免出现一些安全问题
+
+源码解析
+从以下几个角度分析
+
+1.整体架构
+2.拦截器
+3.任务队列
+4.连接复用和连接池
+
+架构流程图：
+从一个例子来查看
+public void test() throws IOException {
+	OkHttpClient client = new OkHttpClient();
+	FormBody.Builder formBodyBuilder = new FormBody.Builder();
+	RequestBody requestBody = formBodyBuilder.build();
+	Request.Builder requestBuilder = new Request.Builder().url("http://host:ip/url").post(requestBody);
+	Request request = requestBuilder.build();
+	Response response = client.newCall(request).execute();
+}
+我们先画出整体情况
+
+整体架构就是对于异步情况时有client中默认线程池将请求放到线程池中
+然后对几个拦截器使用责任链模式进行依次处理，如果过程中有失败的情况直接退出
+
+来看几个关键类：
+OkHttpClient：框架核心管理类，内部创建了很多默认属性，和应用直接接触
+Request：请求实体类，封装了客户端的请求信息，包括url，method，header还有body等信息
+Response：响应实体类，封装了服务器返回的应答信息，如code，message，header和body等信息
+RealCall：负责请求的调度，对于同步请求直接调用execute方法执行，对于异步请求使用enqueue方法，将请求放到他的默认线程池中
+最终还是调用了execute方法实现后续操作
+
+不管同步还是异步最终都会调用getResponseWithInterceptorChain，这个方法内部就是对拦截器使用责任链模式进行处理
+下面讲解拦截器
+
+2.拦截器：内部使用了责任链模式
+入口：
+Response getResponseWithInterceptorChain() throws IOException {
+    // Build a full stack of interceptors.
+    List<Interceptor> interceptors = new ArrayList<>();
+    interceptors.addAll(client.interceptors());
+    interceptors.add(new RetryAndFollowUpInterceptor(client));
+    interceptors.add(new BridgeInterceptor(client.cookieJar()));
+    interceptors.add(new CacheInterceptor(client.internalCache()));
+    interceptors.add(new ConnectInterceptor(client));
+    if (!forWebSocket) {
+      interceptors.addAll(client.networkInterceptors());
+    }
+    interceptors.add(new CallServerInterceptor(forWebSocket));
+
+    Interceptor.Chain chain = new RealInterceptorChain(interceptors, transmitter, null, 0,
+        originalRequest, this, client.connectTimeoutMillis(),
+        client.readTimeoutMillis(), client.writeTimeoutMillis());
+
+    boolean calledNoMoreExchanges = false;
+    try {
+      Response response = chain.proceed(originalRequest);
+      if (transmitter.isCanceled()) {
+        closeQuietly(response);
+        throw new IOException("Canceled");
+      }
+      return response;
+    } catch (IOException e) {
+      calledNoMoreExchanges = true;
+      throw transmitter.noMoreExchanges(e);
+    } finally {
+      if (!calledNoMoreExchanges) {
+        transmitter.noMoreExchanges(null);
+      }
+    }
+  }
+将各拦截器封装到一个RealInterceptorChain的类中，并调用RealInterceptorChain的proceed方法，下面来看下这个方法的实现
+这个方法有三个参数：
+Request request:客户端请求
+Transmitter transmitter：这个类是在创建RealCall实体对象的时候创建的并将其封装在RealCall内部，根据类描述：Bridge between OkHttp's application and network layers
+可以看出这个类是连接客户端和网络层的中间层，内部可以对异步任务进行取消
+Transmitter内部成员：
+	OkHttpClient client：客户端信息
+	RealConnectionPool connectionPool：连接池
+	Call call：请求RealCall信息
+	EventListener eventListener：状态回调接口
+	AsyncTimeout timeout：异步取消方法
+	Request request;请求信息
+	RealConnection connection;连接实体，连接池守卫
+	Exchange exchange：用来传输一个简单的http请求和响应，通过ExchangeCodec管理连接和事件，操控最终的IO流
+
+proceed方法：
+public Response proceed(Request request, Transmitter transmitter, @Nullable Exchange exchange)
+      throws IOException {
+    if (index >= interceptors.size()) throw new AssertionError();//1.如果index>=拦截器的个数，报错退出，这个index是拦截器的索引，每次一个拦截器处理完后会调用将index+1
+	...
+   
+    // Call the next interceptor in the chain. //2.调用下个拦截器
+    RealInterceptorChain next = new RealInterceptorChain(interceptors, transmitter, exchange,
+        index + 1, request, call, connectTimeout, readTimeout, writeTimeout);
+    Interceptor interceptor = interceptors.get(index);//3.这里index+1作为下一个拦截器的索引
+    Response response = interceptor.intercept(next);//4.调用当前拦截器的intercept操作
+	
+	...
+    return response;
+  }
+第一个拦截器
+ClientInterceptor：客户端自定义拦截器
+用户没设置不用处理
+
+RetryAndFollowUpInterceptor：重试和重定向拦截器
+这个拦截器主要用于对请求失败或者其他情况进行重试或者重定向
+重试条件：
+规则1: client的retryOnConnectionFailure参数设置为false，不进行重试
+规则2: 请求的body已经发出，不进行重试
+规则3: 特殊的异常类型不进行重试（如ProtocolException，SSLHandshakeException等） 
+规则4: 没有更多的route（包含proxy和inetaddress），不进行重试
+
+BridgeInterceptor：桥接拦截器
+看下处理代码：
+public Response intercept(Chain chain) throws IOException {
+    Request userRequest = chain.request();
+    Request.Builder requestBuilder = userRequest.newBuilder();
+
+    RequestBody body = userRequest.body();
+    if (body != null) {//body 不等于null 设置请求头
+      ...
+        requestBuilder.header("Content-Type", contentType.toString());
+      ...
+    }
+    // If we add an "Accept-Encoding: gzip" header field we're responsible for also decompressing
+    // the transfer stream.
+    boolean transparentGzip = false;
+    if (userRequest.header("Accept-Encoding") == null && userRequest.header("Range") == null) {userRequest中没有设置Accept-Encoding和Range默认进行GZip变换
+      transparentGzip = true;
+      requestBuilder.header("Accept-Encoding", "gzip");
+    }
+
+    List<Cookie> cookies = cookieJar.loadForRequest(userRequest.url());设置cookie
+    if (!cookies.isEmpty()) {
+      requestBuilder.header("Cookie", cookieHeader(cookies));
+    }
+
+    if (userRequest.header("User-Agent") == null) {设置User-Agent
+      requestBuilder.header("User-Agent", Version.userAgent());
+    }
+
+    Response networkResponse = chain.proceed(requestBuilder.build());调用下一个拦截器
+
+    HttpHeaders.receiveHeaders(cookieJar, userRequest.url(), networkResponse.headers());
+
+    Response.Builder responseBuilder = networkResponse.newBuilder()
+        .request(userRequest);
+
+    if (transparentGzip 对于返回也需要对响应进行Gzip解压
+        && "gzip".equalsIgnoreCase(networkResponse.header("Content-Encoding"))
+        && HttpHeaders.hasBody(networkResponse)) {
+      GzipSource responseBody = new GzipSource(networkResponse.body().source());
+      Headers strippedHeaders = networkResponse.headers().newBuilder()
+          .removeAll("Content-Encoding")   
+          .removeAll("Content-Length")
+          .build();
+      responseBuilder.headers(strippedHeaders);
+      String contentType = networkResponse.header("Content-Type");
+      responseBuilder.body(new RealResponseBody(contentType, -1L, Okio.buffer(responseBody)));
+    }
+
+    return responseBuilder.build();
+  }
+
+分析这层作用：
+1.负责把用户构造的请求转换为发送到服务器的请求 、把服务器返回的响应转换为用户友好的响应，是从应用程序代码到网络代码的桥梁
+2.设置内容长度，内容编码
+3.设置gzip压缩，并在接收到内容后进行解压。省去了应用层处理数据解压的麻烦
+4.添加cookie
+5.设置其他报头，如User-Agent,Host,Keep-alive等。其中Keep-Alive是实现连接复用的必要步骤
+
+CacheInterceptor：缓存拦截器
+主要功能：
+调用下一个拦截器前对缓存进行判断：
+创建缓存策略
+如果缓存策略中禁止使用网路且缓存也不符合要求，则返回一个504的错误
+如果缓存策略中禁止使用网络，缓存符合要求，则直接返回缓存信息
+
+下个拦截器返回后：
+如果response返回的是304，且缓存中有数据，则直接使用缓存数据返回
+如果配置了缓存策略，则将响应设置到缓存中，并对缓存进行校验，去除不合法的缓存数据
+
+
+
+ConnectInterceptor：连接拦截器
+public Response intercept(Chain chain) throws IOException {
+  
+    Exchange exchange = transmitter.newExchange(chain, doExtensiveHealthChecks);
+
+    return realChain.proceed(request, transmitter, exchange);
+  }
+  根据代码可以看出，这个代码就只调用了一行核心代码transmitter.newExchange
+  这内部比较复杂，我们慢慢来分析下
+  Transmitter.java
+  Exchange newExchange(Interceptor.Chain chain, boolean doExtensiveHealthChecks) {
+    ...
+    ExchangeCodec codec = exchangeFinder.find(client, chain, doExtensiveHealthChecks);
+    Exchange result = new Exchange(this, call, eventListener, exchangeFinder, codec);
+	...
+    return result;
+  }
+  调用了exchangeFinder.find方法，并将返回的ExchangeCodec封装到一个Exchange中返回给上一级，来看下find方法
+  ExchangeFinder.java
+  public ExchangeCodec find(
+      OkHttpClient client, Interceptor.Chain chain, boolean doExtensiveHealthChecks) {
+    ...
+      RealConnection resultConnection = findHealthyConnection(connectTimeout, readTimeout,
+          writeTimeout, pingIntervalMillis, connectionRetryEnabled, doExtensiveHealthChecks);
+      return resultConnection.newCodec(client, chain);
+    ..
+  }
+  调用findHealthyConnection，返回一个RealConnection，并调用这个RealConnection的newCodec方法创建一个ExchangeCodec
+  先分析findHealthyConnection方法：
+  private RealConnection findHealthyConnection(int connectTimeout, int readTimeout,int writeTimeout, int pingIntervalMillis, boolean connectionRetryEnabled,
+      boolean doExtensiveHealthChecks) throws IOException {
+	 ...
+      while(true){
+		RealConnection candidate = findConnection(connectTimeout, readTimeout, writeTimeout,pingIntervalMillis, connectionRetryEnabled);
+	    return candidate;
+	  }
+    }
+  内部使用一个while循环，调用findConnection方法获取RealConnection
+  private RealConnection findConnection(int connectTimeout, int readTimeout, int writeTimeout,..){
+	...
+	if (transmitter.isCanceled()) throw new IOException("Canceled");这里如果transmitter中设置了做了取消动作，直接抛出异常
+	...
+	if (transmitter.connection != null) {如果transmitter中的connection是ok的，则直接返回transmitter中的connection即可
+        // We had an already-allocated connection and it's good.
+        result = transmitter.connection;
+        releasedConnection = null;
+    }
+	...
+	//这里尝试从connectionPool连接池中获取一个Connection
+	if (connectionPool.transmitterAcquirePooledConnection(address, transmitter, null, false)) {
+          foundPooledConnection = true;
+          result = transmitter.connection;
+	} else if (nextRouteToTry != null) {
+	  selectedRoute = nextRouteToTry;这里是用于重试情况
+	  nextRouteToTry = null;
+	} else if (retryCurrentRoute()) {
+	  selectedRoute = transmitter.connection.route();
+	}
+	...
+    if (result != null) {
+    // If we found an already-allocated or pooled connection, we're done.如果缓存的connection或者连接池中找到一个connection符合要求，则直接返回
+		return result;
+	}
+	selectedRoute = routeSelector.next();这里获取一个selectedRoute，内部包含了对域名的dns操作，获取ip和端口放入到这个routeSelection中
+	result = new RealConnection(connectionPool, selectedRoute);这里创建一个RealConnection，并传入前面获取的selectedRoute
+	result.connect(connectTimeout, readTimeout, writeTimeout, pingIntervalMillis...);这里调用了RealConnection的connect操作，内部实现了socket的Tcp和TLS握手操作
+	...
+	  if (connectionPool.transmitterAcquirePooledConnection(address, transmitter, routes, true)) {这里尝试对连接池做最后一次检测是否有可以复用的，发生在多个并发连接到主机的时候
+		// We lost the race! Close the connection we created and return the pooled connection.
+		result.noNewExchanges = true;
+		socket = result.socket();
+		result = transmitter.connection;
+
+		// It's possible for us to obtain a coalesced connection that is immediately unhealthy. In
+		// that case we will retry the route we just successfully connected with.
+		nextRouteToTry = selectedRoute;
+	  } else {
+		connectionPool.put(result); 如果连接池中还是没有找到，则将连接放入连接池
+		transmitter.acquireConnectionNoEvents(result);
+	  }
+	...
+	closeQuietly(socket);这里是在第二次连接池中找到了可复用的连接，则将刚才新创建的连接关闭，返回连接池中的连接
+	return result;
+}
+	  
+总结连接拦截器做了哪些事情：
+1.先检查transmitter中的connection是否可用，可用标志位是connection的noNewExchanges，
+如果为true，则说明不可用，并释放socket，这个是在CallServerIntercept中赋值的，
+
+2.再检查连接池中是否有可用的连接
+
+3.如果1或2中找到可以复用的连接，则可以省略重新创建socket和dns解析，连接，握手等操作，最大限度的缩短通讯时间，提升性能
+
+4.如果没有可复用的连接，则创建一个新的RealConnection,并调用tcp的握手操作，
+如果是https则还会调用TLS的握手操作，调试过程中如果出现握手失败的情况，可以通过这里面查看握手协议是否有更改
+
+5.连接成功后，再次查看连接池中是否有可以复用的连接池。这种情况出现在同一主机对服务器有并发连接的情况
+
+6.如果5中没有在连接池中获取到可复用的连接，则将4中创建的连接实例放入到连接池中，方便下次连接复用使用
+
+7.如果5中在连接池中找到可复用的连接，则将4中创建的连接关闭，返回5中的连接池的连接
+
+连接操作将前面获取到RealConnection封装到一个ExchangeCodec中，ExchangeCodec实现类有Http1ExchangeCodec和Http2ExchangeCodec
+再将ExchangeCodec封装到一个Exchange类中，最终exchange被放入到Transmitter中，后面对Transmitter的exchange操作都是对ExchangeCodec立面的RealConnection的socket进行操作
+发送和接收数据都是通过这个socket
+
+networkInterceptors：网络拦截器
+
+
+CallServerInterceptor：请求服务器响应拦截器
+	public Response intercept(Chain chain) throws IOException {
+		exchange.writeRequestHeaders(request);写入请求头
+		request.body().writeTo(bufferedRequestBody);如果有body则将body写入
+		exchange.readResponseHeaders(false);读取响应的header
+	}
+	可以看到请求服务器拦截器主要职责：发送数据头，发送数据body，接收数据头，如果数据头显示有content，则创建一个body的response，
+	最后调用response.body().bytes()才会去取body数据
+	核心操作都是之前获取的HttpCodec 进行发送和接收
+
+总结:	
+整体架构图：
+整个OkHttp的架构纵向来看就是五个内部拦截器，横向来看被切分成了几个部分，
+而纵向的拦截器就是通过对横向分层的调用来完成整个请求过程，从这两个方面来把握和理解OkHttp就比较全面了。
+
+1.重试和重定向拦截器作用是按策略进行重试和重定向
+2.桥接拦截器负责把用户请求转换为发送服务器的请求，设置报文头等
+3.对于缓存拦截器作用是取缓存和放入缓存，加快数据响应
+4.对于连接拦截器作用是创建connection和进行tcp和http握手，dns过程也是在这里面进行，并在连接成功后，将connection放入到连接池中，方便下次复用
+5.使用4中创建的连接发送请求和获取响应
+
+okhttp核心内容：响应缓存，连接池复用 DNS自识别和Socket连接，使用Okio对流进行处理
+
+关键字
+缓存：
+
+连接池复用：
+
+DNS和Socket连接
+
+责任链模式
+
+拦截器
+
+https://juejin.cn/post/6844903552339410958#heading-4
+如果不想使用okttp的缓存策略，可以自己实现一个缓存策略
+在自定义拦截器中设置自己的缓存策略
+从HTTP 1.1 开始使用Cache-Control头表示缓存状态，它的优先级高于Expires，常见的取值为下面的一个或多个。
+
+private，默认值，标识那些私有的业务逻辑数据，比如根据用户行为下发的推荐数据。该模式下网络链路中的代理服务器等节点不应该缓存这部分数据，因为没有实际意义。
+public 与private相反，public用于标识那些通用的业务数据，比如获取新闻列表，所有人看到的都是同一份数据，因此客户端、代理服务器都可以缓存。
+no-cache 可进行缓存，但在客户端使用缓存前必须要去服务端进行缓存资源有效性的验证，即下文的对比缓存部分，我们稍后介绍。
+max-age 表示缓存时长单位为秒，指一个时间段，比如一年，通常用于不经常变化的静态资源。
+no-store 任何节点禁止使用缓存。
+
+
+
+
+
+
+

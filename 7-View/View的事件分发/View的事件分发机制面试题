@@ -1,0 +1,182 @@
+面试题：
+1.简述事件分发机制：
+	事件其实就是点击事件；
+	事件分发流程设置三个比较重要的类：Activity，ViewGroup和View
+	点击事件首先会回调
+	Activity的dispatchTouchEvent：
+	这个过程中：会调用PhoneWindow类的dispatchTouchEvent，DecorView的dispatchTouchEvent最终调用的是ViewGroup的dispatchTouchEvent
+	如果ViewGroup没有消费View则会在Activity中消费该View
+	ViewGroup的dispatchTouchEvent：
+	ViewGroup中设计了三个重要概念，分发，拦截和消费。
+	首先会判断该ViewGroup是否需要拦截该事件：重写onInterceptTouchEvent方法
+	如果拦截：则直接在该ViewGroup中消费，实际调用的是View的dispatchTouchEvent
+	不拦截：则调用子View的dispatchTouchEvent，在子View中，会先判断是否设置了OnTouchListener，且onTouch方法是否返回true，
+	如果onTouch方法返回true，说明该事件被onTouch方法消费了，不在进入下面的onTouchEvent方法
+	如果onTouch方法返回false，则回调onTouchEvent，在onTouchEvent方法中，
+	如果该View可以点击，则一定会消费该View，如果不可点击，则返回false，让父ViewGroup去消费该事件
+	
+	事件传递方向：由上及下
+	事件消费方向：由下及上
+2.view的onTouchEvent，OnClickListerner和OnTouchListener的onTouch方法 三者优先级
+	view的onTouchEvent会在OnTouchListener的onTouch方法方法后面执行如果OnTouchListener的onTouch方法返回true，则表示消费了该事件，不在调用view的onTouchEvent方法
+	OnClickListerner的onClick方法是在view的onTouchEvent方法中调用的，如果该View可以点击且设置了click事件，则会回调onClick方法
+	所有优先级关系为：onTouch先于onTouchEvent先于onClick
+3.onTouch 和onTouchEvent 的区别
+	onTouch是指设置了onTouchListener后回调，且如果onTouch返回true，表示事件已经消费，则不会回调onTouchEvent方法
+	onTouchEvent内部是对不同Action的一个处理，在Up事件中如果设置了点击事件会回调点击事件的onClick方法
+4.ACTION_CANCEL什么时候触发：
+	1.如果父View中拦截了MOVE或者UP事件，则在DOWN事件消费后，触发一个事件链中的MOVE或UP事件，则会传递一个CANCEL事件给之前处理DOWN事件的View，表示后续不在收到该事件
+	2.如果触摸了一个VIew但是抬起动作不在这个View的区域内，则会触发一个Cancel事件
+5.事件是先到DecorView还是先到Window
+	事件传递过程：DecorView->Activity->PhoneWindow->DecorView->ViewGroup->View
+	当屏幕被触摸input系统事件从Native层分发Framework层的InputEventReceiver.dispachInputEvent()调用了
+		ViewRootImpl.WindowInputEventReceiver.dispachInputEvent()->ViewRootImpl中的
+		DecorView.dispachInputEvent()->Activity.dispachInputEvent()->window.superDispatchTouchEvent()-
+		>DecorView.superDispatchTouchEvent()->Viewgroup.superDispatchTouchEvent()
+6.点击事件被拦截，但是想传到下面的View，如何操作
+	点击事件被拦截，可以在子View中调用getParent().requestDisallowInterceptTouchEvent,禁用父View的拦截功能
+	这个方法可以拦截除了Down事件以外的其他事件：为什么除了Down以外呢。因为Down事件来的时候会清除拦截状态为默认的false，所以设置无效，可以在Down事件消费后调用requestDisallowInterceptTouchEvent，这样就可以防止之后事件被拦截
+	
+7.如何解决View的事件冲突
+	1.外部拦截法：
+		外部拦截法其实使用的是在父View中重写父View的onInterceptTouchEvent方法：
+		如下代码，在父View MOVE动作的时候判断 父容器根据这个需要，比如x方向位移大于y方向上位移，则启动拦截，让父View处理
+		反之让子View去处理，这就是外部拦截法，
+		要点：
+		1.父View在Down事件不能拦截，否则子VIew将无法收到任何事件
+		2.父View在Up的时候也尽量不要拦截，否则之后子View的点击时间也会收不到，因为点击操作onClick是在Up事件中触发的
+		3.在MOVE状态处理滑动冲突
+		    public class BadViewPager extends ViewPager {
+				private static final String TAG = "BadViewPager";
+
+				private int mLastXIntercept;
+				private int mLastYIntercept;
+
+				public BadViewPager(Context context, AttributeSet attrs) {
+					super(context, attrs);
+				}
+
+				@Override
+				public boolean onInterceptTouchEvent(MotionEvent ev) {
+					boolean intercepted = false;
+					int x = (int) ev.getX();
+					int y = (int) ev.getY();
+					final int action = ev.getAction() & MotionEvent.ACTION_MASK;
+					switch (action) {
+						case MotionEvent.ACTION_DOWN:
+							intercepted = false;
+							//调用ViewPager的onInterceptTouchEvent方法初始化mActivePointerId
+							super.onInterceptTouchEvent(ev);
+							break;
+						case MotionEvent.ACTION_MOVE:
+							//横坐标位移增量
+							int deltaX = x - mLastXIntercept;
+							//纵坐标位移增量
+							int deltaY = y - mLastYIntercept;
+							if (Math.abs(deltaX)>Math.abs(deltaY)){
+								intercepted = true;
+							}else{
+								intercepted = false;
+							}
+							break;
+						case MotionEvent.ACTION_UP:
+							intercepted = false;
+							break;
+						default:
+							break;
+					}
+
+					mLastXIntercept = x;
+					mLastYIntercept = y;
+
+					LogUtil.e(TAG,"intercepted = "+intercepted);
+					return intercepted;
+				}
+			}
+	2.内部拦截法：
+		内部拦截法其实是在子View中通过设置getParent().requestDisallowInterceptTouchEvent方法，改变父View是否禁用拦截事件来实现的
+		在子View中：如下代码：在触发Down事件时，禁用父View的拦截功能，这样，子View就可以收到所有的事件。
+		在某些情况下，比如x方向大于y方向时，逻辑应该是父View滑动的状态，可以调用requestDisallowInterceptTouchEvent为false，开启父View的拦截功能，
+		这样父View通过重写onInterceptTouchEvent方法，在MOVE的时候，拦截事件，让父View去实现这部分滑动功能
+		public class FixListView extends ListView {
+			private static final String TAG = "FixListView";
+
+			private int mLastX;
+			private int mLastY;
+
+			public FixListView(Context context) {
+				super(context);
+			}
+
+			public FixListView(Context context, AttributeSet attrs) {
+				super(context, attrs);
+			}
+
+			@Override
+			public boolean dispatchTouchEvent(MotionEvent ev) {
+				int x = (int) ev.getX();
+				int y = (int) ev.getY();
+
+				final int action = ev.getAction() & MotionEvent.ACTION_MASK;
+				switch (action) {
+					case MotionEvent.ACTION_DOWN:
+						getParent().requestDisallowInterceptTouchEvent(true);
+						break;
+					case MotionEvent.ACTION_MOVE:
+						//水平移动的增量
+						int deltaX = x - mLastX;
+						//竖直移动的增量
+						int deltaY = y - mLastY;
+						//当水平增量大于竖直增量时，表示水平滑动，此时需要父View去处理事件
+						if (Math.abs(deltaX) > Math.abs(deltaY)){
+							getParent().requestDisallowInterceptTouchEvent(false);
+						}
+						break;
+					case MotionEvent.ACTION_UP:
+						break;
+					default:
+						break;
+				}
+				mLastX = x;
+				mLastY = y;
+				return super.dispatchTouchEvent(ev);
+			}
+		}
+		再看BadViewPager，需要重写拦截方法：
+		public class BadViewPager extends ViewPager {
+			private static final String TAG = "BadViewPager";
+
+			public BadViewPager(Context context, AttributeSet attrs) {
+				super(context, attrs);
+			}
+
+			@Override
+			public boolean onInterceptTouchEvent(MotionEvent ev) {
+				final int action = ev.getAction() & MotionEvent.ACTION_MASK;
+				if (action == MotionEvent.ACTION_DOWN){
+					super.onInterceptTouchEvent(ev);
+					return false;
+				}
+				return true;
+			}
+		}
+	可以看出这两个方法有异曲同工之妙：
+	外部拦截是父View来控制拦截状态，在特定时期关闭拦截让子View去滑动
+	而内部拦截是子View来控制拦截状态，在特定时期开启父View的拦截，让父View去滑动
+8.在 ViewGroup 中的 onTouchEvent 中消费 ACTION_DOWN 事件，ACTION_UP事件是怎么传递
+	一个事件序列里面的事件只能交给一个View处理，如果已经在 ViewGroup 中的 onTouchEvent 中消费 ACTION_DOWN 事件，则在这个事件序列里面的所以MOVE，UP都将交由他来消费
+	一个事件序列只：一个连续的按压移动抬起动作。
+9.Activity ViewGroup和View都不消费ACTION_DOWN,那么ACTION_UP事件是怎么传递的
+	Activity：dispatchTouchEvent->Activity:onTouchEvent处理
+	因为一个事件序列只会由同一个View处理
+10.同时对父 View 和子 View 设置点击方法，优先响应哪个
+	一般情况是响应的子View,点击事件是一层一层向下传递，而是否消费则是一层一层向上传递，子View不处理不消费才会给父View进行消费，所以是子View处理，父View不会有响应
+	父View可以通过设置拦截方法，拦截事件传递给子View，这样就会执行父View的点击事件
+	子View也可以通过禁用父类的拦截功能来让事件传递给子view，子view执行点击事件
+11.requestDisallowInterceptTouchEvent的调用时机
+	子View中回调onTouchEvent方法中，在DOWN事件后调用requestDisallowInterceptTouchEvent(true)屏蔽父View的拦截功能，
+	也可以在父View需要的时候，开启父View的拦截功能，这样，之后事件会由父View进行处理不会传递给子View。
+	这个方法只针对DOWN以外的事件有用，DOWN事件在传递到ViewGroup的dispatchTouchEvent的时候，会重置拦截状态为false。所以要在DOWN事件后设置这个状态才有效果
+
+	
+	

@@ -1,0 +1,148 @@
+hook：钩子，劫持
+
+hook java和hook native
+
+插件化使用到的一般都是hook java
+
+
+
+1.代理模式：结构性设计模式：如代购，打官司等
+	：为其他对象提供一种代理以控制对这个对象的访问
+	Subject：抽象主题类，声明真实主题和代理的共同接口方法
+
+	RealSubject：真实主题类，定义了代理所代表的集体对象，客户端通过代理类间接调用真实主题类的方法
+
+	Proxy：代理类，持有对真实主题类的引用，
+
+	静态代理模式：
+		抽象主题类IShop：
+		public interface IShop{
+			void buy();
+		}
+		真实主题类：Yuhb，实现了IShop接口
+		public class Yuhb implement IShop{
+
+			void buy(){
+				log("yuhb buy !!");
+			}
+		}
+		代理类ProxyMan：实现了IShop接口
+
+		public class ProxyMan implement IShop{
+			IShop yuhb;
+			public class Yuhb(IShop yuhb){
+				this.yuhb = yuhb;
+			}
+			
+			void buy(){
+				yuhb.buy();
+			}
+		}
+
+		客户端：
+
+		main(){
+			
+			IShop yuhb = new Yuhb();
+			ProxyMan proxyMan =  new ProxyMan(yuhb);
+			proxyMan.buy();//其实最终调用的是Yuhb 的buy方法；
+		}
+
+	动态代理模式：通过反射获取代理类，传入需要被代理的类对象
+	
+2.Hook原理:找到Hook点，用代理对象替换Hook点，这样就可以实现我们想要做的操作
+	
+	Hook Activity Hook点：Activity的mInstrumentation   在handleBindApplication中创建了mInstrumentation
+	
+	
+	public class InstrumentationProxy extends Instrumentation {
+    Instrumentation mInstrumentation;
+    public InstrumentationProxy(Instrumentation mInstrumentation){
+        this.mInstrumentation = mInstrumentation;
+    }
+
+    public ActivityResult execStartActivity(
+            Context who, IBinder contextThread, IBinder token, Activity target,
+            Intent intent, int requestCode, Bundle options){
+
+        try {
+            Log.d("HookActivity","mInstrumentation:"+mInstrumentation);
+            Method method = mInstrumentation.getClass().getDeclaredMethod("execStartActivity",Context.class,IBinder.class,
+                    IBinder.class,Activity.class,Intent.class,int.class,Bundle.class);
+            Log.d("HookActivity","mInstrumentation:"+method.getName());
+            MonitorUtil.start();
+            ActivityResult result = (ActivityResult) method.invoke(mInstrumentation,who,contextThread,token,target,intent,requestCode,options);
+            MonitorUtil.finish("execStartActivity");
+            return result;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+	//主线程调用activity.startActivity(intent);
+	/*
+	Hook的是Activity中的mInstrumentation对象
+	*/
+    public static void replaceInstrumentation(Activity activity){
+
+        try {
+            //1获取activity的mInstrumentation属性field
+            Field field = Activity.class.getDeclaredField("mInstrumentation");
+            //2通过1获取的field属性获取activity的mInstrumentation对象
+            field.setAccessible(true);
+            Instrumentation mInstrumentation = (Instrumentation) field.get(activity);
+            //3创建InstrumentationProxy代理类对象并传入mInstrumentation对象
+            InstrumentationProxy mInstrumentationProxy = new InstrumentationProxy(mInstrumentation);
+            //重新set属性field的值为InstrumentationProxy代理类对象
+            field.set(activity,mInstrumentationProxy);
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+
+    }
+	//主线程调用getApplicationContext.startActivity(intent);
+	/*
+		Hook的是ActivityThread中的mInstrumentation对象
+		sCurrentActivityThread为当前进程的ActivityThread类对象
+	*/
+    public static void replaceAppContextInstrumentation(){
+        try {
+            //1获取ActivityThread的Class对象
+            Class<?> atClazz = Class.forName("android.app.ActivityThread");
+            //2获取ActivityThread对象中的sCurrentActivityThread属性
+            Field field_sCurrentActivityThread = atClazz.getDeclaredField("sCurrentActivityThread");
+            field_sCurrentActivityThread.setAccessible(true);
+            //3获取ActivityThread中的sCurrentActivityThread对象
+            Object obj_sCurrentActivityThread = field_sCurrentActivityThread.get(null);
+            //4通过ActivityThread的Class对象获取mInstrumentation属性
+            Field field_mInstrumentation = atClazz.getDeclaredField("mInstrumentation");
+            field_mInstrumentation.setAccessible(true);
+            //5获取sCurrentActivityThread中的mInstrumentation属性字段
+            Instrumentation mInstrumentation = (Instrumentation) field_mInstrumentation.get(obj_sCurrentActivityThread);
+            //6创建InstrumentationProxy代理类对象并传入mInstrumentation对象
+            InstrumentationProxy mInstrumentationProxy = new InstrumentationProxy(mInstrumentation);
+            //7重新set属性field_mInstrumentation的值为InstrumentationProxy代理类对象
+            field_mInstrumentation.set(obj_sCurrentActivityThread,mInstrumentationProxy);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+}
+	
+
+	
+
+
+

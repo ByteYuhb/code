@@ -1,0 +1,361 @@
+WebView的缓存机制及资源预加载方案
+ Android Webview 的性能问题，特别突出的是：加载速度慢 & 消耗流量
+ 
+ 1.H5 页面加载速度慢：主要原因是啥？
+	 1. 渲染速度慢
+	 2.页面资源加载缓慢
+ 2.耗费流量
+	1.每次使用 H5页面时，用户都需要重新加载 Android WebView的H5 页面
+	2.每加载一个 H5页面，都会产生较多网络请求（上面提到）
+	3.每一个请求都串行的，这么多请求串起来，这导致消耗的流量也会越多
+上述两个问题导致了Android WebView的H5 页面体验 与 原生Native 存在较大差距。
+
+ 如何解决呢？
+	1.前端H5的缓存机制（WebView 自带）
+	2.资源预加载
+	3.资源拦截
+	
+	1.前端H5的缓存机制（WebView 自带）：缓存，即离线存储
+		作用：
+			1.离线浏览：用户可在没有网络连接时进行H5页面访问
+			2.提高页面加载速度 & 减少流量消耗：直接使用已缓存的资源，不需要重新加载
+		具体应用：
+			此处讲解主要讲解 前端H5的缓存机制 的缓存机制 & 缓存模式 ：
+			a. 缓存机制：如何将加载过的网页数据保存到本地
+			b. 缓存模式：加载网页时如何读取之前保存到本地的网页缓存
+			
+				a. 缓存机制
+					Android WebView自带的缓存机制有5种：
+					1.浏览器 缓存机制
+					2.Application Cache 缓存机制
+					3.Dom Storage 缓存机制
+					4.Web SQL Database 缓存机制
+					5.Indexed Database 缓存机制
+					6.File System 缓存机制
+					
+						1. 浏览器缓存机制
+							a. 原理:
+								1.根据 HTTP 协议头里的 Cache-Control（或 Expires）和 Last-Modified（或 Etag）等字段来控制文件缓存的机制
+								2.下面详细介绍Cache-Control、Expires、Last-Modified & Etag四个字段
+									Cache-Control：用于控制文件在本地缓存有效时长
+									Expires：与Cache-Control功能相同，即控制缓存的有效时间
+									Last-Modified：标识文件在服务器上的最新更新时间
+									Etag：功能同Last-Modified ，即标识文件在服务器上的最新更新时间。
+									
+									常见用法是：
+									1.Cache-Control与 Last-Modified 一起使用；
+									2.Expires与 Etag一起使用；
+									
+									即一个用于控制缓存有效时间，一个用于在缓存失效后，向服务查询是否有更新
+									特别注意：浏览器缓存机制 是 浏览器内核的机制，一般都是标准的实现
+									即Cache-Control、 Last-Modified 、 Expires、 Etag都是标准实现，你不需要操心
+							b. 特点:
+								1.优点：支持 Http协议层
+								2.不足：缓存文件需要首次加载后才会产生；浏览器缓存的存储空间有限，缓存有被清除的可能；缓存的文件没有校验。
+							c. 应用场景
+								静态资源文件的存储，如JS、CSS、字体、图片等。
+								Android Webview会将缓存的文件记录及文件内容会存在当前 app 的 data 目录中。
+							d. 具体实现
+								Android WebView内置自动实现，即不需要设置即实现:Android 4.4后的 WebView 浏览器版本内核：Chrome
+					
+						
+						2.Application Cache 缓存机制
+							a. 原理
+								1.以文件为单位进行缓存，且文件有一定更新机制（类似于浏览器缓存机制）
+								2.AppCache 原理有两个关键点：manifest 属性和 manifest 文件。
+									<!DOCTYPE html>
+									<html manifest="demo_html.appcache">
+									// HTML 在头中通过 manifest 属性引用 manifest 文件
+									// manifest 文件：就是上面以 appcache 结尾的文件，是一个普通文件文件，列出了需要缓存的文件
+									// 浏览器在首次加载 HTML 文件时，会解析 manifest 属性，并读取 manifest 文件，获取 Section：CACHE MANIFEST 下要缓存的文件列表，再对文件缓存
+									<body>
+									...
+									</body>
+									</html>
+
+									// 原理说明如下：
+									// AppCache 在首次加载生成后，也有更新机制。被缓存的文件如果要更新，需要更新 manifest 文件
+									// 因为浏览器在下次加载时，除了会默认使用缓存外，还会在后台检查 manifest 文件有没有修改（byte by byte)
+									发现有修改，就会重新获取 manifest 文件，对 Section：CACHE MANIFEST 下文件列表检查更新
+									// manifest 文件与缓存文件的检查更新也遵守浏览器缓存机制
+									// 如用户手动清了 AppCache 缓存，下次加载时，浏览器会重新生成缓存，也可算是一种缓存的更新
+									// AppCache 的缓存文件，与浏览器的缓存文件分开存储的，因为 AppCache 在本地有 5MB（分 HOST）的空间限制
+							b. 特点
+								方便构建Web App的缓存:专门为 Web App离线使用而开发的缓存机制
+							c. 应用场景
+								存储静态文件（如JS、CSS、字体文件）
+								c.1:应用场景 同 浏览器缓存机制
+								c.2:但AppCache 是对 浏览器缓存机制 的补充，不是替代。
+							d. 具体实现
+								// 通过设置WebView的settings来实现
+								WebSettings settings = getSettings();
+
+								String cacheDirPath = context.getFilesDir().getAbsolutePath()+"cache/";
+								settings.setAppCachePath(cacheDirPath);
+								// 1. 设置缓存路径
+
+								 settings.setAppCacheMaxSize(20*1024*1024);
+								// 2. 设置缓存大小
+
+								settings.setAppCacheEnabled(true);
+								// 3. 开启Application Cache存储机制
+							
+								特别注意:
+								// 每个 Application 只调用一次 WebSettings.setAppCachePath() 和
+								 WebSettings.setAppCacheMaxSize()
+								
+								
+						3.Dom Storage 缓存机制:
+							a. 原理:
+								通过存储字符串的 Key - Value 对来提供
+								DOM Storage 分为 sessionStorage & localStorage； 二者使用方法基本相同，区别在于作用范围不同：
+									a. sessionStorage：具备临时性，即存储与页面相关的数据，它在页面关闭后无法使用
+									b. localStorage：具备持久性，即保存的数据在页面关闭后也可以使用。
+							b. 特点
+								存储空间大（ 5MB）：存储空间对于不同浏览器不同，如Cookies 才 4KB
+								存储安全、便捷： Dom Storage 存储的数据在本地，不需要经常和服务器进行交互
+								不像 Cookies每次请求一次页面，都会向服务器发送网络请求
+							c. 应用场景
+								存储临时、简单的数据
+								c.1:代替 **将 不需要让服务器知道的信息 存储到 cookies **的这种传统方法
+								c.2:Dom Storage 机制类似于 Android 的 SharedPreference机制
+							d. 具体实现
+								// 通过设置 `WebView`的`Settings`类实现
+								WebSettings settings = getSettings();
+
+								settings.setDomStorageEnabled(true);
+								// 开启DOM storage
+						
+						
+						4. Web SQL Database 缓存机制
+							a. 原理
+								基于 SQL 的数据库存储机制
+							b. 特点
+								充分利用数据库的优势，可方便对数据进行增加、删除、修改、查询
+							c. 应用场景
+								存储适合数据库的结构化数据
+							d. 具体实现
+								// 通过设置WebView的settings实现
+								WebSettings settings = getSettings();
+
+								String cacheDirPath = context.getFilesDir().getAbsolutePath()+"cache/";
+								settings.setDatabasePath(cacheDirPath);
+								// 设置缓存路径
+
+								settings.setDatabaseEnabled(true);
+								// 开启 数据库存储机制
+							
+							特别说明:
+								1.根据官方说明，Web SQL Database存储机制不再推荐使用（不再维护）
+								2.取而代之的是 IndexedDB缓存机制，下面会详细介绍
+						
+						5.IndexedDB 缓存机制
+							a. 原理
+								属于 NoSQL 数据库，通过存储字符串的 Key - Value 对来提供,类似于 Dom Storage 存储机制 的key-value存储方式
+							b. 特点
+								b1:功能强大。使用简单
+									使用数据库的事务机制进行存储
+									可对对象任何属性生成索引。方便查询
+								b2:存储空间大
+									默认推荐是250M
+								b3:使用灵活
+									以key-value形式存储
+									异步Api调用
+							c. 应用场景
+								存储 复杂、数据量大的结构化数据
+							d. 具体实现：
+								// 通过设置WebView的settings实现
+								WebSettings settings = getSettings();
+
+								settings.setJavaScriptEnabled(true);
+								// 只需设置支持JS就自动打开IndexedDB存储机制
+								// Android 在4.4开始加入对 IndexedDB 的支持，只需打开允许 JS 执行的开关就好了。
+						
+						6.File System
+							a. 原理
+								1.为 H5页面的数据 提供一个虚拟的文件系统
+									a1:可进行文件（夹）的创建、读、写、删除、遍历等操作，就像 Native App 访问本地文件系统一样
+									a2:虚拟的文件系统是运行在沙盒中
+									a3:不同 WebApp 的虚拟文件系统是互相隔离的，虚拟文件系统与本地文件系统也是互相隔离的
+								2.虚拟文件系统提供了两种类型的存储空间：临时 & 持久性：
+									.临时的存储空间：由浏览器自动分配，但可能被浏览器回收
+									.持久性的存储空间：需要显式申请；自己管理（浏览器不会回收，也不会清除内容）；
+									存储空间大小通过配额管理，首次申请时会一个初始的配额，配额用完需要再次申请。
+							b. 特点
+								可存储数据体积较大的二进制数据
+								可预加载资源文件
+								可直接编辑文件
+							c. 应用场景
+								通过文件系统 管理数据
+							d. 具体使用
+								由于 File System是 H5 新加入的缓存机制
+
+								
+				
+				
+				使用建议:
+				1.综合上述缓存机制的分析，我们可以根据 需求场景的不同（缓存不同类型的数据场景） 从而选择不同的缓存机制（组合使用）
+				
+					
+
+
+			b.缓存模式:
+				定义：缓存模式是一种 当加载 H5网页时 该如何读取之前保存到本地缓存从而进行使用 的方式
+				即告诉Android WebView 什么时候去读缓存，以哪种方式去读缓存
+				
+				Android WebView 自带的缓存模式有4种：
+					// 缓存模式说明: 
+				  LOAD_CACHE_ONLY: 不使用网络，只读取本地缓存数据
+				  LOAD_NO_CACHE: 不使用缓存，只从网络获取数据.
+				  LOAD_DEFAULT: （默认）根据cache-control决定是否从网络上取数据。
+				  LOAD_CACHE_ELSE_NETWORK，只要本地有，无论是否过期，或者no-cache，都使用缓存中的数据。
+				
+				WebView.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+				// 设置参数即可
+				
+	
+     
+	2.资源预加载
+		定义：提早加载将需使用的H5页面，即 提前构建缓存：使用时直接取过来用而不用在需要时才去加载
+		具体实现：预加载WebView对象 & 预加载H5资源
+		
+		1.预加载WebView对象
+			此处主要分为2方面：首次使用的WebView对象 & 后续使用的WebView对象
+			具体如下图：预加载WebView对象.PNG
+			a.首次使用的WebView对象：
+				1.原因：首次初始化WebView对象比第二次初始化要慢很多
+				2.实现思路：
+					应用启动时就初始化一个WebView对象，当用户加载H5页面时直接拿过来使用
+				3.具体实现：在Application创建的时候初始化一个WebView
+			b.后续使用的WebView对象
+				1.原因：多次创建WebView对象会耗费很多时间和资源
+				2.实现思路：自身构建WebView复用池，当需要使用时从WebView池中获取WebView
+				3.具体实现：创建2到3个WebView，每次使用都清空WebView的内容，无需重新创建
+			
+		2.预加载H5资源
+			原理：
+				1.在应用启动、初始化第一个WebView对象时，直接开始网络请求加载H5页面
+				2.后续需打开这些H5页面时就直接从该本地对象中获取
+					a. 从而 事先加载常用的H5页面资源（加载后就有缓存了）
+					b. 此方法虽然不能减小WebView初始化时间，但数据请求和WebView初始化可以并行进行，总体的页面加载时间就缩短了；缩短总体的页面加载时间：
+			具体实现：
+				在Android 的BaseApplication里初始化一个WebView对象（用于加载常用的H5页面资源）；当需使用这些页面时再从BaseApplication里取过来直接使用
+			应用场景：
+				对于Android WebView的首页建议使用这种方案，能有效提高首页加载的效率
+			
+			
+			
+	3.自身构建缓存,资源拦截
+		为了有效解决 Android WebView 的性能问题，除了使用 Android WebView 自身的缓存机制，还可以自己针对某一需求场景构建缓存机制。
+		1.需求场景：
+			背景：
+				H5页面有一些更新频率低，常用或者固定的静态资源，如JS，CSS，图片等。
+			冲突：
+				每次加载会浪费很多流量和时间
+			解决方案：
+				通过拦截H5页面的资源请求，若资源相同，则直接本地读取，不去联网读取
+		2.实现步骤
+			1.事先将更新频率较低、常用 & 固定的H5静态资源 文件（如JS、CSS文件、图片等） 放到本地
+			2.拦截H5页面的资源网络请求 并进行检测
+			3.如果检测到本地具有相同的静态资源 就 直接从本地读取进行替换 而 不发送该资源的网络请求 到 服务器获取
+		3.具体实现
+			// 假设现在需要拦截一个图片的资源并用本地资源进行替代
+			mWebview.setWebViewClient(new WebViewClient() {
+				// 重写 WebViewClient  的  shouldInterceptRequest （）
+				// API 21 以下用shouldInterceptRequest(WebView view, String url)
+				// API 21 以上用shouldInterceptRequest(WebView view, WebResourceRequest request)
+				// 下面会详细说明
+
+				 // API 21 以下用shouldInterceptRequest(WebView view, String url)
+				@Override
+				public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+
+					// 步骤1:判断拦截资源的条件，即判断url里的图片资源的文件名
+					if (url.contains("logo.gif")) {
+					// 假设网页里该图片资源的地址为：http://abc.com/imgage/logo.gif
+					// 图片的资源文件名为:logo.gif
+
+						InputStream is = null;
+						// 步骤2:创建一个输入流
+
+						try {
+							is =getApplicationContext().getAssets().open("images/abc.png");
+							// 步骤3:获得需要替换的资源(存放在assets文件夹里)
+							// a. 先在app/src/main下创建一个assets文件夹
+							// b. 在assets文件夹里再创建一个images文件夹
+							// c. 在images文件夹放上需要替换的资源（此处替换的是abc.png图片）
+
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+
+						// 步骤4:替换资源
+						WebResourceResponse response = new WebResourceResponse("image/png",
+								"utf-8", is);
+						// 参数1：http请求里该图片的Content-Type,此处图片为image/png
+						// 参数2：编码类型
+						// 参数3：存放着替换资源的输入流（上面创建的那个）
+						return response;
+					}
+
+					return super.shouldInterceptRequest(view, url);
+				}
+
+				
+			   // API 21 以上用shouldInterceptRequest(WebView view, WebResourceRequest request)
+				@TargetApi(Build.VERSION_CODES.LOLLIPOP)
+				@Override
+				public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+
+				   // 步骤1:判断拦截资源的条件，即判断url里的图片资源的文件名
+					if (request.getUrl().toString().contains("logo.gif")) {
+					// 假设网页里该图片资源的地址为：http://abc.com/imgage/logo.gif
+					// 图片的资源文件名为:logo.gif
+
+						InputStream is = null;
+						// 步骤2:创建一个输入流
+
+						try {
+							is = getApplicationContext().getAssets().open("images/abc.png");
+							 // 步骤3:获得需要替换的资源(存放在assets文件夹里)
+							// a. 先在app/src/main下创建一个assets文件夹
+							// b. 在assets文件夹里再创建一个images文件夹
+							// c. 在images文件夹放上需要替换的资源（此处替换的是abc.png图片
+
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+
+						// 步骤4:替换资源
+						WebResourceResponse response = new WebResourceResponse("image/png",
+								"utf-8", is);
+						// 参数1：http请求里该图片的Content-Type,此处图片为image/png
+						// 参数2：编码类型
+						// 参数3：存放着替换资源的输入流（上面创建的那个）
+						return response;
+					}
+					return super.shouldInterceptRequest(view, request);
+				}
+
+	
+		特别注意：
+			a.关于上述放到本地的静态资源也是可以更新的：
+				a1.发布新版本安装更新
+				a2.增量更新：在用户处于WIFI环境时让服务器推送到本地
+			很多著名的App（如微信）就是采用小范围更新本地资源的
+		这种缓存机制的好处:
+			1.有效解决 H5页面静态资源 加载速度慢 & 流量消耗多的问题
+			2.开发成本低
+				1.没有改变前端H5的任何代码，不需要为 APP 做定制化的东西
+				2.该方法只是更好地加快H5加载速度，哪怕失效，也不会对H5页面产生其他负面影响
+			3.同样能获得相应的cookie
+				发送的网络请求会直接带上先前用户操作所留下的 cookie 而都能够留下来，因为我们没有更改资源的 URL 地址
+
+				
+			
+					
+				
+		
+
+ 
+ 

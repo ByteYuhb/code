@@ -1,0 +1,101 @@
+AsyncTask的基本用法：public abstract class AsyncTask<Params, Progress, Result>
+
+1.AsyncTask是一个抽象类，需要创建一个类来继承他
+	public class TestAsyncTask extends AsyncTask<void, Integer, boolean>;
+	需要传入三个参数类型：
+	Params：传入的参数如void为不传入任何参数
+	Progress：当前显示的进度条单位,如Integer
+	Result：返回值参数类型,如boolean
+2.方法概述
+	onPreExecute()：执行开始前还在主进程，初始化一些操作，如显示一个进度条
+	doInBackground：在子线程中，可以做一些耗时的操作，如下载* 
+		如需反馈进度条调用publishProgress()，会回调onProgressUpdate方法，这个方法会在主线程中调用，可以更新UI
+	onProgressUpdate：更新进度条信息
+	onPostExecute：doInBackground操作完成后调用return之后会返回到这里，主线程上
+3.源码分析
+	3.1：构造方法：
+	
+	Handler mHandler；
+	WorkerRunnable mWorker继承Callable
+	public AsyncTask(@Nullable Looper callbackLooper) {
+		mHandler = getMainHandler()获取handler
+			->sHandler = new InternalHandler(Looper.getMainLooper())单例模式
+		mWorker = new WorkerRunnable<Params, Result>() {组织将要执行的runnable实现了call方法
+			public Result call() throws Exception {
+				result = doInBackground(mParams);
+				postResult(result);
+					Message message = getHandler().obtainMessage(MESSAGE_POST_RESULT,new AsyncTaskResult<Result>(this, result));
+					message.sendToTarget();
+					return result;
+					
+			}
+		
+		}
+		mFuture = new FutureTask<Result>(mWorker) {再次封装一层WorkerRunnable，继承RunnableFuture继承Runnable
+			protected void done() {
+				postResultIfNotInvoked(get());
+			}
+		}		
+	}
+	
+	3.2：执行方法
+	execute
+		executeOnExecutor(sDefaultExecutor, params)
+			mStatus = Status.RUNNING;将状态设置为running
+			onPreExecute();开发中可以初始化一些操作
+			exec.execute(mFuture); exec属于SerialExecutor类实例
+				mTasks.offer(new Runnable() {
+					public void run() {
+						try {
+							r.run();r=构造方法中生产的mFuture实例
+								FutureTask：
+								run(){
+									result = c.call()这个c=构造方法中生产的WorkerRunnable.mWorker实例
+										call()
+										{
+											result = doInBackground(mParams);
+											postResult(result);
+												Message message = getHandler().obtainMessage(MESSAGE_POST_RESULT,
+														new AsyncTaskResult<Result>(this, result));
+												message.sendToTarget();发送数据给Handler构造方法中获取的Handler实现类为InternalHandler
+													class InternalHandler extends Handler {
+														 public void handleMessage(Message msg) {
+															case MESSAGE_POST_RESULT:如果是返回结果的msg调用mTask.finish
+																// There is only one result
+																result.mTask.finish(result.mData[0]);
+																			onPostExecute
+																break;
+															case MESSAGE_POST_PROGRESS:如果是调用pubnishprogress·则回调onProgressUpdate所以这里是主线程
+																result.mTask.onProgressUpdate(result.mData);
+														 }
+													}
+												
+										}
+								}
+						} finally {
+							scheduleNext();
+								继续从队列中弹出任务进行执行。
+						}
+					}
+				});
+					offerLast(e)
+						addLast(e);可以看出offer方法是将新建的runnable任务放到ArrayDeque队列的最后位置
+				if (mActive == null) {
+					scheduleNext();第一次为空
+						mActive = mTasks.poll()取出队列头部位置数据
+							pollFirst()
+						THREAD_POOL_EXECUTOR.execute(mActive)使用线程池去执行mActive任务，这个任务就是前面调用offer的runnable实例
+						
+							
+							
+							
+				}
+				
+			
+			
+4.总结：
+	AsyncTask结果其实也是使用的异步线程机制Handler，只是他封装的比较好，借鉴性比较强，开发者可以很友好的实现异步处理任务。
+	首先是将runnable放入到一个消息队列里面，执行的时候从消息队列头部取出消息，
+	并使用线程池去执行run方法这样就进入子线程中里面可以处理耗时任务
+	待任务执行完毕返回结果的时候调用主线程的handler发送结果给主线程进行UI的更新。
+	可以看到里面的mTasks是属于static的静态变量，所以应用中所有的AsyncTask任务都放在同一个ArrayDeque中，使用规则fifo

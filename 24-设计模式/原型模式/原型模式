@@ -1,0 +1,52 @@
+原形模式
+
+定义与特点：
+
+通过一个已经存在的对象，克隆这个对象，生成一个新的对象，新的对象内部所有的属性都一致，可以更改内部属性
+特点：
+1.内部使用二进制流的方式创建新的对象，效率比new一个对象高。
+2.可以使用深克隆的方式保存对象的状态，将对象使用原型模式保存起来，以便下次需要的时候恢复到历史的一个状态
+
+缺点：
+1.需要为每个可以clone的类实现cloneable接口
+2.当实现深克隆时，需要编写较为复杂的代码，而且当对象之间存在多重嵌套引用时，
+	为了实现深克隆，每一层对象对应的类都必须支持深克隆，
+	实现起来会比较麻烦。因此，深克隆、浅克隆需要运用得当。
+
+原型模式的结构与实现：
+
+浅拷贝和深拷贝
+浅拷贝：创建一个新的对象，对象的属性和原有对象完全相同，属性中非基本类型的对象的地址还是原对象的地址，
+		java中只要实现了Cloneable接口就可以实现浅拷贝
+深拷贝：创建一个新的对象，对象的属性和原有对象相同，但是对于非基本数据类型的对象的地址也是一个新的对象地址，需要属性对象的类也实现了Clone接口
+
+拷贝：
+
+	//具体原型类
+	class Realizetype implements Cloneable {
+		Realizetype() {
+			System.out.println("具体原型创建成功！");
+		}
+
+		public Object clone() throws CloneNotSupportedException {
+			System.out.println("具体原型复制成功！");
+			return (Realizetype) super.clone();
+		}
+	}
+
+	//原型模式的测试类
+	public class PrototypeTest {
+		public static void main(String[] args) throws CloneNotSupportedException {
+			Realizetype obj1 = new Realizetype();
+			Realizetype obj2 = (Realizetype) obj1.clone();
+			System.out.println("obj1==obj2?" + (obj1 == obj2));
+		}
+	}
+原型模式使用场景：
+1.对象之间相同或者相似，只有个别属性不同
+2.创建对象的成本较大，初始化时间长，可以使用原型优化资源
+3.创建一个对象需要繁琐的数据准备和访问权限，使用原型clone提高性能和安全性
+4.系统中大量使用该类对象，且各个调用者都需要给它的属性重新赋值。
+
+
+

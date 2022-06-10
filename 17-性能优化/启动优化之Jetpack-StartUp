@@ -1,0 +1,70 @@
+Startup的使用
+
+作用：
+1.隐式初始化SDK，获取Context
+	内部会自动生成一个ContentProvider，在Provider的创建过程中做初始化的工作
+2.延迟初始化功能
+3.保证单次初始化
+	内部对任务状态有监测，初始化过的任务不会再次初始化
+4.设置初始化顺序，保证依赖关系
+
+缺点：不能使用多线程并发执行
+
+
+怎么用
+
+1.添加依赖
+	implementation "androidx.startup:startup-runtime:1.1.0" //这里目前最新的版本是1.1.0 
+2.自定义任务组件
+	1.WokerManager初始化
+	public class WokerManagerInitial implements Initializer<WorkManager> {
+		@NonNull
+		@Override
+		public WorkManager create(@NonNull Context context) {
+			Log.d("ExampleLogger","WokerManagerInitial:"+this);
+			WorkManager.initialize(context, new Configuration.Builder().build());
+			return WorkManager.getInstance(context);
+		}
+
+		@NonNull
+		@Override
+		public List<Class<? extends Initializer<?>>> dependencies() {
+			return Collections.emptyList();
+		}
+	}
+	2.ExampleLogger初始化任务依赖WorkManager任务初始化
+	
+	public class ExempleLogInitial implements Initializer<ExampleLogger> {
+    @NonNull
+    @Override
+    public ExampleLogger create(@NonNull Context context) {
+
+        return new ExampleLogger(WorkManager.getInstance(context));
+    }
+
+    @NonNull
+    @Override
+    public List<Class<? extends Initializer<?>>> dependencies() {
+        return Arrays.asList(WokerManagerInitial.class);
+    }
+}
+
+3.注册组件
+	<provider
+		android:authorities="${applicationId}.androidx-startup"
+		android:name="androidx.startup.InitializationProvider"
+		android:exported="false"
+		tools:node="merge">
+		<meta-data
+			android:name="com.android.yuhb.test.jetpack.startup.ExempleLogInitial"
+			android:value="androidx.startup"/>
+	</provider>
+	这里只设置了ExempleLogInitial的数据，无需设置WorkManager的初始化任务，因为WorkManager的初始化任务被ExempleLogInitial依赖。
+4.结果
+
+	2022-02-22 11:51:32.495 20921-20921/com.android.yuhb.test D/ExampleLogger: WokerManagerInitial:com.android.yuhb.test.jetpack.startup.WokerManagerInitial@d0d5037
+	2022-02-22 11:51:32.496 20921-20921/com.android.yuhb.test D/ExampleLogger: ExampleLogger:androidx.work.impl.WorkManagerImpl@ea619a4
+成功执行两项依赖关系的任务
+
+
+

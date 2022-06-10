@@ -1,0 +1,6 @@
+动态链接库so的修复
+
+两个方案
+1.将sp补丁插入刀片NativeLibrayElement数组的前部，让so补丁优先加载
+	和之前代码修复逻辑一样
+2.调用System.load方法接管so的加载入口

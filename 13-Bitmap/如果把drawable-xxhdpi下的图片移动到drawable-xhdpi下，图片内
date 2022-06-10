@@ -1,0 +1,19 @@
+如果把drawable-xxhdpi下的图片移动到drawable-xhdpi下，图片内存是如何变的？
+	答：根据bitmap大小计算公式
+		长度*宽度*（设备密度/资源目录密度）^2*一个像素密度
+	
+	如一个尺寸为1200*800的图片
+	假设系统密度为：420dp
+	drawable-xxhdpi：对应的资源文件密度为480dp
+	drawable-xhdpi：对应的资源文件密度为320dp
+	按公式：
+	在xhdpi目录下的大小size-xh = size-xxh/(320/480)*(320/480) = size-xxh/0.4444444;
+	
+	资源文件密度：
+	ldpi：120
+	mdpi：160
+	hdpi：240
+	xhdpi：320
+	xxhdpi：480
+	
+	

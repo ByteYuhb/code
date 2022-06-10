@@ -1,0 +1,417 @@
+SurfaceFlinger :简称SF
+启动过程：
+service surfaceflinger /system/bin/surfaceflinger
+    class core
+    user system
+    group graphics drmrpc
+    onrestart restart zygote
+    writepid /dev/cpuset/system-background/tasks
+在解析init.rc文件时启动了SurfaceFlinger
+main_surfaceflinger.cpp
+
+int main(int, char**) {
+    ProcessState::self()->setThreadPoolMaxThreadCount(4);设置最大线程池数量
+
+    sp<ProcessState> ps(ProcessState::self());
+    ps->startThreadPool();启动线程池
+    sp<SurfaceFlinger> flinger =  new SurfaceFlinger();创建SurfaceFlinger实例 分析1
+
+    setpriority(PRIO_PROCESS, 0, PRIORITY_URGENT_DISPLAY);
+    set_sched_policy(0, SP_FOREGROUND);
+
+    flinger->init();SurfaceFlinger初始化过程 分析2
+
+    //发布surface flinger，注册到Service Manager
+    sp<IServiceManager> sm(defaultServiceManager());
+    sm->addService(String16(SurfaceFlinger::getServiceName()), flinger, false);把SurfaceFlinger服务注册到ServiceManager
+
+    flinger->run();运行SurfaceFlinger当前线程 分析6
+
+    return 0;
+}
+
+	1.分析1：实例化过程
+		SurfaceFlinger::SurfaceFlinger()
+		:   BnSurfaceComposer(),
+			mTransactionFlags(0),
+			mTransactionPending(false),
+			mAnimTransactionPending(false),
+			...初始化一大堆参数
+		{
+			...
+			初始化
+		}
+
+		在第一次被引用的时候会调用onFirstRef方法
+		void SurfaceFlinger::onFirstRef()
+		{
+			mEventQueue.init(this); mEventQueue = MessageQueue
+		}
+		void MessageQueue::init(const sp<SurfaceFlinger>& flinger)
+		{
+			mFlinger = flinger;
+			mLooper = new Looper(true);创建一个Looper后面会用到
+			mHandler = new Handler(*this);创建一个Handler后面会用到
+		}
+	
+	
+	2.分析2：flinger初始化过程
+		void SurfaceFlinger::init() {
+			...省略
+			{ 
+				// 初始化EGL为默认的Display
+				mEGLDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+				eglInitialize(mEGLDisplay, NULL, NULL);
+
+				// 启动 EventThread
+				sp<VSyncSource> vsyncSrc = new DispSyncSource(&mPrimaryDispSync,
+						vsyncPhaseOffsetNs, true, "app");
+				mEventThread = new EventThread(vsyncSrc, *this, false);
+				sp<VSyncSource> sfVsyncSrc = new DispSyncSource(&mPrimaryDispSync,
+						sfVsyncPhaseOffsetNs, true, "sf");
+				mSFEventThread = new EventThread(sfVsyncSrc, *this, true);
+				mEventQueue.setEventThread(mSFEventThread);
+
+				// 获取渲染引擎，为当前Display不能失败哦
+				mRenderEngine = RenderEngine::create(mEGLDisplay,
+						HAL_PIXEL_FORMAT_RGBA_8888);
+			}
+
+			mRealHwc = new HWComposer(false);创建HWComposer
+			mHwc = mRealHwc;
+			mHwc->setEventHandler(static_cast<HWComposer::EventHandler*>(this));
+			
+			// retrieve the EGL context that was selected/created
+			mEGLContext = mRenderEngine->getEGLContext();
+
+			// make the GLContext current so that we can create textures when creating
+			// Layers (which may happens before we render something)
+			getDefaultDisplayDeviceLocked()->makeCurrent(mEGLDisplay, mEGLContext);
+
+			mEventControlThread = new EventControlThread(this);
+			mEventControlThread->run("EventControl", PRIORITY_URGENT_DISPLAY);
+
+			// initialize our drawing state
+			mDrawingState = mCurrentState;
+
+			// set initial conditions (e.g. unblank default device)
+			initializeDisplays();
+
+			mRenderEngine->primeCache();
+
+			mStartBootAnimThread = new StartBootAnimThread();
+			if (mStartBootAnimThread->Start() != NO_ERROR) {
+				ALOGE("Run StartBootAnimThread failed!");
+			}
+			...
+		}
+		init方法总结：
+		1.初始化EGL为默认的Display
+		2.启动EventHandler线程 分析3
+		3.创建HWComposer对象
+		4.启动EventControlThread线程
+		5.获取渲染引擎
+		6.启动开机动画
+		
+		1.我们来分析3：启动EventHandler线程
+			在调用mEventQueue.setEventThread(mSFEventThread);过程中引用了EventThread，则会回调EventThread的onFirstRef
+			void EventThread::onFirstRef() {
+				run("EventThread", PRIORITY_URGENT_DISPLAY + PRIORITY_MORE_FAVORABLE);运行到threadLoop方法
+			}
+		bool EventThread::threadLoop() {
+			...
+			signalConnections = waitForEvent(&event); 分析5:等待事件
+
+			// dispatch events to listeners...
+			const size_t count = signalConnections.size();
+			for (size_t i=0 ; i<count ; i++) {
+				...
+				status_t err = conn->postEvent(event);处理事件
+				...
+			}
+			return true;
+		}
+		分析5：看源码可知，这里是一个休眠过程等待被唤醒，唤醒他的是DispSyncThread线程调用mCond.signal()，后面会讲到
+		Vector< sp<EventThread::Connection> > EventThread::waitForEvent(
+			DisplayEventReceiver::Event* event){
+				do {
+					for (int32_t i=0 ; i<DisplayDevice::NUM_BUILTIN_DISPLAY_TYPES ; i++) {
+						timestamp = mVSyncEvent[i].header.timestamp;
+						if (timestamp) {
+							// we have a vsync event to dispatch
+							if (mInterceptVSyncs) {
+								mFlinger.mInterceptor.saveVSyncEvent(timestamp);
+							}
+							*event = mVSyncEvent[i];
+							mVSyncEvent[i].header.timestamp = 0;
+							vsyncCount = mVSyncEvent[i].vsync.count;输出事件
+							break;
+						}
+					}
+					...
+					mCondition.wait(mLock);休眠等待唤醒，后面讲到这里会被DispSyncSource唤醒
+					...
+				}while();
+			
+			}
+			
+		
+		
+		分析3：
+		void MessageQueue::setEventThread(const sp<EventThread>& eventThread)
+		{
+			mEventThread = eventThread;
+			mEvents = eventThread->createEventConnection();创建一个EventConnection
+			mEvents->stealReceiveChannel(&mEventTube);
+			mLooper->addFd(mEventTube.getFd(), 0, Looper::EVENT_INPUT,
+					MessageQueue::cb_eventReceiver, this);如果有事件输入，则回调MessageQueue::cb_eventReceiver方法 分析4
+		}
+		这里被唤醒回调MessageQueue::cb_eventReceiver方法
+		int MessageQueue::cb_eventReceiver(int fd, int events, void* data) {
+			MessageQueue* queue = reinterpret_cast<MessageQueue *>(data);
+			return queue->eventReceiver(fd, events);
+		}
+		
+		MessageQueue::eventReceiver(int /*fd*/, int /*events*/) {
+			ssize_t n;
+			DisplayEventReceiver::Event buffer[8];
+			while ((n = DisplayEventReceiver::getEvents(mEventTube, buffer, 8)) > 0) {
+			for (int i=0 ; i<n ; i++) {
+				if (buffer[i].header.type == DisplayEventReceiver::DISPLAY_EVENT_VSYNC) {
+			#if INVALIDATE_ON_VSYNC
+							mHandler->dispatchInvalidate();
+			#else
+							mHandler->dispatchRefresh(); //
+			#endif
+							break;
+						}
+					}
+				}
+				return 1;
+			}
+		
+		void MessageQueue::Handler::dispatchRefresh() {
+			if ((android_atomic_or(eventMaskRefresh, &mEventMask) & eventMaskRefresh) == 0) {
+				//发送消息，则进入handleMessage过程【见小节3.13】
+				mQueue.mLooper->sendMessage(this, Message(MessageQueue::REFRESH));
+			}
+		}	
+		
+		void MessageQueue::Handler::handleMessage(const Message& message) {
+			switch (message.what) {
+				case INVALIDATE:
+					android_atomic_and(~eventMaskInvalidate, &mEventMask);
+					mQueue.mFlinger->onMessageReceived(message.what);
+					break;
+				case REFRESH:
+					android_atomic_and(~eventMaskRefresh, &mEventMask);
+					mQueue.mFlinger->onMessageReceived(message.what);//
+					break;
+				case TRANSACTION:
+					android_atomic_and(~eventMaskTransaction, &mEventMask);
+					mQueue.mFlinger->onMessageReceived(message.what);
+					break;
+			}
+		}
+		void SurfaceFlinger::onMessageReceived(int32_t what) {
+			ATRACE_CALL();
+			switch (what) {
+				case MessageQueue::TRANSACTION: {
+					handleMessageTransaction();
+					break;
+				}
+				case MessageQueue::INVALIDATE: {
+					bool refreshNeeded = handleMessageTransaction();
+					refreshNeeded |= handleMessageInvalidate();
+					refreshNeeded |= mRepaintEverything;
+					if (refreshNeeded) {
+						signalRefresh();
+					}
+					break;
+				}
+				case MessageQueue::REFRESH: {
+					handleMessageRefresh();
+					break;
+				}
+			}
+		}
+		这里是最终回调的位置
+		void SurfaceFlinger::handleMessageRefresh() {
+			ATRACE_CALL();
+			preComposition();
+			rebuildLayerStacks();
+			setUpHWComposer();
+			doDebugFlashRegions();
+			doComposition();
+			postComposition();
+		}
+	3.来看下HWComposer的创建过程
+		mRealHwc = new HWComposer(false);创建HWComposer实例 1
+			
+		mHwc = mRealHwc;
+		mHwc->setEventHandler(static_cast<HWComposer::EventHandler*>(this));设置EventHandler方法 2
+		
+		1.HWComposer::HWComposer(bool useVrComposer)
+			: mHwcDevice(),
+			  mDisplayData(2),
+			  mFreeDisplaySlots(),
+			  mHwcDisplaySlots(),
+			  mCBContext(),
+			  mEventHandler(nullptr),
+			  mVSyncCounts(),
+			  mRemainingHwcVirtualDisplays(0)
+		{
+			for (size_t i=0 ; i<HWC_NUM_PHYSICAL_DISPLAY_TYPES ; i++) {
+				mLastHwVSync[i] = 0;
+				mVSyncCounts[i] = 0;
+			}
+
+			loadHwcModule(useVrComposer);这里加载hwc模块
+		}
+		
+		2.	void HWComposer::setEventHandler(EventHandler* handler)
+			{
+				
+				mEventHandler = handler;设置handler这里表示的SurfaceFlinger
+
+				if (wasNull) {
+					auto hotplugHook = std::bind(&HWComposer::hotplug, this,
+							std::placeholders::_1, std::placeholders::_2);
+					mHwcDevice->registerHotplugCallback(hotplugHook);
+					auto invalidateHook = std::bind(&HWComposer::invalidate, this,
+							std::placeholders::_1);
+					mHwcDevice->registerRefreshCallback(invalidateHook);
+					auto vsyncHook = std::bind(&HWComposer::vsync, this,
+							std::placeholders::_1, std::placeholders::_2);
+					mHwcDevice->registerVsyncCallback(vsyncHook);这里注册了HWComposer::vsync回调方法，在硬件发出VSYNC信号时，会回调该函数：HWComposer::vsync
+				}
+			}
+		3.HWComposer::vsync
+			void HWComposer::vsync(int disp, int64_t timestamp) {
+				mEventHandler.onVSyncReceived(this, disp, timestamp);
+			}
+		4.mEventHandler.onVSyncReceived
+			void SurfaceFlinger::onVSyncReceived(HWComposer* composer, int32_t type,
+                                     nsecs_t timestamp) {
+				
+				{ // Scope for the lock
+					Mutex::Autolock _l(mHWVsyncLock);
+					if (type == 0 && mPrimaryHWVsyncEnabled) {
+						needsHwVsync = mPrimaryDispSync.addResyncSample(timestamp);调用addResyncSample
+					}
+				}
+			}
+		5.mPrimaryDispSync.addResyncSample
+			bool DispSync::addResyncSample(nsecs_t timestamp) {
+				updateModelLocked();
+			}
+		6.updateModelLocked();
+			void DispSync::updateModelLocked() {
+				mThread->updateModel(mPeriod, mPhase, mReferenceTime);		mThread = DispSyncThread	
+			}
+		7.mThread->updateModel
+			void updateModel(nsecs_t period, nsecs_t phase, nsecs_t referenceTime) {
+				...
+				mCond.signal();唤醒？这里唤醒的是哪个地方，继续看哪里有调用wait方法
+			}
+			DispSyncThread在初始化启动的时候会调用到threadloop方法中：
+			virtual bool threadLoop() {
+			...
+				do{
+					if (mPeriod == 0) {
+                    err = mCond.wait(mMutex);这里调用了wait,mCond.signal()唤醒后，回调fireCallbackInvocations(callbackInvocations);
+                    if (err != NO_ERROR) {
+                        ALOGE("error waiting for new events: %s (%d)",
+                                strerror(-err), err);
+                        return false;
+                    }
+                    continue;
+					
+					//收集vsync信号的所有回调方法
+					callbackInvocations = gatherCallbackInvocationsLocked(now);
+					if (callbackInvocations.size() > 0) {
+						 //回调所有对象的onDispSyncEvent方法
+						 fireCallbackInvocations(callbackInvocations);
+					 }
+                }
+				}while(true);
+				
+			...
+			}
+		根据之前分析，DispSyncThread被VSYNC信号唤醒后，会回调下面这个方法
+		8.fireCallbackInvocations(callbackInvocations);
+			void fireCallbackInvocations(const Vector<CallbackInvocation>& callbacks) {
+				if (kTraceDetailedInfo) ATRACE_CALL();
+				for (size_t i = 0; i < callbacks.size(); i++) {
+					callbacks[i].mCallback->onDispSyncEvent(callbacks[i].mEventTime);回调所有对象的onDispSyncEvent方法，
+					SurfaceFlinger调用init()的过程，创建过DispSyncSource对象。接下里便是回调该对象的 onDispSyncEvent。
+				}
+			}
+		9.virtual void onDispSyncEvent(nsecs_t when) {
+			sp<VSyncSource::Callback> callback;
+			{
+			   Mutex::Autolock lock(mCallbackMutex);
+			   callback = mCallback;
+			}
+
+			if (callback != NULL) {
+			  callback->onVSyncEvent(when); // callback =  EventThread
+			}
+		}
+		10.void EventThread::onVSyncEvent(nsecs_t timestamp) {
+			Mutex::Autolock _l(mLock);
+			mVSyncEvent[0].header.type = DisplayEventReceiver::DISPLAY_EVENT_VSYNC;
+			mVSyncEvent[0].header.id = 0;
+			mVSyncEvent[0].header.timestamp = timestamp;
+			mVSyncEvent[0].vsync.count++;
+			mCondition.broadcast(); //唤醒EventThread线程
+		}
+			
+	3.下面来看SurfaceFlinger的run方法
+		void SurfaceFlinger::run() {
+			do {
+				waitForEvent();
+			} while (true);
+		}
+		
+		void SurfaceFlinger::waitForEvent() {
+			mEventQueue.waitMessage();
+		}
+		
+		void MessageQueue::waitMessage() {
+			do {
+				IPCThreadState::self()->flushCommands();
+				int32_t ret = mLooper->pollOnce(-1);
+				switch (ret) {
+					case Looper::POLL_WAKE:
+					case Looper::POLL_CALLBACK:
+						continue;
+					case Looper::POLL_ERROR:
+						ALOGE("Looper::POLL_ERROR");
+						continue;
+					case Looper::POLL_TIMEOUT:
+						// timeout (should not happen)
+						continue;
+					default:
+						// should not happen
+						ALOGE("Looper::pollOnce() returned unknown status %d", ret);
+						continue;
+				}
+			} while (true);
+		}
+
+	
+总结：
+1.初始化创建SurfaceFlinger的时候，在创建HwCompose的时候会注册一个vsync信号回调函数
+2.当底层有发出vsync信号，根据回调方法会执行到：DispSyncThread.updateModel()方法中调用mCond.signal() 来唤醒DispSyncThread线程；
+3.DispSyncThread线程：执行到EventThread::onVSyncEvent()方法中调用mCondition.broadcast() 唤醒EventThread线程；
+4.EventThread线程：执行到DisplayEventReceiver::sendEvents()方法中调用BitTube::sendObjects()； 
+	可知当收到数据则调用MQ.cb_eventReceiver()，然后再经过handler消息机制，进入SurfaceFlinger主线程；
+5.SurfaceFlinger主线程：进入到MesageQueue的handleMessage()，最终调用SurfaceFlinger的handleMessageRefresh()。
+
+以上总结的就是SurfaceFlinger获取底层vsync信号，并回调handleMessageRefresh方法的过程
+	
+	
+
+	
+

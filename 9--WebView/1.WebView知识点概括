@@ -1,0 +1,52 @@
+1. 简介
+	一个基于webkit引擎、展现web页面的控件
+
+	a. Android 4.4前：Android Webview在低版本 & 高版本采用了不同的webkit版本的内核
+	b. Android 4.4后：直接使用了Chrome内核
+2. 作用
+	在 Android 客户端上加载h5页面
+	在本地 与 h5页面实现交互 & 调用
+	其他：对 url 请求、页面加载、渲染、对话框 进行额外处理。
+3. 具体使用
+	Webview的使用主要包括：Webview类 及其 工具类（WebSettings类、WebViewClient类、WebChromeClient类）
+	
+	WebView：
+		作用：
+			1.创建对象 2.加载Url 3.生命周期管理 4.状态管理 
+		常用方法：
+			1.loadUrl加载页面
+			2.goBack：后退
+	WebSettings：
+		作用：
+			1.配置和管理WebView
+		常用方法：
+			1.setCacheMode设置缓存模式
+			2.setJavaScriptEnabled设置与js交互
+	WebViewClient：
+		作用：
+			1.处理各种通知，请求事件
+		常用方法：
+			1.shouldOverrrideUrlLoading 拦截Url跳转，也可以让当前跳转的页面在WebView显示
+			2.onPageStarted：载入页面调用
+			3.onPageFinished页面加载结束调用
+	WebChromeClient：
+		作用：
+			1.辅助WebView处理js对话框
+		常用方法：
+			1.onProgressChanged：获取网页的加载进度
+			2.onReceiveTitle：获取Web页的标题
+			3.onJsAlter：支持js的警告框
+			4.onJsConfirm：支持js的确认框
+			5.onJsPrompt：支持js的输入框
+			
+4.WebView与js的交互方式
+	1.在Android WebView的使用中，与前端h5页面交互的需求十分常见
+	2.Android 与 JS 通过WebView互相调用方法，实际上是：Android 去调用JS的代码 + JS去调用Android的代码
+		二者交互沟通的桥梁是WebView
+5.使用漏洞
+
+6.缓存机制构建
+
+	
+	
+		

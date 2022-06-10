@@ -1,0 +1,72 @@
+Intent的Flag，优先级比在Activity中设置launchMode高，这样可以让第三方应用启动Activity的时候可以设置自己的启动模式
+1.flag=Intent.FLAG_ACTIVITY_NEW_TASK，需要分两种情况，
+	一：在一个应用中
+	二：在两个应用中
+
+	1.1：设置flag=Intent.FLAG_ACTIVITY_NEW_TASK，结果和标准启动方式没区别：
+		但是设置了android:taskAffinity=“com.allinpay.usdk”之后，就会新建一个taskAffinity=“com.allinpay.usdk”的任务栈：
+		ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
+		Display #0 (activities from top to bottom):
+		  Stack #1:
+		  mFullscreen=true
+		  mBounds=null
+			Task id #904
+			mFullscreen=true
+			mBounds=null
+			mMinWidth=-1
+			mMinHeight=-1
+			mLastNonFullscreenBounds=null
+			  TaskRecord{7a3560 #904 A=com.allinpay.usdk U=0 StackId=1 sz=1}
+			  Intent { flg=0x10000000 cmp=com.android.yuhb.test/.BActivity }
+				Hist #0: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
+				  Intent { flg=0x10000000 cmp=com.android.yuhb.test/.BActivity }
+				  ProcessRecord{e0dd563 29365:com.android.yuhb.test/u0a89}
+			Task id #903
+			mFullscreen=true
+			mBounds=null
+			mMinWidth=-1
+			mMinHeight=-1
+			mLastNonFullscreenBounds=null
+			  TaskRecord{88c2a19 #903 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+			  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10000000 cmp=com.android.yuhb.test/.AActivity }
+				Hist #0: ActivityRecord{7ec855e u0 com.android.yuhb.test/.AActivity t903}
+				  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10000000 cmp=com.android.yuhb.test/.AActivity }
+				  ProcessRecord{e0dd563 29365:com.android.yuhb.test/u0a89}
+
+			Running activities (most recent first):
+			  TaskRecord{7a3560 #904 A=com.allinpay.usdk U=0 StackId=1 sz=1}
+				Run #1: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
+			  TaskRecord{88c2a19 #903 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+				Run #0: ActivityRecord{7ec855e u0 com.android.yuhb.test/.AActivity t903}
+
+			mResumedActivity: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
+			
+	模型如图：A-B(FLAG_ACTIVITY_NEW_TASK)(taskAffinity)	
+
+1.2：在两个应用中设置。不需要设置taskAffinity，默认是另外一个应用的包名
+
+
+2.flag=Intent.FLAG_ACTIVITY_CLEAR_TOP 
+singleTask默认具有此标记位的效果
+
+3.flag=Intent.FLAG_ACTIVITY_SINGLE_TOP  
+singleTop默认具有此标记位的效果
+
+4.flsg=Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS:
+其对应在AndroidManifest中的属性为android:excludeFromRecents=“true”,当用户按了“最近任务列表”时候,该Task不会出现在最近任务列表中，可达到隐藏应用的目的。
+
+5.从一个应用跳转到另外一个应用，
+	不设置flag：新启动的Activity会自动放到当前任务栈中。
+	 Running activities (most recent first):
+      TaskRecord{e27ebdf #919 A=com.android.yuhb.test U=0 StackId=1 sz=2}
+        Run #1: ActivityRecord{a3793ad u0 com.landicorp.android.shouyinbao.chinalife/.db.activity.LoginActivity t919}
+        Run #0: ActivityRecord{c076d88 u0 com.android.yuhb.test/.AActivity t919}
+
+	设置flag=FLAG_ACTIVITY_NEW_TASK：会在一个新的任务栈中，任务栈的taskAffinity默认为新应用的包名（会有明显跳转卡顿动作）
+	Running activities (most recent first):
+      TaskRecord{f65c6ed #922 A=com.landicorp.android.shouyinbao.chinalife U=0 StackId=1 sz=1}
+        Run #1: ActivityRecord{361fc67 u0 com.landicorp.android.shouyinbao.chinalife/.db.activity.LoginActivity t922}
+      TaskRecord{9401922 #921 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+        Run #0: ActivityRecord{4cf7d7d u0 com.android.yuhb.test/.AActivity t921}
+
+

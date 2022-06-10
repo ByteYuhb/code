@@ -1,0 +1,177 @@
+View事件分发机制2
+
+事件：点击事件(Action_down,move,up,cancel等)
+事件分发：点击事件在Activity，ViewGroup和View中的传递过程:
+view的事件传递最终会回调Activity：dispatchTouchEvent方法
+Activity.java
+	public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+            onUserInteraction();
+        }
+        if (getWindow().superDispatchTouchEvent(ev)) {分析1
+            return true;
+        }
+        return onTouchEvent(ev);
+    }
+	总结：
+	1.调用getWindow().superDispatchTouchEvent(ev)方法返回true，其实是回调ViewGroup的dispatchTouchEvent方法，则说明点击事件被消费了，不会回调Activity的onTouchEvent
+	2.调用getWindow().superDispatchTouchEvent(ev)方法返回false，则回调Activity的onTouchEvent
+	
+	/*分析1处：
+		getWindow()实例为PhoneWindow类
+	*/
+PhoneWindow.java
+	public boolean superDispatchTouchEvent(MotionEvent event) {
+        return mDecor.superDispatchTouchEvent(event); //mDecor = DecorView
+    }
+DecorView.java
+	public boolean superDispatchTouchEvent(MotionEvent event) {
+        return super.dispatchTouchEvent(event); //DecorView父类为ViewGroup
+    }
+ViewGroup.java
+	public boolean dispatchTouchEvent(MotionEvent ev) {
+		...
+		// Handle an initial down.
+		if (actionMasked == MotionEvent.ACTION_DOWN) { //如果是Down事件，则清除目标targetVIew，目标targetVIew比如之前调用过Down事件，并在某个View内部消耗了，就表示该View为一个targetVIew
+			// Throw away all previous state when starting a new touch gesture.
+			// The framework may have dropped the up or cancel event for the previous gesture
+			// due to an app switch, ANR, or some other state change.
+			cancelAndClearTouchTargets(ev);
+			resetTouchState();重置事件状态
+		}
+		// Check for interception.
+		final boolean intercepted;
+		if (actionMasked == MotionEvent.ACTION_DOWN 条件：如果是DOWN事件或者mFirstTouchTarget！=null ：mFirstTouchTarget就是最早有对Down事件做消费处理的View，可能是该ViewGroup本身，也可能是其子View
+				|| mFirstTouchTarget != null) {
+			final boolean disallowIntercept = (mGroupFlags & FLAG_DISALLOW_INTERCEPT) != 0;FLAG_DISALLOW_INTERCEPT这个状态表示是否禁用父类拦截，默认是false，可以通过调用父类的requestDisallowInterceptTouchEvent改变其状态
+			if (!disallowIntercept) {如果允许父View禁用，则调用父类的拦截方法
+				intercepted = onInterceptTouchEvent(ev);父类拦截方法，默认是不拦截，可以传递给子View
+				ev.setAction(action); // restore action in case it was changed
+			} else {
+				intercepted = false; 如果不允许父View禁用，则直接传递给子View
+			}
+		} else {
+			// There are no touch targets and this action is not an initial down
+			// so this view group continues to intercept touches.
+			intercepted = true; 如果不是Down事件，且之前没有touch处理的targetView则直接拦截
+		}
+		...
+		if (!canceled && !intercepted) {如果不是取消或者没有被拦截进入
+			for (int i = childrenCount - 1; i >= 0; i--) {
+				newTouchTarget = getTouchTarget(child);获取之前Down事件消费的View
+				if (newTouchTarget != null) {获取到直接退出for循环，不用去获取子View处理事件                           
+					newTouchTarget.pointerIdBits |= idBitsToAssign;
+					break;
+				}
+				if (dispatchTransformedTouchEvent(ev, false, child, idBitsToAssign)) { 分析2处				
+					newTouchTarget = addTouchTarget(child, idBitsToAssign);消费处理成功后，设置mFirstTouchTarget
+				}
+			
+			}
+		
+		}
+	
+	}
+	
+	
+	/*分析2处		
+		作用，内部是去调用子View的dispatchTouchEvent
+	*/
+	private boolean dispatchTransformedTouchEvent(MotionEvent event, boolean cancel,..){
+		final int oldAction = event.getAction();
+        if (cancel || oldAction == MotionEvent.ACTION_CANCEL) {这里对Cancel事件做了处理，如果传入的是cancel事件，则回调
+            event.setAction(MotionEvent.ACTION_CANCEL);
+            if (child == null) { 如果没有子child view，则回调super = View；回调View的dispatchTouchEvent(event)方法
+                handled = super.dispatchTouchEvent(event);
+            } else {
+                handled = child.dispatchTouchEvent(event);否则回调传入的子View的dispatchTouchEvent(event)事件
+            }
+            event.setAction(oldAction);
+            return handled;
+        }
+		...
+		...
+		if (child == null) {child为null则回调的是View的dispatchTouchEvent方法
+            handled = super.dispatchTouchEvent(transformedEvent);
+        } else {child不为null则回调的是传入的child的dispatchTouchEvent，这child可能是ViewGroup也可能是View子类
+            handled = child.dispatchTouchEvent(transformedEvent);分析3
+        }
+	}
+	
+	ViewGroup的dispatchTouchEvent总结：
+		
+		先判断是否拦截：重写onInterceptTouchEvent可以设置拦截方式，也可以通过在子View中调用requestDisallowInterceptTouchEvent设置父View禁用拦截或者开启拦截
+		如果拦截直接回调ViewGroup父类View的dispatchTouchEvent方法
+		如果不拦截，继续调用子View的dispatchTouchEvent方法
+	
+	/*分析3处		
+		作用，内部是去调用子View的dispatchTouchEvent
+		条件1：如果设置了OnTouchListener
+		条件2：该View的ENABLED_MASK为enabled
+		条件3：mOnTouchListener.onTouch返回值为true
+		则不会回调View的onTouchEvent
+	*/
+View.java:
+	public boolean dispatchTouchEvent(MotionEvent event) {
+		if (li != null && li.mOnTouchListener != null
+                    && (mViewFlags & ENABLED_MASK) == ENABLED
+                    && li.mOnTouchListener.onTouch(this, event)) {
+                result = true;
+		}
+
+		if (!result && onTouchEvent(event)) {
+			result = true;
+		}
+		final boolean clickable = ((viewFlags & CLICKABLE) == CLICKABLE
+                || (viewFlags & LONG_CLICKABLE) == LONG_CLICKABLE)
+                || (viewFlags & CONTEXT_CLICKABLE) == CONTEXT_CLICKABLE;
+	 if (clickable || (viewFlags & TOOLTIP) == TOOLTIP) { 
+			switch (action) {
+                case MotionEvent.ACTION_UP:
+					if (!clickable) {如果不可点击，则直接返回
+						break；
+					}
+					if (isFocusable() && isFocusableInTouchMode() && !isFocused()) {这里可以看出为啥之前设置获取焦点需要设置Focusable和FocusableInTouchMode的原因
+						focusTaken = requestFocus();
+					}
+					...
+					if (mPerformClick == null) {
+						mPerformClick = new PerformClick();
+					}
+					if (!post(mPerformClick)) {
+						performClick();调用了performClick方法  分析4
+					}
+					...
+				case MotionEvent.ACTION_DOWN:
+				case MotionEvent.ACTION_CANCEL:
+				case MotionEvent.ACTION_MOVE:
+				return true；表示消费了
+	 
+	 }else{不可点击
+		return false;返回false，让父View去消费
+	 }
+		
+				
+	}
+	
+	/*分析4*/
+	public boolean performClick() {
+		if (li != null && li.mOnClickListener != null) {
+            playSoundEffect(SoundEffectConstants.CLICK);
+            li.mOnClickListener.onClick(this);如果设置了点击事件，则回调该点击事件，并返回true表示该View消费了改事件
+            result = true;
+        } else {
+            result = false;
+        }
+		return result;
+	}
+	总结：子View的dispatchTouchEvent：
+	先判断是否设置了onTouchListener如果设置了，onTouch方法是否返回true，如果为true，则表示事件消费了，不会回调View的onTouchEvent方法
+	如果进入onTouchEvent会先判断该View是否是可点击状态，且是否设置了点击事件OnClickLister，如果设置了会回调onClickListener的OnClick方法
+	特点：只要该View是可点击状态，则都会消费该View，如果不可点击则不会消费该View，返回false，让父View去处理
+	如果父ViewGroup不消费，则最后返回给Activity去消费，在Activity中不管是否消费了，事件都会结束。
+	
+
+	
+	
+	

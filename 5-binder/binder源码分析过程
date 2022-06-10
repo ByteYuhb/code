@@ -1,0 +1,135 @@
+
+ServiceManager：
+D:\android-8.0.0_r1\frameworks\native\cmds\servicemanager
+ a. bs = binder_open(driver, 128*1024);打开驱动
+   a.1: bs->fd = open(driver, O_RDWR | O_CLOEXEC);打开驱动
+   a.2：if ((ioctl(bs->fd, BINDER_VERSION, &vers) == -1)获取驱动版本
+   a.3：bs->mapped = mmap(NULL, mapsize, PROT_READ, MAP_PRIVATE, bs->fd, 0);映射物理内存用于共享内存通讯
+   
+ b. binder_become_context_manager(bs) 通知驱动我现在是sm。
+	b.1: ioctl(bs->fd, BINDER_SET_CONTEXT_MGR, 0);
+ c. binder_loop(bs, svcmgr_handler); 循环获取请求
+ while(1){
+	c.1:  res = ioctl(bs->fd, BINDER_WRITE_READ, &bwr);// write_size=0，说明是读数据
+	c.2: res = binder_parse(bs, 0, (uintptr_t) readbuf, bwr.read  //解析数据 
+		//解析
+		获取data中的cmd指令，如果是BR_TRASACTION
+		struct binder_transaction_data *txn = (struct binder_transaction_data *) ptr;//将数据转换为binder_transaction_data结构体数据。
+		binder_dump_txn(txn); 从binder_transaction_data中解析出flat_binder_object
+		bio_init_from_txn(&msg, txn);//将binder_transaction_data转化为binder_io
+            
+		//处理
+		res = func(bs, txn, &msg, &reply);//调用sm处理函数
+				实际调用的是int svcmgr_handler(
+				   struct binder_state *bs, // binder驱动fd以及mmap出来的内存地址和大小
+                   struct binder_transaction_data *txn,//client端请求的数据格式
+                   struct binder_io *msg,//client端请求的数据格式转换为binder_io后的数据
+                   struct binder_io *reply)//准备返回给client端的数据
+				   c.2.1:根据txn->code选择需要处理的函数方法
+				    case SVC_MGR_ADD_SERVICE:注册服务
+						handle = bio_get_ref(msg);获取handler
+						do_add_service(bs, s, len, handle, txn->sender_euid,
+											allow_isolated, txn->sender_pid)将service放到链表中
+											
+				    case SVC_MGR_GET_SERVICE:获取服务
+					handle = do_find_service(s, len, txn->sender_euid, txn->sender_pid)获取服务
+					bio_put_ref(reply, handle);将handler放到返回数据中返回
+					
+				
+				
+		//返回
+		binder_send_reply(bs, &reply, txn->data.ptr.buffer, res);//返回数据给client
+		
+  }
+  
+Service
+D:\android-8.0.0_r1\mytest\binderTest\APP_0003_Binder_C_App-master \
+a.bs = binder_open(128*1024);打开驱动
+b.ret = svcmgr_publish(
+	bs, binder_state
+	svcmgr, target:发送的目标sm的handle=0；
+	"hello", 注册的服务名称
+	hello_service_handler 返回后的处理函数
+);注册服务
+	b.1:binder_call(bs, 谁发
+	&msg, 发的数据
+	&reply, 返回数据
+	target, 发给谁
+	SVC_MGR_ADD_SERVICE 调用的是哪个函数
+	)
+		b.1.1:while(1){
+			res = ioctl(bs->fd, BINDER_WRITE_READ, &bwr); 写数据并等待数据返回 //binder-io转换为binder——write-read
+			驱动层：
+				b.1.1:q1：static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg){
+				
+					b.1.1:q1.1:thread = binder_get_thread(proc);根据当前binder_proc找到对应的binder_thread
+					b.1.1:q1.2:
+					switch (cmd) {
+						case BINDER_WRITE_READ: 
+						     copy_from_user(&bwr, ubuf, sizeof(bwr)；获取用户态buf中的头
+							 if(write_buf_size>0){
+								ret = binder_thread_write(proc, thread, (void __user *)bwr.write_buffer, bwr.write_size, &bwr.write_consumed);//写数据{
+										b.1.1:q1.2.1:
+										case BC_TRANSACTION: 
+											copy_from_user(&tr, ptr, sizeof(tr))取出data数据
+											binder_transaction(proc, thread, &tr, cmd == BC_REPLY);核心处理数据{
+												if(target.handle==0){
+													target_node = binder_context_mgr_node;	//获取目标target_node
+												}	
+												target_proc = target_node->proc;根据target_node找到目标target_proc
+												case BINDER_TYPE_BINDER:处理flat_binder_object
+													node = binder_new_node(proc, fp->binder, fp->cookie);给当前proc创建binder_node节点
+													ref = binder_get_ref_for_node(target_proc, node);给target_proc创建binder_ref节点
+													binder_inc_ref(ref, fp->type == BINDER_TYPE_HANDLE,&thread->todo);增加引用计数(会返回一些信息给server)
+										}
+										list_add_tail(&t->work.entry, target_list);将数据放到target_proc或者thread的todo链表中
+										wake_up_interruptible(target_wait);唤醒target_proc
+																					
+								}
+								
+							 }
+				
+				}
+					
+			
+			
+			res = binder_parse(bs, reply, (uintptr_t) readbuf, bwr.read_consumed, 0);
+						 case BR_TRANSACTION: 
+						 
+						 
+						 
+							
+							
+				
+		}
+c. binder_loop(bs, test_server_handler);循环获取服务请求
+
+Client：
+D:\android-8.0.0_r1\mytest\binderTest\APP_0003_Binder_C_App-master
+a.	bs = binder_open(128*1024);打开驱动
+
+b:	handle = svcmgr_lookup(bs, svcmgr, "hello");获取服务
+		b.1:	
+		组	binder_iobio_init(&msg, iodata, sizeof(iodata), 4);
+			bio_put_uint32(&msg, 0);  // strict mode header
+			bio_put_string16_x(&msg, SVC_MGR_NAME);
+			bio_put_string16_x(&msg, name);
+		b.2:
+			binder_call(bs, &msg, &reply, target, SVC_MGR_CHECK_SERVICE)
+			b.2.1:转换为内核需要的数据格式binder_write_read格式。
+			b.2.2:调用ioctl发送数据给binder驱动。
+			b.2.3:解析返回的数据 从replay中获取hello服务的handle
+
+c.  sayhello();使用服务
+	c.1：
+	组：
+	bio_init(&msg, iodata, sizeof(iodata), 4);
+    bio_put_uint32(&msg, 0);  // strict mode header
+    bio_put_string16_x(&msg, "IHelloService");
+	c.2:
+	binder_call(g_bs, &msg, &reply, g_hello_handle, HELLO_SVR_CMD_SAYHELLO)	发送数据给目标handle。
+	
+	
+
+
+

@@ -1,0 +1,42 @@
+屏幕方向测试：
+1.屏幕方向属性：
+	1.unspecified：默认值，由系统觉得，不同的手机可能不一样
+	2.landscape：强制横屏显示
+	3.portrait;强制竖屏显示
+	4.sensor：根据物理传感器方向转动，用户90度、180度、270度旋转手机方向，activity都更着变化，会重启activity（无论系统是否设置为自动转屏，activity页面都会跟随传感器而转屏）
+	5.nosensor：旋转设备时候，界面不会跟着旋转。初始化界面方向由系统控制（无论系统是否设置为自动转屏，activity页面都不会转屏）
+	6.sensorLandscape;横屏两个方向上下旋转
+	7.sensorPortrait：竖屏两个方向上下旋转，有些手机会屏蔽上下颠倒的竖屏旋转，我用vivo ioq3测试就是系统屏蔽了。
+2.设置方式：
+	1.在manfest中设置screenOrientation
+	2.代码动态设置：setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);//横屏设置
+
+
+3.屏幕旋转后Activity生命周期：
+	两种情况：
+	1.设置了android:configChanges=”orientation|screenSize“，则不会重建Activity，会回调onConfigurationChanged。
+		但是onConfigurationChanged只对旋转90度有效果，180则不会回调onConfigurationChanged
+		例如：sensorLandscape属性，旋转的是180°不会回调onConfigurationChanged也不会重新创建Activity
+				可以通过设置OrientationEventListener.enable属性可以实时获取手机旋转角度，但是这对手机性能有一定消耗不建议做，而且需要早你使用的时候调用disable。
+	2.没有设置,则重新创建Activity。
+	
+4.onConfigurationChanged总结：
+	1.只有设置了configChanges属性，才会在屏幕配置发生改变的时候，响应相应的onConfigurationChanged回调，例如设置了orientation|screenSize，mcc或keyboard等配置更改不会回调onConfigurationChanged
+	2 只有Activity存在的处于Resumed状态的时候才会回调onConfigurationChanged。
+
+	if (!ar.activity.mFinished && (allActivities || !ar.paused)) {
+                        // If the activity is currently resumed, its configuration
+                        // needs to change right now.
+                        callbacks.add(a);
+		} else if (thisConfig != null) {
+			// Otherwise, we will tell it about the change
+			// the next time it is resumed or shown.  Note that
+			// the activity manager may, before then, decide the
+			// activity needs to be destroyed to handle its new
+			// configuration.
+			if (DEBUG_CONFIGURATION) {
+				Slog.v(TAG, "Setting activity "
+						+ ar.activityInfo.name + " newConfig=" + thisConfig);
+			}
+			ar.newConfig = thisConfig;
+		}

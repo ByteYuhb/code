@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>700</x>
+      <y>350</y>
+      <w>300</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>抽象化实现类
+RefinedAbstraction
+--
+--
+# RefinedAbstraction(imple:Implementor):RefinedAbstraction
++ Operation():void
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>700</x>
+      <y>90</y>
+      <w>300</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>抽象化角色
+/Abstraction/
+--
+# imple:Implementor
+--
+# Abstraction(imple:Implementor):Abstraction
++ Operation():void
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>830</x>
+      <y>180</y>
+      <w>30</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;170.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLInterface</id>
+    <coordinates>
+      <x>260</x>
+      <y>120</y>
+      <w>160</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>扩展接口类
+Implementor
+--
++ OperationImple():void	
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>10</x>
+      <y>340</y>
+      <w>320</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>扩展接口实现类A
+ConcreteImplemenrorA
+--
+--
+# ConcreteImplemenrorA():ConcreteImplemenrorA
++ Operation():void
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>350</x>
+      <y>340</y>
+      <w>320</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>扩展接口实现类=B
+ConcreteImplemenrorB
+--
+--
+# ConcreteImplemenrorB():ConcreteImplemenrorB
++ Operation():void
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>410</x>
+      <y>120</y>
+      <w>310</w>
+      <h>80</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-</panel_attributes>
+    <additional_attributes>290.0;10.0;10.0;60.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>160</x>
+      <y>200</y>
+      <w>140</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>120.0;10.0;10.0;130.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>360</x>
+      <y>200</y>
+      <w>130</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>10.0;10.0;110.0;130.0</additional_attributes>
+  </element>
+</diagram>

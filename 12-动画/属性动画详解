@@ -1,0 +1,96 @@
+属性动画详解
+
+1.简介
+	在api11以后，在视图动画基础上增加了属性动画api，用于弥补视图动画的缺陷。
+2.特点
+	作用对象:不在局限于View类
+	动画效果：可以自定义动画，不在局限于四种标准动画
+2.工作原理
+	在一定时间内，通过不断改变对象的值，没改变一次值，调用一次inValidata方法刷新屏幕，达到动画效果
+3.相关类：
+	1.ValueAnimator 类 & ObjectAnimator 类
+	2.两个辅助使用类：插值器 & 估值器
+	
+	1.ValueAnimator类
+		定义：属性动画机制中 最核心的一个类
+		实现动画的原理：通过不断控制 值 的变化，再不断 手动 赋给对象的属性，从而实现动画效果。如图下：
+		
+		ValueAnimator类中有3个重要方法：
+			1.ValueAnimator.ofInt（int values）
+			2.ValueAnimator.ofFloat（float values）
+			3.ValueAnimator.ofObject（int values）
+			
+			
+		ValueAnimator使用方式：需要手动调用requestLayout刷新View
+			ValueAnimator animator = ValueAnimator.ofFloat(btn_translate.getLayoutParams().width,300f);
+			animator.setDuration(3000);
+			animator.setStartDelay(300);
+			animator.setRepeatCount(0);
+			animator.setRepeatMode(ValueAnimator.RESTART);
+			animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+				@Override
+				public void onAnimationUpdate(ValueAnimator animation) {
+					float value = (float) animation.getAnimatedValue();
+					btn_translate.getLayoutParams().width = (int) value;
+					btn_translate.requestLayout();
+				}
+			});
+			btn_translate.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					animator.start();
+				}
+			});
+			
+	2 ObjectAnimator类
+		原理：直接对对象的属性值进行改变操作，从而实现动画效果
+				1.如直接改变 View的 alpha 属性 从而实现透明度的动画效果
+				2.继承自ValueAnimator类，即底层的动画实现机制是基于ValueAnimator类
+	
+		本质原理： 通过不断控制 值 的变化，再不断 自动 赋给对象的属性，从而实现动画效果。如下图：
+		ObjectAnimator使用方式：
+			第一个参数：需要动画的目标对象
+			第二个参数：需要动画的目标对象的属性：需要有set或者get方法，才能有效，如果没有，可以使用装饰器模式，封装一个目标对象，来扩展使用
+			ObjectAnimator objectAnimator = ObjectAnimator.ofFloat(btn_scale,"scaleX",0,1,0.5f);
+			objectAnimator.setDuration(4000);
+			objectAnimator.start();
+			
+			可以自己定义估值器：ColorEvaluator为自己定义的估值器
+			ObjectAnimator anim = ObjectAnimator.ofObject(myView2, "color", new ColorEvaluator(),
+                "#0000FF", "#FF0000");
+
+	
+	从上面的工作原理可以看出：ObjectAnimator与 ValueAnimator类的区别：
+		ValueAnimator 类是先改变值，然后 手动赋值 给对象的属性从而实现动画；是 间接 对对象属性进行操作；
+		ObjectAnimator 类是先改变值，然后 自动赋值 给对象的属性从而实现动画；是 直接 对对象属性进行操作；
+			至于是如何自动赋值给对象的属性，下面会详细说明
+	
+总结：主要使用两个类	ValueAnimator和ObjectAnimator
+ValueAnimator需要设置自己的估值器：并在onAnimationUpdate回调中刷新View
+ObjectAnimator可以不设置估值器：但是需要有set和get方法的属性才可以设置动画
+如果没有可以使用装饰器模式封装一个View：如下：
+	1. 提供ViewWrapper类,用于包装View对象
+		// 本例:包装Button对象
+		private static class ViewWrapper {
+			private View mTarget;
+
+			// 构造方法:传入需要包装的对象
+			public ViewWrapper(View target) {
+				mTarget = target;
+			}
+
+			// 为view的宽度设置get()、set()
+			public int getWidth() {
+				return mTarget.getLayoutParams().width;
+			}
+
+			public void setWidth(int width) {
+				mTarget.getLayoutParams().width = width;
+				mTarget.requestLayout();
+			}
+		}
+	
+	2.ObjectAnimator.ofInt(wrapper, "width", 500).setDuration(3000).start();wrapper = new ViewWrapper(targetView)
+	
+
+		

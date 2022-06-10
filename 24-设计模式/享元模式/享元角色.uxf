@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLInterface</id>
+    <coordinates>
+      <x>240</x>
+      <y>270</y>
+      <w>500</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>抽象享元角色
+Flyweight
+--
++ Operation(UnSharedConcreteFlyWeight unSharedConcreteFlyWeight):void
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>30</x>
+      <y>500</y>
+      <w>500</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>具体享元角色A
+ConcreteFlyweightA
+--
+- key:String
+--
++ Operation(UnSharedConcreteFlyWeight unSharedConcreteFlyWeight):void
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>210</x>
+      <y>360</y>
+      <w>170</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>150.0;10.0;10.0;140.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>880</x>
+      <y>310</y>
+      <w>220</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>非享元角色
+UnSharedConcreteFlyWeight</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>730</x>
+      <y>330</y>
+      <w>160</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;-</panel_attributes>
+    <additional_attributes>10.0;10.0;140.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>360</x>
+      <y>40</y>
+      <w>270</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>享元工厂
+FlyWeightFactory
+--
+- flyWeights: HashMap&lt;String,flyweight&gt;
+--
++ getFlyWeight(String key):FlyWeight</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>480</x>
+      <y>140</y>
+      <w>30</w>
+      <h>140</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;120.0</additional_attributes>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>600</x>
+      <y>500</y>
+      <w>490</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>具体享元角色B
+ConcreteFlyweightB
+--
+- key:String
+--
++ Operation(UnSharedConcreteFlyWeight unSharedConcreteFlyWeight):void
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>350</y>
+      <w>190</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>10.0;10.0;170.0;140.0</additional_attributes>
+  </element>
+</diagram>

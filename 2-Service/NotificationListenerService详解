@@ -1,0 +1,48 @@
+NotificationListenerService
+
+1.介绍：监听通知栏信息
+2.使用方式：
+	1.首先创建一个 WeChatNotificationListenerService 继承 NotificationListenerService
+	2.在mainfest中声明服务组件和权限
+		<service android:name="com.yuqirong.listenwechatnotification.WeChatNotificationListenerService"
+          android:label="@string/app_name"
+          android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+			 <intent-filter>
+				 <action android:name="android.service.notification.NotificationListenerService" />
+			 </intent-filter>
+		</service>
+	3.然后一般会重写下面这三个方法：
+		onNotificationPosted(StatusBarNotification sbn) ：当有新通知到来时会回调；比如监听红包等信息
+		onNotificationRemoved(StatusBarNotification sbn) ：当有通知移除时会回调；
+		onListenerConnected() ：当 NotificationListenerService 是可用的并且和通知管理器连接成功时回调。
+	
+	4.取消通知方法：
+		public void cancelNotification(StatusBarNotification sbn) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+				cancelNotification(sbn.getKey());
+			} else {
+				cancelNotification(sbn.getPackageName(), sbn.getTag(), sbn.getId());
+			}
+		}
+	5.检测通知监听服务是否被授权
+		public boolean isNotificationListenerEnabled(Context context) {
+			Set<String> packageNames = NotificationManagerCompat.getEnabledListenerPackages(this);
+			if (packageNames.contains(context.getPackageName())) {
+				return true;
+			}
+			return false;
+		}
+	6.打开通知监听设置页面
+		public void openNotificationListenSettings() {
+			try {
+				Intent intent;
+				if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
+					intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+				} else {
+					intent = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+				}
+				startActivity(intent);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}

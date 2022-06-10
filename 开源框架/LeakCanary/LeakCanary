@@ -1,0 +1,156 @@
+leakcanary
+
+使用方式
+debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.9.1'
+检测对象：
+Activity对象
+Fragment对象
+View实例对象
+ViewModel对象
+Service实例
+
+基础知识：
+	内存泄露
+		不需要的对象实例，无法被垃圾回收，比如被静态片段保留
+	常见原因:
+		1.不清楚fragment视图的字段的情况下，将fragment添加到backstack中
+		2.Activity以context的形式被添加到一些类中，比如静态类，则gc无法清除
+		3.注册一个监听器，广播接收器或者RxJava订阅时，引用了一个生命周期的对象，生命周期结束后，没有取消注册
+LeakCanary工作原理：
+	1.检测保留对象
+		LeakCanary挂钩到Android的生命周期内，以自动检测Activity或者Fragment何时被销毁并且被gc
+		这些被销毁的对象会被传递给一个ObjectWatcher，它持有对他们的弱引用，对象类型包括：
+		Activity对象
+		Fragment对象
+		View实例对象
+		ViewModel对象
+		Service实例
+		1.注册方式:
+			AppWatcher.objectWatcher.watch(activity,"view was detached")
+		2.等待5s后，调用gc，如果持有的弱引用没有被清除，则被监视器认为产生了一个内存泄露，LeakCanary会将其记录到Logcat中
+		3.记录保留对象的计数，达到阈值后，会调用转储堆
+	2.转储堆
+		保留对象达到阈值后，LeakCanary生成一个内存的hprof文件内存快照到到本地目录中，生成过程中，应用无法再使用，会显示一个toast
+		
+	3.分析堆
+		使用Shark分析堆内存，并定位到保留的对象，寻找保留对象的Gc roots
+		分析完成后，可以在通知栏看到分析结果，对于同一个对象可能会有几个不同的泄露路径，根据Gc roots生成签名，在LogCat中会显示
+		每个应用桌面上会对应生成一个LeakCanary图标，可以通过这个图标进入应用的LeakCanary分析结果界面
+		
+		每个Gc root显示，可以显示一段路径上哪个对象持有待销毁的Context
+		
+	4.对泄露进行分类
+		应用程序泄露和库泄露
+		泄露类型可以在Logcat中看到
+		====================================
+		HEAP ANALYSIS RESULT
+		====================================
+		0 APPLICATION LEAKS
+
+		====================================
+		1 LIBRARY LEAK
+
+		...
+		┬───
+		│ GC Root: Local variable in native code
+		│
+		...
+
+使用LeakCanary如何修复内存泄露
+	泄露对象一般都被以下对象持有，导致无法回收
+		1.属于一个线程的局部变量
+		2.活动的java线程实例
+		3.系统类且会一直存在
+		3.native引用，属于native代码范围
+	修复步骤：
+		1.查找泄露痕迹
+		2.缩小可疑参考范围
+			LeakCanary会自动检测类的生命周期，将可疑泄露对象显示出来
+			Leak：No  Leak:yes
+			
+		3.找到导致泄露的参考
+			根据Gc root找到最大可能泄露的引用
+		4.修复漏洞
+			找到泄露的引用后，在对象被销毁前，打断Gc root即可，如置为null等操作。
+			
+案例：
+我们在app中设置创建了一个list
+class MyApp:Application(){
+    val viewList = mutableListOf<View>()
+    override fun onCreate() {
+        super.onCreate()
+    }
+
+}
+fun MyApp.setView(view: View){
+    viewList.add(view)
+}
+fun MyApp.removeView(view: View){
+    viewList.remove(view)
+}
+
+在Activity中调用：
+
+
+onCreate{
+	1.将view放入app的viewList中
+	app?.setView(tv)
+	2.调用：watcher监控tv
+	AppWatcher.objectWatcher.expectWeaklyReachable(tv,"test main leak")
+}
+
+
+此时运行后：
+日志出现
+D/LeakCanary: Found 1 object retained, not dumping heap yet (app is visible & < 5 threshold)
+LeakCanary检测到有个对象没有被回收，通知栏会有显示，点击通知栏logcat中会显示对应的对象信息
+我们退出该应用查看日志系统：
+
+D/LeakCanary: Found 5 objects retained, dumping heap now (app is invisible)
+
+    ┬───
+    │ GC Root: System class
+    │
+    ├─ android.provider.FontsContract class
+    │    Leaking: NO (MyApp↓ is not leaking and a class is never leaking)
+    │    ↓ static FontsContract.sContext
+    ├─ com.allinpay.testkotlin.leakcanary.MyApp instance
+    │    Leaking: NO (Application is a singleton)
+    │    mBase instance of android.app.ContextImpl
+    │    ↓ MyApp.viewList
+    │            ~~~~~~~~
+    ├─ java.util.ArrayList instance
+    │    Leaking: UNKNOWN
+    │    Retaining 101.2 kB in 1415 objects
+    │    ↓ ArrayList[0]
+    │               ~~~
+    ╰→ com.google.android.material.textview.MaterialTextView instance
+    ​     Leaking: YES (ObjectWatcher was watching this because test main leak and View.mContext references a destroyed
+    ​     activity)
+    ​     Retaining 101.1 kB in 1413 objects
+    ​     key = f15737ab-8866-4235-af60-7cec30a144b3
+    ​     watchDurationMillis = 17861
+    ​     retainedDurationMillis = 12856
+    ​     View is part of a window view hierarchy
+    ​     View.mAttachInfo is null (view detached)
+    ​     View.mID = R.id.tv
+    ​     View.mWindowAttachCount = 1
+    ​     mContext instance of com.allinpay.testkotlin.MainActivity with mDestroyed = true
+	此时可以看到可疑溢出的地方：
+分析Gc路径：
+	FontsContract.sContext->MyApp.viewList->ArrayList[0]->MaterialTextView instance->activity
+	问题原因：MyApp.viewList持有activity中的TextView引用，导致Activity退出的时候，TextView没有退出，Activity对象无法被回收，最终引起内存溢出
+解决办法：Activity退出的时候清除viewList中的view，如下：
+	我们在Activity的onDestroy处调用如下代码：
+	tv?.let {
+		   app.viewList.remove(it)
+		}
+	退出应用后，通知栏没有显示，logcat日志显示：
+	LeakCanary: All retained objects have been garbage collected
+	说明并没有内存溢出的情况
+
+
+
+   
+
+

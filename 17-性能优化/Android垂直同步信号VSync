@@ -1,0 +1,24 @@
+Android垂直同步信号VSync的产生及传播结构详解
+https://blog.csdn.net/houliang120/article/details/50908098/
+
+
+1.VSync简单理解成是硬件定时中断貌似也可以，周期性的硬件中断，频率为60Hz，周期为0.0167s，也就是16ms
+VSync是如何产生的？
+VSync最初是在哪个进程中捕获的？
+VSync是如何分发到各个应用进程的？
+view.invalidate是如何与VSync配合，从而实现重绘的？
+
+1.在SF的init函数里面会创建一个HWComposer对象，该对象会打开HWC设备，并将HWComposer::hook_vsync作为HWC产生VSync信号的回调函数；
+2.HWComposer::hook_vsync会将VSync信号传递到SF.onVSyncReceived函数中；
+3.SF.onVSyncReceived函数调用DispSync.addResyncSample（DispSync可以认为是经过SF封装过的垂直同步信号的信号源）函数唤醒DispSync中的守护线程DispSyncThread；
+4.DispSyncThread.fireCallbackInvocations会将VSync信号分发到所有注册到DispSync.mEventListeners中满足条件的监听器的onDispSyncEvent函数中
+	从上面的4个步骤可知，所有的VSync信号都是从DispSyncThread真正分发出去的（包括SF进程和所有的应用进程）。
+
+5.注册到DispSync中的回调由 (DispSyncSource, EventThread)二元组 组成，这两个是对应的，EventThread先启动并挂起，启动后等待需要VSync信号的客户端和它创建EventThread.Connection，并加到EventThread.mDisplayEventConnections中，同时唤醒EventThread，EventThread被唤醒后接收到VSync信号会将该事件通过EventThread.Connection.postEvent将同步信号时间分发到各个客户端Connection连接
+6.Connection里面包含BitTube对象，该对象有一对直连的socket，一端发送，另一端就可以收到，SF和应用进程都是通过底层的loop（epoll机制）监听BitTube的ReceiveFd，然后把该同步信号分发到需要的地方。
+
+
+
+
+
+

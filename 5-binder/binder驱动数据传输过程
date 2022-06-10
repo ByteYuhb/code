@@ -1,0 +1,81 @@
+binder_ref{
+	binder_node node;对应服务进程节点
+}
+
+binder_node{
+	binder_proc proc;对应服务进程
+}
+
+binder_proc{
+	rb_root threads;红黑树里面的节点是binder_thread结构体
+	rb_root nodes:表示当前进程创建的binder_node节点集合，一个proc里面有多个binder_node节点，一个binder_node节点只属于一个proc，一对多关系
+}
+
+binder_thread{
+	
+}
+
+flat_binder_object{
+		type:是binder实体还是引用，只有需要注册的服务可以传binder实体，其他只能传handle引用
+		flag
+(联合体)binder(实体：处理函数)/handle(引用：服务的引用)：
+		cookie
+}
+io_data:
+|offs(4b)|offs(4b)|offs(4b)|offs(4b)
+|0000....(32b)
+|s1.len(2b)|s1(s.len b)
+|s2.len|s2...
+|flat_binder_object(type|flag|binder|cookie)
+|flat_binder_object(type|flag|binder|cookie)
+|flat_binder_object(type|flag|binder|cookie)
+|flat_binder_object(type|flag|binder|cookie)
+
+PS:offs(4个字节):代表一个flat_binder_object地址，最多可以传4个offs，即4个flat_binder_object
+string16(两个字节表示一个字符) s1 = "android.os.IServiceManager"
+string16 s2 = "hello" 注册的服务名称
+
+数据结构流程：
+	server注册过程 
+	1.server传入一个flat_binder_object给内核态。内核根据这个flat_binder_object创建binder_node节点，为每个进程服务，内部有个binder_proc.proc = server进程
+	2.serviceManager在内核态创建binder_ref引用这个binder_node，内部有一项desc = 1,2,3..，
+		在用户态会创建一个服务链表{name ="server name",handle = "server handle"}
+	client获取服务过程
+	3.client向sm查询服务，传递name
+	4.sm返回handle给驱动程序
+	5.驱动程序在sm的binder_ref_desc红黑树中根据handle找到binder_ref，
+		再根据binder_ref.node找到binder_node,
+		最后给client创建新的binder_ref指向这个binder_node，他的desc从1开始binder_ref{desc=1,node = binder_node}
+		驱动返回desc给client，即handle
+	总结：sm中的handle顺序是根据服务注册顺序显示，返回给client中的handle是根据服务获取的顺序显示的
+	client使用handle过程
+	6.：驱动里面根据handle找到找到binder_ref，根据binder_ref找到binder_node，根据binder_node找到进程server
+
+
+数据传输过程(进程切换)：
+1.client到server										2.client到server
+先写后读												先读后写
+1)client构造数据										1)读，休眠
+2)调用ioctl发数据										2)被唤醒
+3)驱动根据handle找到server进程							
+4)把数据放入server进程的binder_proc.todo链表中--------->3)从todo链表取出数据，返回用户空间
+5)休眠													4)处理
+6)被唤醒								      <---------5)把结果写给client，也是放入client的binder_proc的todo链表中
+7)从todo链表中取出返回数据
+
+
+数据如何复制：
+一般方法：
+1.client构造数据				 2.server用户态获取数据
+2.驱动copy_from_user ----------> 1.调用copy_to_user
+
+需要两次copy切换
+
+binder的方法：
+1)server-->mmap,用户态可以直接访问驱动内核态中的某块内存
+2)client构造数据
+3)驱动copy_from_user-->复制到mmap那块内存中
+4)server可以直接使用这块数据。
+
+需要一次copy切换，但是对于数据头还是需要两次copy，对数据本身不需要两次copy
+

@@ -1,0 +1,73 @@
+1.标准建造模式-变种
+
+
+5.例子说明：
+
+	代码：
+	1.生成一个Computer类（Product产品），该类里面实现一个内部类（Builder）
+	class Computer{
+		field cpu;必选
+		field ram;必选
+		field usbCount;可选
+		field keyBoard;可选
+		field dispaly;可选
+		
+		public Computer(Builder builder){
+			this.cput = builder.cpu;
+			this.ram = builder.ram;
+			this.usbCount = builder.usbCount;
+			this.keyBoard = builder.keyBoard;
+			this.dispaly = builder.dispaly;
+		}
+	
+		public void show(){
+			System.out.println("cpu"+cpu);
+			System.out.println("ram"+ram);
+			System.out.println("usbCount"+usbCount);
+			System.out.println("keyBoard"+keyBoard);
+		}
+		
+		class Builder{
+			field cpu;必选
+			field ram;必选
+			field usbCount;可选
+			field keyBoard;可选
+			field dispaly;可选
+			
+			public Builder(field cpu,field ram){
+				this.cpu = cpu;
+				this.ram = ram;
+			}
+			Builder setusbCount{
+				this.usbCount = usbCount
+				return this;
+			};
+			Builder setkeyBoard{
+				this.keyBoard = keyBoard
+				return this;
+			};
+			Builder setdispaly{
+				this.dispaly = dispaly;
+				return this;
+			};
+			
+			public Computer build(){
+				return new Computer(this);
+			}
+		}
+		
+	}
+	2.使用方式
+	class Patter{
+		public static void main(int argc,string[] argv){
+			Computer.Builder builder = new Computer.Builder("cpu","ram");
+			builder.setdispaly("dispaly")
+					.setkeyBoard("keyBoard")
+					.setusbCount("usbCount");
+			Computer c = builder.build();		
+			cProduct.show();
+		}
+	}
+总结：可以看出这种变种的建造者模式比标准的简化了很多，采用了链式调用方式
+		
+	

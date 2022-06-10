@@ -1,0 +1,72 @@
+WebView与JS交互
+
+WebView调用JS：
+	方法1：webView.loadUrl("javascript:callJS()"); 
+	方法2：webView.evaluateJavascript("javascript:callJS()", new ValueCallback<String> callback);
+	其中方法2只有在4.4以后才可以用。
+	所以两者可以结合使用：
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+			webView.evaluateJavascript("javascript:callJS()", new ValueCallback<String>() {
+				@Override
+				public void onReceiveValue(String value) {
+					Log.d("TAG","value:"+value);
+				}
+			});
+		}else{
+			webView.loadUrl("javascript:callJS()");
+		}
+		
+Js调用WebView：
+	方式1：通过 WebView的addJavascriptInterface（）进行对象映射
+		步骤1：定义一个与JS对象映射关系的Android类：AndroidtoJs
+			// 继承自Object类
+			public class AndroidtoJs extends Object {
+
+				// 定义JS需要调用的方法
+				// 被JS调用的方法必须加入@JavascriptInterface注解
+				@JavascriptInterface
+				public void hello(String msg) {
+					System.out.println("JS调用了Android的hello方法");
+				}
+			}
+		步骤2：将需要调用的JS代码以.html格式放到src/main/assets文件夹里
+			<!DOCTYPE html>
+			<html>
+			   <head>
+				  <meta charset="utf-8">
+				  <title>Carson</title>  
+				  <script>
+					 
+					
+					 function callAndroid(){
+					// 由于对象映射，所以调用test对象等于调用Android映射的对象
+						test.hello("js调用了android中的hello方法");
+					 }
+				  </script>
+			   </head>
+			   <body>
+				  //点击按钮则调用callAndroid函数
+				  <button type="button" id="button1" onclick="callAndroid()"></button>
+			   </body>
+			</html>
+		步骤3：在Android里通过WebView设置Android类与JS代码的映射
+			 mWebView.addJavascriptInterface(new AndroidtoJs(), "test");//AndroidtoJS类对象映射到js的test对象
+			// 加载JS代码
+			// 格式规定为:file:///android_asset/文件名.html
+			mWebView.loadUrl("file:///android_asset/javascript.html");
+		
+		优点：使用简单
+		缺点：存在信息泄露风险
+		
+	方式2：通过 WebViewClient 的方法shouldOverrideUrlLoading ()回调拦截 url
+		具体原理：
+			1.Android通过 WebViewClient 的回调方法shouldOverrideUrlLoading ()拦截 url
+			2.解析该 url 的协议
+			3.如果检测到是预先约定好的协议，就调用相应方法
+			即JS需要调用Android的方法
+	方式3：通过 WebChromeClient 的onJsAlert()、onJsConfirm()、onJsPrompt（）方法回调拦截JS对话框alert()、confirm()、prompt（） 消息
+		原理：Android通过 WebChromeClient 的onJsAlert()、onJsConfirm()、onJsPrompt（）方法回调分别拦截JS对话框
+			（即上述三个方法），得到他们的消息内容，然后解析即可。
+	总结：22年之后基本上4.4版本以前的机器都没有了，主要机型都支持方式1。
+
+		

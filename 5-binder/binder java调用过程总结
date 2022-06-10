@@ -1,0 +1,17 @@
+binder总结：
+
+
+1.应用跨进程调用过程：
+应用层	    Client         																	Service (addService("name",new HelloService() extends IHelloService.Stub))
+			1.IBinder binder = ServiceManager.getService("name")							HelloService.sayHello(){print("hello")};
+				binder = new BinderProxy(mObject = new BpBinder(handle) handle=服务的handle)
+			
+RPC层
+			2.IHelloService.Stub.Proxy(mRemote-->binder)
+			3.-->mRemote.transact = BinderProxy.transact									8.IHelloService.Stub.onTransact(code, data, reply, flags);根据code调用对应的方法
+			4.-->BpBinder->transact														    7.android/os/Binder.execTransact
+IPC层
+			5.IPCThreadState::self()->transact(mHandle, code, data, reply, flags);----->	6.case BR_TRANSACTION:
+																								reinterpret_cast<BBinder*>(tr.cookie)->transact(tr.code, buffer,&reply, tr.flags);
+																								
+																								

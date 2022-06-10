@@ -1,0 +1,101 @@
+备忘录模式
+现实生活中如果大家犯错误，都希望可以有后悔药可以吃。但是现实往往都是很惭愧的
+在计算机领域有没有这个后悔药呢，有的，就比如我们办公软件中的撤销，棋牌中的悔棋，数据库的回滚等都属于备忘录模式
+
+定义
+在不破坏封装性的前提下，捕获一个对象的内部状态，在对象外保存其内部状态，以便在之后有需要的时候可以返回到之前状态
+
+结构
+1.发起人角色（Originator）：记录当前时刻的内部状态，提供创建备忘录和恢复备忘录功能，实现其他业务，她可以访问备忘录里面的所有信息
+2.备忘录角色（Memento）：负责存储发起人的内部状态，在需要的时候提供状态给发起人
+3.管理者角色（Caretaker）：负责对备忘录进行管理，提供保存和获取备忘录功能，但其不能对备忘录内容进行访问
+
+
+UML
+
+代码
+结构
+1.发起人角色 Originatort
+public class Originator implements Cloneable{
+    String state;
+    public Originator(String state){
+        this.state = state;
+    }
+    public void setState(String state){
+        this.state = state;
+    }
+    public String getState(){
+        return state;
+    }
+    public Originator createMemento(){
+        return clone();
+    }
+    public void restoreState(Originator m){
+        setState(m.getState());
+    }
+
+    @NonNull
+    @Override
+    protected Originator clone(){
+        try {
+            return (Originator) super.clone();
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
+2.备忘录角色 Memento
+可使用原型模式，去掉
+/*
+public class Memento{
+	String state;
+	public Memento(String state){
+		this.state = state;
+	}
+	public void setState(String state){
+		this.state = state;
+	}
+	public String getState(){
+		return this.state;
+	}
+}
+*/
+3.管理者角色 Caretaker
+public class Caretaker<T> {
+    Object[] mementos;
+    int max = 2;
+    int top;
+    public Caretaker(){
+        mementos = new Object[max];
+        top = -1;
+    }
+    public boolean push(T memento){
+        for(int i=0;i<mementos.length;i++){
+            if(mementos[i]==memento) return false;
+        }
+        if(top>=max-1){
+            System.out.println("超过最大备份数:扩容2倍");
+            grow();
+        }
+        mementos[++top]  = memento;
+        return true;
+    }
+    public void grow(){
+        mementos = Arrays.copyOf(mementos,max=2*max);
+    }
+    public T pop(){
+        if(top<=0){
+            System.out.println("没有可用的备份");
+            return null;
+        }
+        return (T) mementos[top--];
+    }
+}
+应用场景
+1.需要保存和恢复数据的场景，如玩游戏的存档功能
+2.需要提供一个可回滚的操作，如word ppt等办公软件
+
+扩展
+备忘录和原型模式可以联合使用，让发起者继承clone接口，去掉备忘录角色
+

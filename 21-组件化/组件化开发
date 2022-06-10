@@ -1,0 +1,292 @@
+组件化：https://juejin.cn/post/6844904147641171981
+
+1.什么是组件化：
+	组件化就是将项目按功能分为几个模块，组件化和模块化类似，但是组件化是以功能分模块，而模块化是以业务分离，
+	一般组件化项目是需要配合模块化思想进行开发
+	
+2.为什么要组件化
+	1.提供复用性，一个项目可以共享给多个项目使用，避免重复造轮子
+	2.项目按功能分离，模块之间高内聚，低耦合，易于代码维护。某个组件需要改动，不会影响其他组件
+3.组件化方案
+
+main app:宿主App,可以认为是一个入口，一个宿主入口，负责生成app和加载初始化操作
+
+业务层：每个模块代表一个业务，模块之间相互隔离解耦，方便维护和易用
+
+公共层：既然是base，顾名思义，这里面包含了公共的类库。如Basexxx、Arouter、ButterKnife、工具类等
+
+基础层：提供基础服务，如图片加载，网络，数据库，视频播放，直播等
+	
+4.组件化面临的问题
+	1.跳转和路由
+	Activity跳转分为显示和隐式：
+		//显示跳转
+		Intent intent = new Intent(cotext,LoginActivity.class);
+		startActvity(intent)
+		
+		//隐示跳转
+		Intent intent = new Intent();
+		intent.setClassName("app包名" , "activity路径");
+		intent.setComponent(new Component(new Component("app报名" , "activity路径")));
+		startActivity(intent);
+		
+		1.显示跳转不符合低耦合规则，不采用
+		2.隐式跳转服务低耦合标准，但是如果跳转的app被移除或者不存在这个方式会崩溃
+			正确的方式：
+			//隐示跳转
+			Intent intent = new Intent();
+			intent.setClassName("app包名" , "activity路径");
+			intent.setComponent(new Component(new Component("app报名" , "activity路径")));
+			if (intent.resolveActivity(getPackageManager()) != null) {
+				startActivity(intent);
+			}
+			startActivity(intent);
+		
+		为了更好更优雅的实现路由跳转，我们可以使用开源库ARouter，ARouter类似中转站通过索引的方式无需依赖，达到了组件间解耦的目的
+			1、因为ARouter是所有模块层组件都会用到所以我们可以在Base中引入
+				api 'com.alibaba:arouter-api:1.5.0'
+				annotationProcessor 'com.alibaba:arouter-compiler:1.2.2'
+			2、在每个子module里添加
+				android {
+					defaultConfig {
+						...
+						javaCompileOptions {
+							annotationProcessorOptions {
+								arguments = [AROUTER_MODULE_NAME: project.getName()]
+							}
+						}
+					}
+				}
+				annotationProcessor会通过javaCompileOptions这个配置来获取当前module的名字。
+			3、在Appliction里对ARouter进行初始化，因为ARouter是所有的模块层组件都会用到，所以它的初始化放在BaseAppliction中完成。
+				public class BaseApplication extends Application {
+					@Override
+					public void onCreate() {
+						super.onCreate();
+						initComponent();
+						initRouter(this);
+					}
+					
+					 /**
+					 * 初始化ARouter
+					 */
+					private void initRouter(Application application) {
+						if (BuildConfig.DEBUG) {    // 这两行必须写在init之前，否则这些配置在init过程中将无效
+							ARouter.openLog();      //打印日志
+							ARouter.openDebug();    // 开启调试模式(如果在InstantRun模式下运行，必须开启调试模式！线上版本需要关闭,否则有安全风险)
+						}
+						ARouter.init(application);  //尽可能早，推荐在Application中初始化
+					}
+				}
+			4、在Activity中添加注解Route
+				public interface RouterPaths {
+					String LOGIN_ACTIVITY = "/login/login_activity";
+				}
+				
+				// 在支持路由的页面上添加注解(必选)
+				// 这里的路径需要注意的是至少需要有两级，/xx/xx
+				@Route(path = RouterPaths.LOGIN_ACTIVITY)
+				public class LoginActivity extends BaseActivity {
+				}
+				path是指跳转路径，要求至少两级，即/xx/xx的形式，第一个xx是指group，如果不同module中出现相同的group会报错，所以建议group用module名称标识。
+			
+			5、发起跳转操作
+				ARouter.getInstance().build(RouterPaths. LOGIN_ACTIVITY).navigation();
+				ARouter的还有很多其他功能，这里不作详细说明。
+		
+
+
+			
+
+
+
+	2.Aplication动态加载
+		Application作为程序的入口通常做一些初始化，如上面提到的ARouter，由于ARouter是所有模块层组件都要用到，
+		所以把它放在BaseApplication进行初始化。如果某个初始化操作只属于某个模块，为了降低耦合，
+		我们应该把该初始化操作放在对应模块module的Application里。如下：
+			1、在BaseModule定义接口
+				public interface IBaseApplication {
+					void init();
+					...
+				}
+			2、在ModuleConfig中进行配置
+				public interface ModuleConfig {
+
+					String LOGIN = "com.linda.login.LoginApplication";
+
+					String DETAIL = "com.linda.detail.DetailApplication";
+
+					String PAY = "com.linda.pay.PayApplication";
+
+					String[] modules = {
+							LOGIN, DETAIL, PAY
+					};
+
+				}
+			3、在BaseApplicatiion通过反射的方式获取各个module中Application的实例并调用init方法。
+				public abstract class BaseApplication extends Application implements IBaseApplication {
+
+					@Override
+					public void onCreate() {
+						super.onCreate();
+						initComponent();
+						initARouter();
+					}
+
+					/**
+					 * 初始化各组件
+					 */
+					private void initComponent() {
+						for (String module : ModuleConfig.modules) {
+							try {
+								Class clazz = Class.forName(module);
+								BaseApplicationImpl baseApplication = (BaseApplicationImpl) clazz.newInstance();
+								baseApplication.init();
+							} catch (ClassNotFoundException e) {
+								e.printStackTrace();
+							} catch (IllegalAccessException e) {
+								e.printStackTrace();
+							} catch (InstantiationException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+					...
+				}
+			4、子module中实现init方法，并进行相关初始化操作
+				public class LiveApplication extends BaseApplication {
+					@Override
+					public void init() {
+					//在这里做一些的Live相关的初始化操作
+					}
+				}
+			
+
+
+				
+			
+
+	3.模块间通信
+		BroadcastReceiver:系统提供，比较笨重，使用不够优雅。
+		EventBus:使用简单优雅，将发送这与接收者解耦，2.x使用反射方式比较耗性能，3.x使用注解方式比反射快得多。
+		但是有些情况是BroadcastReceiver、EventBus解决不了的，例如想在detail模块中获取mine模块中的数据。
+		因为detail和mine都依赖了base,所以我们可以借助base来实现。
+		1、在base中定义接口并继承ARouter的IProvider。
+			public interface IMineDataProvider extends IProvider {
+				String getMineData();
+			}
+		2、在mine模块中新建MineDataProvider类实现IMineDataProvider，并实现getMineData方法
+			@Route(path = RouterPaths.MINE_DATA_PROVIDER)
+			public class MineDataProvider implements IMineDataProvider {
+
+				@Override
+				public String getMineData() {
+					return "***已获取到mine模块中的数据***";
+				}
+
+				@Override
+				public void init(Context context) {
+
+				}
+			}
+		3、在detail中获取MineDataProvider实例并调用IMineDataProvider接口中定义的方法
+			 IMineDataProvider mineDataProvider = (IMineDataProvider) ARouter.getInstance().build(RouterPaths.MINE_DATA_PROVIDER).navigation();
+			 if (mineDataProvider != null) {
+				  mGetMineData.setText(mineDataProvider.getMineData());
+			 }
+		
+
+		
+
+		
+	资源冲突
+		1.组件化项目中有很多个module，这就难免会出现module中资源命名相同而引起引用错误的情况。
+			为此我们可以在每个module的build.gradle文件进行如下配置（例如login模块）。
+			resourcePrefix "login_"
+		2.所有的资源必须以指定的字符串（建议module名称）做前缀，不然会报错。不过这种方式只限定与xml文件，对图片资源无效，图片资源仍需要手动修改。
+		
+	单个组件运行调试
+		当项目越来越庞大时，编译或运行一次就需要花费很长时间，而组件化可以通过配置对每个模块进行单独调试，大大提高了开发效率。 我们需要对每个module进行如下配置：
+			1、在项目根目录新建common_config.gradle文件并声明变量isModuleDebug；
+				project.ext {
+					//是否允许module单独调试
+					isModuleDebug = false
+				}
+			
+			2、引入common_config配置，另外因为组件化中每个module都是一个library，如要单独运行调试需要将library换成application,在module的build.gradle中文件中做如下修改：			
+				//引入common_config配置
+				1.	apply from: "${rootProject.rootDir}/common_config.gradle"
+					if (project.ext.isModuleDebug.toBoolean()) {
+						apply plugin: 'com.android.application'
+					} else {
+						apply plugin: 'com.android.library'
+					}
+				2.	单独调试时需要添加 applicationId 
+					android {
+					defaultConfig {
+						if (project.ext.isModuleDebug.toBoolean()) {
+							// 单独调试时需要添加 applicationId 
+							applicationId "com.linda.login"
+						}
+						...
+					}
+				3.单独调试与集成调试时使用不同的 AndroidManifest.xml 文件，不需要启动Activity
+						sourceSets {
+							main {
+								 //在需要单独调试的module的src/main目录下新建manifest目录和AndroidManifest文件
+								// 单独调试与集成调试时使用不同的 AndroidManifest.xml 文件
+								if (project.ext.isModuleDebug.toBoolean()) {
+									manifest.srcFile 'src/main/manifest/AndroidManifest.xml'
+								} else {
+									manifest.srcFile 'src/main/AndroidManifest.xml'
+								}
+							}
+						}
+						
+					<!--单独调试-->
+					<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+						package="com.linda.login">
+						<application
+							android:allowBackup="true"
+							android:icon="@drawable/ic_launcher"
+							android:label="@string/login_app_name"
+							android:supportsRtl="true"
+							android:theme="@style/base_AppTheme">
+							<activity android:name=".ui.LoginActivity">
+								<intent-filter>
+									<action android:name="android.intent.action.MAIN" />
+									<category android:name="android.intent.category.LAUNCHER" />
+								</intent-filter>
+							</activity>
+						</application>
+					</manifest>
+					<!-- 集成调试-->
+					<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+						package="com.linda.login">
+						<application
+							android:allowBackup="true"
+							android:label="@string/login_app_name"
+							android:supportsRtl="true"
+							android:theme="@style/base_AppTheme">
+							<activity android:name=".ui.LoginActivity" />
+						</application>
+					</manifest>
+			
+			3、如果module单独调试，那么在app就不能再依赖此module，因为此时app和module都是project,project之间不能相互依赖，在app的build.gradle文件中做如下修改
+				dependencies {
+					if (!project.ext.isModuleDebug) {
+						implementation project(path: ':detail')
+						implementation project(path: ':login')
+						implementation project(path: ':pay')
+					}
+					implementation project(path: ':main')
+					implementation project(path: ':home')
+					implementation project(path: ':mine')
+				}
+			4.最后将isModuleDebug改为true，然后编译，便可以看到login、detail、pay模块可以独立运行调试了。
+
+
+
+
+5.Demo：https://github.com/zhoulinda/ComponentDemo
+

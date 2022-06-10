@@ -1,0 +1,666 @@
+Rxjava：
+观察者模式，责任链模式
+
+基本使用：
+    implementation 'io.reactivex.rxjava2:rxjava:3.1.5'
+   // implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
+	
+1.创建
+基本创建：
+create：创建一个完成的被观察者
+
+快速创建：
+empty():创建后直接发出complete事件
+error：快速创建只发出error事件
+never：快速创建不发出任何事件
+just：直接发送传入的事件;最多十个
+fromArray：发送数组数据
+fromIterator：发送实现遍历的接口，如list
+
+延时创建：
+defer：延迟到观察者订阅的时候再创建被观察者
+timer：快速创建一个被观察者，并在延迟多少时间后发出一个事件0
+interval：快速创建被观察者，并每延迟多少时间发送一个事件
+intervalRange：和interval一样，只是可以指定发送的事件数和发送的延迟时间
+range：快速创建被观察者，连续发送一个时间事件序列，可指定范围，每次加1
+
+变换
+map：将事件由一个函数变化
+flatMap：将事件转换为多个子事件，并合并发出，无序
+flatMapIterable：将事件转换为iterator接口
+concatMap：将事件转换为多个子事件，并合并发出，有序
+buffer：从Observable的事件中获取事件放到缓存区再发送事件
+
+组合：
+
+concat()与concatArray()：concat最多组合四个，concatArray组合无限个，按先后顺序发送，追加
+merge和mergeArray：按时间顺序组合
+startWith()与startWithArray()：在Observable提交结果之前添加数据
+
+合并
+
+zip：按照顺序对位进行合并，最终合并数量等于数据最少的那个
+reduce：把观察者需要的事件合并为一个事件，在和后一个事件合并，第一个和第二个事件合并后，合并结果和第三个事件合并，依次类推
+collect：将被观察者发送的数据收集到一个容器中。
+count：统计事件数量
+
+延迟
+
+delay:延迟一定时间Observable(被观察者)再发送事件，delay()有个多个重载的方法：
+
+do操作符
+
+1.doOnNext()与doOnEach()与doAfterNext()
+doOnNext：next方法前执行
+doAfterNext：next方法后执行
+doOnEach：每个事件方法都会执行
+2.doOnError与doAfterTerinate：
+doOnError：发送错误事件执行
+doAfterTerinate：终止后执行
+
+3.doOnSubscribe()与doOnComplete()与doFinally()
+doOnSubscribe：有观察者订阅时执行
+doOnComplete：事件完成时执行
+doFinally：事件最后执行，不管是error还是complete
+
+错误处理操作符
+
+onErrorReturn:发送错误或异常时执行，异常发送时执行指定逻辑，返回一个和原Observable相同数据类型的事件，并回调onComplete结束事件
+onErrorResumeNext：
+在被观察者Observable发生错误或者异常的时候，拦截错误并执行指定逻辑，返回一个与源Observable相同类型的新的Observable被观察者，最后回调onComplete()方法。
+
+onErrorResumeNext()与onErrorReturn()类似，区别在于：
+
+onErrorReturn()：          返回的是一个与源Observable相同类型的结果（onNext()）
+onErrorResumeNext()：返回的是与源Observable相同类型的新的Observable，也就是说可以返回多个相同类型的Observable。可以返回多个相同类型的Observable。
+
+retry：当被观察者发生错误或者异常时，重新执行原逻辑，可以指定次数
+retryWhen()：在源被观察者Observable出现错误或者异常时，通过回调新的Observable来判断是否重新尝试执行源Observable的逻辑， 如果第二个Observable没有出现错误或者异常，就会重新尝试执行源Observable的逻辑，否则会直接回调订阅者的onError()方法。
+repeat()：表示重复，可设置数字
+repeatWhen()：repeatWhen()是指有条件，重复性发送原来的被观察者Observable事件；在回调方法中创建新的Observable，通过新的observable是否重新订阅和发送事件。
+repeatUtil;重复直到什么状态停止
+
+过滤：
+
+filter：根据条件过滤
+ofType：根据类型过滤
+elementAt：根究索引来，可以在超出范围时，使用默认值
+distinct“去重
+debounce：只接受超时时间后的数据
+first:第一个事件的值，可以用elementAt或者take(1)代替
+last：最后一个和first对应
+skip：跳过前面几个
+take：将事件的前面几个事件发出和skip相反
+takeLast：将事件后面几个发出
+
+
+其他操作符
+groupBy：按某个方式排序
+cast：强制转换
+scan：通过遍历源Observable(被观察者)产生的结果，依次每个结果按照指定的规则进行计算，计算后的结果作为下一项迭代的参数，
+join：合并同一时间的值
+0  5  10  15  20
+  0 10  20  30  40   
+
+背压机制：
+发送异步事件，上游事件发送的速度太快，导致下游处理不过来，这个时候消费者可以使用背压的机制来告知上游减慢生产速度
+早期对背压情况是通过无界缓存来实现的，这种情况可能是导致缓存的数据过大，可能会出现OOM的情况
+AtomicLong原子long
+如PublishProcessor：如果未对背压进行策略，将会出现Miss背压异常，默认128
+背压策略：
+1.对于知道事件数量的情况下，可以增加缓存到合适大小
+2.使用一个无界的缓存，有OOM风险：onBackpressureBuffer
+3.使用缓存策略：onBackpressureBuffer(int capacity, Action onOverflow, BackpressureOverflowStrategy strategy)
+BackpressureOverflowStrategy:
+1.ERROR：当缓存溢出的时候会抛出一个异常；
+2.DROP_OLDEST：当缓存发生溢出的时候，会丢弃最老的值，并将新的值插入到缓存中；
+3.DROP_LATEST：当缓存发生溢出的时候，最新的值会被忽略，只有比较老的值会被传递给下游使用；
+后面两种模式会导致获取的数据不连续，由于缓存不够抛弃数据
+4.onBackpressureDrop()：不会缓存任何数据，专注于当下，新来的数据来不及处理就丢掉，以后会有更好的
+5.onBackpressureLatest：会缓存一个数据，当正在执行某个任务的时候有新的数据过来，会把它缓存起来，如果又有新的数据过来，那就把之前的替换掉，缓存里面的总是最新的。
+
+
+
+源码解析：
+1.基础源码解析
+一段经典代码：
+Disposable mDisposable = Observable.create(new ObservableOnSubscribe<Object>() {
+            @Override
+            public void subscribe(@NonNull ObservableEmitter<Object> emitter) throws Exception {
+                emitter.onNext("1");
+                emitter.onComplete();
+            }
+        }).map(new Function<Object, Object>() {
+            @Override
+            public Object apply(@NonNull Object o) throws Exception {
+                return null;
+            }
+        }).subscribeOn(Schedulers.io())
+         .observeOn(AndroidSchedulers.mainThread()).subscribe(new Consumer<Object>() {
+            @Override
+            public void accept(Object o) throws Exception {
+
+            }
+        });
+        mDisposable.dispose();
+下面我们将其分为5个步骤进行分析
+1.创建Observable
+	1.Observable.create：-->new ObservableCreate<T>(source)
+	上面代码创建了一个ObservableCreate 继承Observable
+	2.Observable.create.map(fun)-->new ObservableMap<T, R>(this, mapper)，也继承Observable
+	这里的this指的是第一步创建的ObservableCreate，此时第二步获取的ObservableMap持有第一步的ObservableCreate
+	3.Observable.create.map(fun).subscribeOn(io)-->new ObservableSubscribeOn<T>(this, scheduler)
+	通步骤2，这里的this指的是步骤2中的ObservableMap，此时持有第二步中的ObservableMap对象
+	4.Observable.create.map(fun).subscribeOn(io).observerOn(io)-->new ObservableObserveOn<T>(this, scheduler)
+	通步骤3，这里的this指的是步骤3中的ObservableSubscribeOn，此时持有第3步中的ObservableSubscribeOn对象
+	..
+	根据以上分析可以看出在调用subscribe提交被观察者之前，都是对前面的被观察者的封装，使用的是装饰器模式
+	整个链路使用的是责任链模式。按责任划分可以理解为观察者Observer和被观察者Observable模式
+
+	An(A(n-1)(A(n-2)(..A2(A1))):
+	图：创建
+
+2.订阅Observer
+1.调用subscribe方法的时候：subscribe(onNext)->subscribe(LambdaObserver)->subscribeActual(LambdaObserver);
+这里回调的是第n个被观察者的subscribeActual，假设按上面创建流程则上一个被观察者是ObservableObserveOn
+ObservableObserveOn.java
+protected void subscribeActual(Observer<? super T> observer) {//记住这里的observer是LambdaObserver
+	if (scheduler instanceof TrampolineScheduler) {
+		source.subscribe(observer);
+	} else {
+		Scheduler.Worker w = scheduler.createWorker();
+
+		source.subscribe(new ObserveOnObserver<T>(observer, w, delayError, bufferSize));
+	}
+}
+，这里回调ObservableSubscribeOn的subscribeActual方法，传入的是下游的ObserveOnObserver
+2.ObservableSubscribeOn.subscribeActual(B)()->
+	ObservableSubscribeOn.java
+	@Override
+    public void subscribeActual(final Observer<? super T> s) {
+        final SubscribeOnObserver<T> parent = new SubscribeOnObserver<T>(s);
+
+        s.onSubscribe(parent);
+
+        parent.setDisposable(scheduler.scheduleDirect(new SubscribeTask(parent)));
+    }
+	可以看到这里对传下来的LambdaObserver做了一层封装到SubscribeOnObserver对象parent中
+	
+	这里调用了scheduler.scheduleDirect(new SubscribeTask(parent))，其实是线程切换操作，具体操作到SubscribeTask的run方法
+	SubscribeTask.java
+	public void run() {
+		source.subscribe(parent);
+	}
+	这里的source是上游的被观察者ObservableMap-->
+	ObservableMap.java
+	public void subscribeActual(Observer<? super U> t) {
+        source.subscribe(new MapObserver<T, U>(t, function));
+    }
+	一样将下游传过来SubscribeOnObserver封装到了MapObserver中
+	同理这里的source是上游的ObservableCreate，
+	ObservableCreate.java
+	protected void subscribeActual(Observer<? super T> observer) {
+        CreateEmitter<T> parent = new CreateEmitter<T>(observer);
+        observer.onSubscribe(parent);//这里是订阅的时候返回的dispose参数，可以使用他终止下面的流程
+
+        try {
+            source.subscribe(parent);
+        } catch (Throwable ex) {
+            Exceptions.throwIfFatal(ex);
+            parent.onError(ex);
+        }
+    }
+	一样将下游传过来MapObserver封装到了CreateEmitter中
+	这里调用的source就是最初的新建的ObservableOnSubscribe
+	ObservableOnSubscribe.java
+	public void subscribe(@NonNull ObservableEmitter<Object> emitter) throws Exception {
+		emitter.onNext("1");
+		emitter.onComplete();
+	}
+	emitter为下游的CreateEmitter
+	上面分析可知，每层也是对下游传过来的观察者Observer进行了封装，和创建Observable类似
+	观察者的订阅过程就到这，下面分析订阅线程切换过程
+	
+	B1(B2(B3(B4(..Bn-1(Bn-))))) 这里的B1=LambdaObserver
+	图：订阅
+3.订阅线程切换
+	在调用subscribeOn创建的ObservableSubscribeOn中
+	@Override
+    public void subscribeActual(final Observer<? super T> s) {
+        ...
+        parent.setDisposable(scheduler.scheduleDirect(new SubscribeTask(parent)));
+    }
+	这里调用了scheduler.scheduleDirect，其实就是开启一个线程池进行处理，切换到指定的线程中，所以可以看出，之后调用的ObservableMap的subscribe操作其实都是运行在这个切换后的线程中
+	直到遇到调用observerOn操作。下面在onNext线程中分析
+	
+	
+	
+3.分发事件onNext
+	在订阅步骤中走到了emitter.onNext("1");
+	CreateEmitter.java
+	public void onNext(T t) {
+		...
+		if (!isDisposed()) {
+			observer.onNext(t);
+		}
+	}
+	调用了observer.onNext，这里的observer是下游的MapObserver
+	MapObserver.java
+	public void onNext(T t) {
+		...
+		try {
+			v = ObjectHelper.requireNonNull(mapper.apply(t), "The mapper function returned a null value.");
+		} catch (Throwable ex) {
+			...
+		}
+		actual.onNext(v);
+	}
+	调用了传入的function，将返回值做了新的值传入下一个观察者中，
+	由2中可知，下个Observer 是SubscribeOnObserver
+	SubscribeOnObserver.java
+	public void onNext(T t) {
+		actual.onNext(t);
+	}
+	直接调用下游的Observer，因为任务主要是切换订阅线程
+	这里的下游观察者是：ObserveOnObserver，注意这个方法是调用了observerOn指定分发线程后订阅的观察者，前面分析中没有这个，是为了减少分析步骤
+	ObserveOnObserver留到下个事件分发线程切换来讲解
+4.分发事件线程切换
+	继续3中的分析
+	ObserveOnObserver.java
+	public void onNext(T t) {
+		...
+		if (sourceMode != QueueDisposable.ASYNC) {
+			queue.offer(t);//这里将异步操作放到queue中，可以引出背压的概念，缓存事件用
+		}
+		schedule();
+	}
+	void schedule() {
+		if (getAndIncrement() == 0) {
+			worker.schedule(this);
+		}
+	}
+	这里根据worker对象，切换到对应的线程执行onNext操作
+	下面的onNext操作都会执行在这个线程上，直到再次调用obServerOn也会切换到新的线程
+	
+	通过上面的分析可知，observerOn可以执行多次
+	
+5.解除订阅dispose
+	调用mDisposable.dispose()->
+	根据之前分析这个mDisposable是最后执行subscribe操作中创建的LambdaObserver
+	Observable.java
+	public final Disposable subscribe(Consumer<? super T> onNext, Consumer<? super Throwable> onError,
+            Action onComplete, Consumer<? super Disposable> onSubscribe) {
+        ...
+        LambdaObserver<T> ls = new LambdaObserver<T>(onNext, onError, onComplete, onSubscribe);
+        ...
+        return ls;
+    }
+	LambdaObserver.java
+	
+	public void dispose() {
+        DisposableHelper.dispose(this);
+    }
+	DisposableHelper.java
+	public static boolean dispose(AtomicReference<Disposable> field) {
+        Disposable current = field.get();
+        Disposable d = DISPOSED;
+        if (current != d) {
+            current = field.getAndSet(d);
+            if (current != d) {
+                if (current != null) {
+                    current.dispose();
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+	将field置为DISPOSED：解除订阅关系
+	
+	这里的current = 上游传下来的dispose:依次向上游调用dispose解除订阅
+	注意dispose也是用了流模式，每个下游的dispose都持有上游的dispose引用，这个dispose表示每层的观察者Observer
+	
+2.Rxjava线程池实现
+	static final class SingleHolder {
+        static final Scheduler DEFAULT = new SingleScheduler();
+    }
+
+    static final class ComputationHolder {
+        static final Scheduler DEFAULT = new ComputationScheduler();
+    }
+
+    static final class IoHolder {
+        static final Scheduler DEFAULT = new IoScheduler();
+    }
+
+    static final class NewThreadHolder {
+        static final Scheduler DEFAULT = new NewThreadScheduler();
+    }
+	
+	在Schedulers内部创建了几个Scheduler的实现对象
+	根据传入的线程方法类型，返回对应的Scheduler对象
+	如IOScheduler，内部会创建一个CachedWorkerPool对象，而CachedWorkerPool内部有个get方法会创建一个ThreadWorker，后面会用到
+	
+	在订阅的时候，会调用scheduler.scheduleDirect(new SubscribeTask(parent)，这个scheduler = IoScheduler
+	执行父类Scheduler的scheduleDirect
+	public Disposable scheduleDirect(@NonNull Runnable run, long delay, @NonNull TimeUnit unit) {
+        final Worker w = createWorker();//1
+
+        final Runnable decoratedRun = RxJavaPlugins.onSchedule(run);
+
+        DisposeTask task = new DisposeTask(decoratedRun, w);//2
+
+        w.schedule(task, delay, unit);//3
+
+        return task;
+    }
+	1.这里创建了一个Worker：
+	
+	IoScheduler.java
+	public Worker createWorker() {
+        return new EventLoopWorker(pool.get());
+    }
+	2.将源task封装到一个新的DisposeTask中
+	
+	3.调用1中创建的EventLoopWorker的schedule方法
+	EventLoopWorker.java
+	public Disposable schedule(@NonNull Runnable action, long delayTime, @NonNull TimeUnit unit) {
+		if (tasks.isDisposed()) {
+			// don't schedule, we are unsubscribed
+			return EmptyDisposable.INSTANCE;
+		}
+		return threadWorker.scheduleActual(action, delayTime, unit, tasks);//5
+	}
+	
+	4.这个threadWorker是在EventLoopWorker构造方法中生成
+	
+		EventLoopWorker(CachedWorkerPool pool) {
+			this.pool = pool;
+			this.tasks = new CompositeDisposable();
+			this.threadWorker = pool.get();
+		}
+		来看CachedWorkerPool的get方法
+		CachedWorkerPool.java
+		
+		ThreadWorker get() {
+			if (allWorkers.isDisposed()) {
+				return SHUTDOWN_THREAD_WORKER;
+			}
+			while (!expiringWorkerQueue.isEmpty()) {
+				ThreadWorker threadWorker = expiringWorkerQueue.poll();
+				if (threadWorker != null) {
+					return threadWorker;
+				}
+			}
+
+			// No cached worker found, so create a new one.
+			ThreadWorker w = new ThreadWorker(threadFactory);
+			allWorkers.add(w);
+			return w;
+		}
+		可以看到创建了一个ThreadWorker，跟踪ThreadWorker的构造方法
+		ThreadWorker(ThreadFactory threadFactory) {
+			super(threadFactory);
+			this.expirationTime = 0L;
+		}
+		这里直接执行父类NewThreadWorker的构造方法
+		public NewThreadWorker(ThreadFactory threadFactory) {
+			executor = SchedulerPoolFactory.create(threadFactory);//6
+		}
+		可以看到这里创建了一个SchedulerThreadPool的线程池，周期性线程池，5中会用到
+		
+	5.继续3中的操作调用ThreadWorker的scheduleActual
+		这个方法在父类NewThreadWorker中实现了：
+		public ScheduledRunnable scheduleActual(final Runnable run, long delayTime, @NonNull TimeUnit unit, @Nullable DisposableContainer parent) {
+			...
+			Future<?> f;
+			try {
+				if (delayTime <= 0) {
+					f = executor.submit((Callable<Object>)sr);
+				} else {
+					f = executor.schedule((Callable<Object>)sr, delayTime, unit);
+				}
+				sr.setFuture(f);
+			} catch (RejectedExecutionException ex) {
+				...
+			}
+			return sr;
+		}
+		执行了executor.submit方法：executor在4中分析过是SchedulerPoolFactory
+		调用其submit接口，将任务放到线程池中去执行，这样就实现了线程切换操作
+	
+	同理调用observerOn接口设置next线程切换也是用到一个道理，这里就不再描述
+		
+	
+3.背压源码解析
+背压:异步任务中下游处理事件的速度低于上游发送事件的速度，这个时候就会出现缓存，如果缓存处理不当就会出现OOM等意想不到的情况
+为了解决背压的问题，需要根据具体的需求，设置背压规则防止出现OOM等情况
+
+为了查看背压效果，我们通过使用PublishProcessor来实验下
+
+执行以下代码：
+	PublishProcessor.create().observeOn(Schedulers.computation()).subscribe(v->compute(v),Throwable::printStackTrace);
+	int count = 1_000_000;
+	for (int i = 0; i < count; i++)
+		so.onNext(i);
+	sleep(1000);//单位秒
+	
+	private static <T> void compute(T i){
+        sleep(1);
+        System.out.println("computing : " + i);
+    }
+	结果：o.reactivex.exceptions.MissingBackpressureException: Could not emit value due to lack of requests
+	
+	然后把count改为100，试下
+	结果：正常打印到100的结果
+	
+	可以看出，事件大于某个值后就会出现MissingBackpressureException的异常
+	
+	我们来分析下里面的源码，看下这个值是在哪里设置的。
+	老规矩我们先把源码分层：
+	
+	1.创建PublishProcessor
+	2.调用observerOn创建一个任务执行切换线程的观察者
+	3.执行任务
+	
+	1.创建PublishProcessor
+	PublishProcessor.create()
+	public static <T> PublishProcessor<T> create() {
+        return new PublishProcessor<T>();//直接返回一个PublishProcessor
+    }
+	构造方法：
+	PublishProcessor() {
+        subscribers = new AtomicReference<PublishSubscription<T>[]>(EMPTY);
+    }
+	这里创建了一个PublishSubscription[]类型的AtomicReference格式的对象：默认值EMPTY = new PublishSubscription[0]，这个默认值很关键，后面会对这个值进行判断，看是否有改写
+	
+	2.调用observerOn创建一个任务执行切换线程的观察者
+	
+	通过之前我们对观察者订阅操作的分析，
+	
+	订阅回调到最上游的：PublishProcessor的subscribeActual操作
+	protected void subscribeActual(Subscriber<? super T> t) {
+        PublishSubscription<T> ps = new PublishSubscription<T>(t, this);
+        t.onSubscribe(ps);
+        ...
+    }
+	会调用t.onSubscribe(ps)订阅dispose方法：t是下游ObservableObserveOn传过来的FlowableObserveOn
+	FlowableObserveOn.java
+	public void onSubscribe(Subscription s) {
+		if (SubscriptionHelper.validate(this.s, s)) {
+			this.s = s;
+
+			if (s instanceof QueueSubscription) { 
+				@SuppressWarnings("unchecked")
+				QueueSubscription<T> f = (QueueSubscription<T>) s;
+
+				int m = f.requestFusion(ANY | BOUNDARY);
+
+				if (m == SYNC) {//1
+					sourceMode = SYNC;
+					queue = f;
+					done = true;
+
+					actual.onSubscribe(this);
+					return;
+				} else
+				if (m == ASYNC) {
+					sourceMode = ASYNC;
+					queue = f;
+
+					actual.onSubscribe(this);
+
+					s.request(prefetch);//2
+
+					return;
+				}
+			}
+
+			queue = new SpscArrayQueue<T>(prefetch);
+
+			actual.onSubscribe(this);
+
+			s.request(prefetch);//2
+		}
+	}
+	在1处这里是对异步操作进行判断，如果是actual.onSubscribe(this);
+	如果是异步操作需要调用s.request操作,这里的s = PublishSubscription[0]对象
+	PublishSubscription.java
+	public void request(long n) {
+		if (SubscriptionHelper.validate(n)) {
+			BackpressureHelper.addCancel(this, n);
+		}
+	}
+	BackpressureHelper.java
+	public static long addCancel(AtomicLong requested, long n) {
+        ...
+            long u = addCap(r, n);
+            if (requested.compareAndSet(r, u)) {
+                return r;
+            }
+        ..
+    }
+	看到在这里对requested的值进行了更改
+	通过以上步骤可以看出可以修改FlowableObserveOn中的prefetch值可以改变大小，这个就是缓存大小
+	
+	背压优化方式：
+		1.使用改变缓存大小的方式
+		  1.1：observeOn(Schedulers.computation(),false,1000)，第三个参数1000即时默认大小
+			根据FlowableObserveOn的构造方法：
+			public FlowableObserveOn(
+					Flowable<T> source,
+					Scheduler scheduler,
+					boolean delayError,
+					int prefetch) {
+				super(source);
+				this.scheduler = scheduler;
+				this.delayError = delayError;
+				this.prefetch = prefetch;
+			}
+			可知可以从外部传入值即可：observeOn(Schedulers.computation(),false,1000)，第三个参数1000即时默认大小
+			1.2：也可以通过在observerOn前面调用onBackpressureBuffer
+				这个方法在onSubscribe方法中：
+				BackpressureBufferSubscriber.java
+				public void onSubscribe(Subscription s) {
+					if (SubscriptionHelper.validate(this.s, s)) {
+						this.s = s;
+						actual.onSubscribe(this);
+						s.request(Long.MAX_VALUE);
+					}						
+				}
+				这里设置了s.request(Long.MAX_VALUE);将缓存设置为最大值
+			
+		2.使用策略模式对数据进行丢弃处理
+			onBackpressureBuffer(long capacity, Action onOverflow, BackpressureOverflowStrategy overflowStrategy) {
+			overflowStrategy：可以选择
+			ERROR：直接报错
+			DROP_LATEST：丢弃最新的数据，只存储旧的数据
+			DROP_OLDEST：丢弃旧的数据，存储新的数据
+		3.其他方式
+			onBackpressureDrop(Consumer<? super T> onDrop) ：来不及处理就丢弃，不缓存任何数据
+			onBackpressureLatest()：会缓存一个数据，当正在执行某个任务的时候有新的数据过来，会把它缓存起来，如果又有新的数据过来，那就把之前的替换掉，缓存里面的总是最新的
+			
+			
+		
+			
+			或者可以根据默认构造方法:
+			public final Flowable<T> observeOn(Scheduler scheduler) {
+				return observeOn(scheduler, false, bufferSize());
+			}
+			 public static int bufferSize() {
+				return BUFFER_SIZE;
+			}
+			static {
+				BUFFER_SIZE = Math.max(1, Integer.getInteger("rx2.buffer-size", 128));
+			}
+			这个BUFFER_SIZE是在类加载的时候设置的：所以可以通过在类加载的时候改变rx2.buffer-size即可
+	
+	以上就是背压机制的一些内容，以及我们介绍了 Flowable 中的几个背压相关的方法。实际上，RxJava 的官方文档也有说明—— Flowable 适用于数据量比较大的情景，因为它的一些创建方法本身就使用了背压机制。
+	这部分方法我们就不再一一进行说明，因为，它们的方法签名和 Observable 基本一致，只是多了一层背压机制。
+	
+
+应用：
+使用rxjava创建一个rxbus框架
+1.首先考虑使用全局的单例类，使用PublishSubject为被观察者
+	private static volatile RxBus rxbus;
+	private final Subject<Object> subject  = PublishSubject.create().toSerialized();
+	public static RxBus getRxbus(){
+		if(rxbus==null){
+			rxbus = new RxBus();
+		}
+		return rxbus;
+	}
+2.将subject转换为带背压机制的Flowable，并通过类名过滤
+	private <T> Flowable<T> getObservable(Class<T> type){
+        return subject.toFlowable(BackpressureStrategy.BUFFER).ofType(type);
+    }
+3.创建一个内部订阅接口：
+	public <T> Disposable doSubscribe(Class<T> type, Consumer<T> onNext, Consumer<Throwable> onError){
+        return getObservable(type)
+                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.computation())
+                .subscribe(onNext,onError);
+    }
+4.创建一个内部发送接口post
+	public void post(Object o){
+        subject.onNext(o);
+    }
+5.将disposes注册到map中
+	private void addSubscription(Object o, Disposable disposable) {
+        String key = o.getClass().getName();
+        if(disposableMap.get(key)!=null){
+            disposableMap.get(key).add(disposable);
+        }else{
+            CompositeDisposable compositeDisposable = new CompositeDisposable();
+            compositeDisposable.add(disposable);
+            disposableMap.put(key,compositeDisposable);
+        }
+    }
+6.解除订阅关系
+	public void unSubscribe(Object o) {
+        String key = o.getClass().getName();
+        if(!disposableMap.containsKey(key)){
+            return;
+        }
+        if(disposableMap.get(key)!=null){
+            disposableMap.get(key).dispose();
+        }
+        disposableMap.remove(key);
+    }
+7.创建两个对外接口：订阅和发送
+	订阅成功后，将订阅信息注册到map中，使用了CompositeDisposable,为了一个观察者对应多个被观察者
+	public void postEvent(Object object) {
+        RxBus.getRxbus().post(object);
+    }
+
+    public  <M> void addSubscription(Class<M> eventType, Consumer<M> action) {
+        Disposable disposable = RxBus.getRxbus().doSubscribe(eventType, action, null);
+        RxBus.getRxbus().addSubscription(this, disposable);
+    }
+
+测试，成功
+	
+
+
+
+

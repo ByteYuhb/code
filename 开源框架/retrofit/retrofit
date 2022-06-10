@@ -1,0 +1,298 @@
+rotrofit
+
+1.定义
+retrofit是对OkHttp的一次再封装，更方便对请求信息的封装处理和响应信息的解析处理
+2.使用方式
+步骤1:创建Retrofit对象
+Retrofit retrofit = new Retrofit.Builder()
+		.baseUrl("http://dict.iciba.com/") // 设置 网络请求 Url
+		.addConverterFactory(GsonConverterFactory.create()) //设置使用Gson解析(记得加入依赖)
+		.build();
+
+步骤2：创建解析类
+public class Translation {
+    private int status;
+    private message message;
+    private static class message {
+        private baesInfo baesInfo;
+        private String word_name;
+    }
+    private static class baesInfo {
+        private String from;
+        private String to;
+        private String translate_result;
+    }
+    //定义 输出返回数据 的方法
+    public void show() {
+        System.out.println(status);
+
+        System.out.println(message.baesInfo.from);
+        System.out.println(message.baesInfo.to);
+        System.out.println(message.word_name);
+        System.out.println(message.baesInfo.translate_result);
+
+    }
+
+    public String getResult() {
+        return message.baesInfo.translate_result;
+    }
+
+
+}
+步骤3.创建用于描述网络请求的接口
+public interface GetRequest_Interface {
+    @GET("/dictionary/word/query/v2?client=1&timestamp=1637143127&isChangeTo=0&sign=63243e0fb77fa81e&uuid=d6ceb7789ff04ff69355cea0a3325e40&sv=android10&v=11.1.7&uid=&translateType=-1&key=1000001&identity=12&word=%25E4%25BD%25A0%25E5%25A5%25BD%25E5%25B0%258F%25E5%25A7%2590&signature=7cdc8cee1566bde7c34a817fbab31a20")
+    Call<Translation> getCall();
+    // 注解里传入 网络请求 的部分URL地址
+    // Retrofit把网络请求的URL分成了两部分：一部分放在Retrofit对象里，另一部分放在网络请求接口里
+    // 如果接口里的url是一个完整的网址，那么放在Retrofit对象里的URL可以忽略
+    // getCall()是接受网络请求数据的方法
+}
+步骤4:创建 网络请求接口 的实例
+GetRequest_Interface request = retrofit.create(GetRequest_Interface.class);
+
+步骤5：对 发送请求 进行封装
+Call<Translation> call = request.getCall();
+
+步骤6:发送网络请求(异步)
+call.enqueue(new Callback<Translation>() {
+	//请求成功时回调
+	@Override
+	public void onResponse(Call<Translation> call, retrofit2.Response<Translation> response) {
+		// 步骤7：处理返回的数据结果
+		response.body().show();
+
+	}
+
+	//请求失败时回调
+	@Override
+	public void onFailure(Call<Translation> call, Throwable throwable) {
+		System.out.println("连接失败");
+	}
+});
+
+可以看到核心通讯还是通过okhttp来处理的，retrofit只是对okhttp做了一层再封装，更方便开发者对请求信息和响应信息的统一处理
+
+3.源码解析
+
+步骤1：
+Retrofit retrofit = new Retrofit.Builder()
+		.baseUrl("http://dict.iciba.com/") // 设置 网络请求 Url
+		.addConverterFactory(GsonConverterFactory.create()) //设置使用Gson解析(记得加入依赖)
+		.build();
+内部其实就是将请求信息：包括baseUrl还有数据解析器如例子中的GsonConverterFactory封装到Retrofit对象中
+
+步骤2：创建解析类：
+这个解析类 要严格按照响应数据的格式设置
+
+步骤3：
+public interface GetRequest_Interface {
+    @GET("/dictionary/word/query/v2?client=1&timestamp=1637143127&isChangeTo=0&sign=63243e0fb77fa81e&uuid=d6ceb7789ff04ff69355cea0a3325e40&sv=android10&v=11.1.7&uid=&translateType=-1&key=1000001&identity=12&word=%25E4%25BD%25A0%25E5%25A5%25BD%25E5%25B0%258F%25E5%25A7%2590&signature=7cdc8cee1566bde7c34a817fbab31a20")
+    Call<Translation> getCall();
+    // 注解里传入 网络请求 的部分URL地址
+    // Retrofit把网络请求的URL分成了两部分：一部分放在Retrofit对象里，另一部分放在网络请求接口里
+    // 如果接口里的url是一个完整的网址，那么放在Retrofit对象里的URL可以忽略
+    // getCall()是接受网络请求数据的方法
+}
+
+步骤4：
+GetRequest_Interface request = retrofit.create(GetRequest_Interface.class);
+我们来看retrofit的create方法
+retrofit：
+public <T> T create(final Class<T> service) {
+	validateServiceInterface(service);
+    return (T)
+        Proxy.newProxyInstance(
+            service.getClassLoader(),
+            new Class<?>[] {service},
+            new InvocationHandler() {
+              private final Platform platform = Platform.get();
+              private final Object[] emptyArgs = new Object[0];
+
+              @Override
+              public @Nullable Object invoke(Object proxy, Method method, @Nullable Object[] args)
+                  throws Throwable {
+                // If the method is a method from Object then defer to normal invocation.
+                if (method.getDeclaringClass() == Object.class) {
+                  return method.invoke(this, args);
+                }
+                args = args != null ? args : emptyArgs;
+                return platform.isDefaultMethod(method)
+                    ? platform.invokeDefaultMethod(method, service, proxy, args)
+                    : loadServiceMethod(method).invoke(args);
+              }
+            });
+
+}
+方法内部使用动态代理的模式生成一个GetRequest_Interface的代理类
+
+步骤5：
+Call<Translation> call = request.getCall();这个方法是调用到4中创建的代理类的getCall方法，一直调用到代理类的InvocationHandler的invoke方法
+下面对这个方法的分析：
+
+1.platform.isDefaultMethod(method)：判断是调用platform.invokeDefaultMethod(method, service, proxy, args)还是loadServiceMethod(method).invoke(args);
+一般都是调用loadServiceMethod(method).invoke(args);
+
+2.来看loadServiceMethod：
+	ServiceMethod<?> loadServiceMethod(Method method) {
+		ServiceMethod<?> result = serviceMethodCache.get(method);
+		if (result != null) return result;
+
+		synchronized (serviceMethodCache) {
+		  result = serviceMethodCache.get(method);
+		  if (result == null) {
+			result = ServiceMethod.parseAnnotations(this, method);
+			serviceMethodCache.put(method, result);
+		  }
+		}
+		return result;
+    }
+	先去缓存中看下有没缓存的ServiceMethod，有缓存直接返回缓存的ServiceMethod，如果没有则调用ServiceMethod.parseAnnotations去解析出一个ServiceMethod对象，并放入缓存中
+	继续看	ServiceMethod.parseAnnotations
+		static <T> ServiceMethod<T> parseAnnotations(Retrofit retrofit, Method method) {
+			RequestFactory requestFactory = RequestFactory.parseAnnotations(retrofit, method);//1
+
+			Type returnType = method.getGenericReturnType();//2
+			if (Utils.hasUnresolvableType(returnType)) {
+			  throw methodError(
+				  method,
+				  "Method return type must not include a type variable or wildcard: %s",
+				  returnType);
+			}
+			if (returnType == void.class) {
+			  throw methodError(method, "Service methods cannot return void.");
+			}
+
+			return HttpServiceMethod.parseAnnotations(retrofit, method, requestFactory);//3
+		}
+		来分析1处：
+		 static RequestFactory parseAnnotations(Retrofit retrofit, Method method) {
+			return new Builder(retrofit, method).build();
+		 }
+		 这个Builder的构造方法
+		 Builder(Retrofit retrofit, Method method) {
+		  this.retrofit = retrofit;
+		  this.method = method;
+		  this.methodAnnotations = method.getAnnotations();
+		  this.parameterTypes = method.getGenericParameterTypes();
+		  this.parameterAnnotationsArray = method.getParameterAnnotations();
+		 }
+		 可以看出这个RequestFactory方法中包含了交易的所以请求信息：retrofit，method，methodAnnotations，parameterTypes，parameterAnnotationsArray等
+		来分析2处：Type returnType = method.getGenericReturnType()：获取method的返回值类型
+		在3处：调用HttpServiceMethod.parseAnnotations(retrofit, method, requestFactory)
+		HttpServiceMethod.java
+		static <ResponseT, ReturnT> HttpServiceMethod<ResponseT, ReturnT> parseAnnotations(
+			 Annotation[] annotations = method.getAnnotations();
+			 
+			 //这个callAdapter = DefaultCallAdapterFactory的实例
+			 CallAdapter<ResponseT, ReturnT> callAdapter = createCallAdapter(retrofit, method, adapterType, annotations);
+			 
+			 //这个responseConverter = 传入的Converter的实例
+			 Converter<ResponseBody, ResponseT> responseConverter = createResponseConverter(retrofit, method, responseType);
+			 
+			 return new CallAdapted<>(requestFactory, callFactory, responseConverter, callAdapter);这里返回一个CallAdapted，内部包含了之前创建的所有有关请求的信息
+			 
+		}
+	总结loadServiceMethod作用：
+	封装一个包含所有请求信息的类，包括方法注解信息
+
+最后一步骤：call.enqueue
+	OkHttpCall.java
+	public void enqueue(final Callback<T> callback) {
+		...
+		call = rawCall = createRawCall();//1处
+		call.enqueue(//2处
+        new okhttp3.Callback() {
+          @Override
+          public void onResponse(okhttp3.Call call, okhttp3.Response rawResponse) {
+            Response<T> response;
+            try {
+              response = parseResponse(rawResponse);//3处
+            } catch (Throwable e) {
+              throwIfFatal(e);
+              callFailure(e);
+              return;
+            }
+
+            try {
+              callback.onResponse(OkHttpCall.this, response);
+            } catch (Throwable t) {
+              throwIfFatal(t);
+              t.printStackTrace(); // TODO this is not great
+            }
+          }
+
+          @Override
+          public void onFailure(okhttp3.Call call, IOException e) {
+            callFailure(e);
+          }
+
+          private void callFailure(Throwable e) {
+            try {
+              callback.onFailure(OkHttpCall.this, e);
+            } catch (Throwable t) {
+              throwIfFatal(t);
+              t.printStackTrace(); // TODO this is not great
+            }
+          }
+        });
+		...
+		
+	}
+	1处：
+	private okhttp3.Call createRawCall() throws IOException {
+		okhttp3.Call call = callFactory.newCall(requestFactory.create(args));
+		return call;
+	
+	}
+	这里的callFactory是前面构造函数里面的OkHttpClient
+	这里已经进入OkHttp部分，返回的是一个RealCall，后面就属于Okhttp范畴，可在okhttp讲解中查看。
+	OkHttpClient.java
+	
+	  public Call newCall(Request request) {
+		return RealCall.newRealCall(this, request, false /* for web socket */);
+	  }
+	然后在2处调用  RealCall.enqueue提交任务到okhttp的线程池中
+	
+	3处：调用Converter的convert方法转换response
+	Response<T> parseResponse(okhttp3.Response rawResponse) throws IOException {
+		...
+		try {
+		  T body = responseConverter.convert(catchingBody);
+		  return Response.success(body, rawResponse);
+		} catch (RuntimeException e) {
+		  
+		}
+		...
+	}
+	
+	这的responseConverter是属于GsonResponseBodyConverter的一个对象
+	使用Gson转换数据，返回给上层。返回的是传入的泛型T=最早自定义的数据格式
+	GsonResponseBodyConverter.java
+	public T convert(ResponseBody value) throws IOException {
+		JsonReader jsonReader = gson.newJsonReader(value.charStream());
+		try {
+		  return adapter.read(jsonReader);
+		} finally {
+		  value.close();
+		}
+	}
+	
+总结：
+
+1.动态代理模式创建代理类
+2.建造者模式创建Retrofit对象
+3.策略模式设置响应转换方式
+4.观察者模式通知客户端响应
+
+	
+	
+	
+	
+	
+	
+
+
+
+
+

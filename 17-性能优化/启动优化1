@@ -1,0 +1,30 @@
+App启动哪些任务要处理？
+
+1.文件系统完整性 
+2.数据库系统 
+3.网络正常与否 
+4.签名校验 
+5.安全 
+6.隐私条款的同意 	
+7.权限 
+8.引导页 
+9.广告 
+10.更新提示
+
+如何优化？
+	1.架构层面 2.用户体验(效果和速度)
+1.架构：启动器模式 图论广度优先 有向无环图 中小型项目不需要使用启动器模式，防止过度设计  拓扑排序
+Rxjava 责任链模式 appStart androidStart 任务的调度和管理自定义处理
+
+2.用户体验：需要了解android启动过程
+做到6到7点：
+	1.setContentView优化：
+		1.减少xml层级关系
+		2.处理过度绘制问题
+	2.不要再onCreate过程中增加太多耗时操作
+	3.在Activity的onWindowFocusChanged回调中进行初始化
+	4.懒加载（ViewStub，HashMap Viewpage Pagging 网络访问） 预加载
+	5.有些动作放到ContentProvider初始化的时候做leakCanry AndroidStart
+	6.代码优化
+	
+	

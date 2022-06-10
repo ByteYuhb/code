@@ -1,0 +1,139 @@
+热修复原理-资源修复：
+
+1.资源修复：
+	看install run的原理即可：
+		public static void monkeyPatchExistingResources(Context context,
+			String externalResourceFile, Collection<Activity> activities) {
+		if (externalResourceFile == null) {
+			return;
+		}
+		try {
+            // 创建一个新的AssetManager
+			AssetManager newAssetManager = (AssetManager) AssetManager.class
+					.getConstructor(new Class[0]).newInstance(new Object[0]); // ... 1
+			Method mAddAssetPath = AssetManager.class.getDeclaredMethod(
+					"addAssetPath", new Class[] { String.class }); // ... 2
+			mAddAssetPath.setAccessible(true);
+            // 通过反射调用addAssetPath方法加载外部的资源（SD卡资源）
+			if (((Integer) mAddAssetPath.invoke(newAssetManager,
+					new Object[] { externalResourceFile })).intValue() == 0) { // ... 3
+				throw new IllegalStateException(
+						"Could not create new AssetManager");
+			}
+			Method mEnsureStringBlocks = AssetManager.class.getDeclaredMethod(
+					"ensureStringBlocks", new Class[0]);
+			mEnsureStringBlocks.setAccessible(true);
+			mEnsureStringBlocks.invoke(newAssetManager, new Object[0]);
+			if (activities != null) {
+				for (Activity activity : activities) {
+					Resources resources = activity.getResources(); // ... 4
+					try { 
+                        // 反射得到Resources的AssetManager类型的mAssets字段
+						Field mAssets = Resources.class
+								.getDeclaredField("mAssets"); // ... 5
+						mAssets.setAccessible(true);
+                        // 将mAssets字段的引用替换为新创建的newAssetManager
+						mAssets.set(resources, newAssetManager); // ... 6
+					} catch (Throwable ignore) {
+					    ...
+					}
+ 
+                    // 得到Activity的Resources.Theme
+					Resources.Theme theme = activity.getTheme();
+					try {
+						try {
+                            // 反射得到Resources.Theme的mAssets字段
+							Field ma = Resources.Theme.class
+									.getDeclaredField("mAssets");
+							ma.setAccessible(true);
+                            // 将Resources.Theme的mAssets字段的引用替换为新创建的newAssetManager
+							ma.set(theme, newAssetManager); // ... 7
+						} catch (NoSuchFieldException ignore) {
+							...
+						}
+						...
+					} catch (Throwable e) {
+						Log.e("InstantRun",
+								"Failed to update existing theme for activity "
+										+ activity, e);
+					}
+					pruneResourceCaches(resources);
+				}
+			}
+            /**
+            *  根据SDK版本的不同，用不同的方式得到Resources 的弱引用集合
+            */ 
+			Collection<WeakReference<Resources>> references;
+			if (Build.VERSION.SDK_INT >= 19) {
+				Class<?> resourcesManagerClass = Class
+						.forName("android.app.ResourcesManager");
+				Method mGetInstance = resourcesManagerClass.getDeclaredMethod(
+						"getInstance", new Class[0]);
+				mGetInstance.setAccessible(true);
+				Object resourcesManager = mGetInstance.invoke(null,
+						new Object[0]);
+				try {
+					Field fMActiveResources = resourcesManagerClass
+							.getDeclaredField("mActiveResources");
+					fMActiveResources.setAccessible(true);
+ 
+					ArrayMap<?, WeakReference<Resources>> arrayMap = (ArrayMap) fMActiveResources
+							.get(resourcesManager);
+					references = arrayMap.values();
+				} catch (NoSuchFieldException ignore) {
+					Field mResourceReferences = resourcesManagerClass
+							.getDeclaredField("mResourceReferences");
+					mResourceReferences.setAccessible(true);
+ 
+					references = (Collection) mResourceReferences
+							.get(resourcesManager);
+				}
+			} else {
+				Class<?> activityThread = Class
+						.forName("android.app.ActivityThread");
+				Field fMActiveResources = activityThread
+						.getDeclaredField("mActiveResources");
+				fMActiveResources.setAccessible(true);
+				Object thread = getActivityThread(context, activityThread);
+ 
+				HashMap<?, WeakReference<Resources>> map = (HashMap) fMActiveResources
+						.get(thread);
+ 
+				references = map.values();
+			}
+            //遍历并得到弱引用集合中的 Resources ，将 Resources mAssets 字段引用替换成新的 AssetManager
+			for (WeakReference<Resources> wr : references) {
+				Resources resources = (Resources) wr.get();
+				if (resources != null) {
+					try {
+						Field mAssets = Resources.class
+								.getDeclaredField("mAssets");
+						mAssets.setAccessible(true);
+						mAssets.set(resources, newAssetManager);
+					} catch (Throwable ignore) {
+						...
+					}
+					resources.updateConfiguration(resources.getConfiguration(),
+							resources.getDisplayMetrics());
+				}
+			}
+		} catch (Throwable e) {
+			throw new IllegalStateException(e);
+		}
+	}
+	
+	在注释1处创建一 个新的 AssetManager ，
+	在注释2 和注释3 处通过反射调用 addAssetPath 方法加载外部（ SD 卡）的资源。
+	在注释4 处遍历 Activity  列表，得到每个 Activity 的 Resources ，
+	在注释5 处通过反射得到 Resources 的  AssetManager 类型的 rnAssets 字段 ，
+	注释6处改写 m Assets 字段的引用为新的 AssetManager 。
+	采用同样的方式，
+	在注释7处将 Resources. Theme 的 m Assets 字段 的引用替换为新创建的 AssetManager 。 
+	紧接着 根据 SDK 版本的不同，用不同的方式得到 Resources 的弱引用集合，
+	再遍历这个弱引用集合， 将弱引用集合中的 Resources 的 m Assets 字段引用都替换成新创建的 AssetManager 。
+	
+	资源修复原理：
+	1.创建新的AssetManager，通过反射调用addAssetPath方法，加载外部资源，这样新创建的AssetManager就含有了外部资源
+	2.将AssetManager类型的mAsset字段全部用新创建的AssetManager对象替换。
+	这样下次加载资源文件的时候就可以找到包含外部资源文件的AssetManager。
+	

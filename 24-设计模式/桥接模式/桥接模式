@@ -1,0 +1,72 @@
+桥接模式
+应用场景：
+对于一种事务有多个维度的场景，如背包：有不同品牌，不同颜色，不同种类
+这里的好几个维度如果直接创建对象，那么实现起来每增加一个维度就要修改整个代码
+使用桥接模式就可以把实现和抽象分离开来
+
+结构：
+主要包含以下几种角色：
+抽象化角色：包含一个抽象类，并包含一个实现化觉得的引用  Abstraction
+抽象化实现类：是抽象化角色的一个子类，实现父类中的业务方法，并通过组合关系调用实现化角色中的业务方法 RefinedAbstraction
+扩展角色接口：定义实现化角色的接口，供扩展抽象化角色调用 Implementor
+具体实现化角色：实现实现化角色的接口方法 ConcreteImplementor
+
+类图：
+
+代码：
+抽象化角色
+public abstract class Abstraction{
+	Implementor imple;
+	public Abstraction(Implementor imple){
+		this.imple = imple;
+	}
+	String getImplementor(){
+		return imple.operationImpl();
+	}
+	
+	public abstract String operation();
+
+}
+抽象化实现类
+public class RefinedAbstraction extends Abstraction{
+	public RefinedAbstraction(Implementor imple){
+		super(imple);
+	}
+	@overwrite
+	public String operation(){
+		return getImplementor();
+	}
+
+}
+
+扩展角色接口：定义实现化角色的接口，供扩展抽象化角色调用
+
+public interface Implementor{
+	String operationImpl();
+}
+
+具体实现化角色A：
+public class ConcreteImplementorA implements Implementor{
+	public String operationImpl(){
+		return "A";
+	}
+}
+
+具体实现化角色B：
+public class ConcreteImplementorB implements Implementor{
+	public String operationImpl(){
+		return "B";
+	}
+}
+
+Test
+void main(){
+	ConcreteImplementorA A = new ConcreteImplementorA();
+	ConcreteImplementorB B = new ConcreteImplementorB();
+	Abstraction abstractA = new RefinedAbstraction(A);
+	Abstraction abstractB = new RefinedAbstraction(B);
+	String AStr = abstractA.operation();
+	String BStr = abstractB.operation();
+	
+}
+

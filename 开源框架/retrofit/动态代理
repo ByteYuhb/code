@@ -1,0 +1,145 @@
+代理模式
+静态代理：
+动态代理技术：
+1.定义
+运行期动态生成类的方式。
+2.使用方法
+动态代理标准方式
+
+	1.创建一个接口
+	public interface Person {
+		void giveMoney();
+	}
+
+	2.创建一个接口实现类
+	public class Student implements Person {
+		private String name;
+		public Student(String name) {
+			this.name = name;
+		}
+
+		@Override
+		public void giveMoney() {
+			try {
+				//假设数钱花了一秒时间
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			System.out.println(name + "上交班费50元");
+		}
+	}
+
+	3.创建一个实现InvokerHandler实现类
+	public class StuInvocationHandler<T> implements InvocationHandler {
+		//invocationHandler持有的被代理对象
+		T target;
+
+		public StuInvocationHandler(T target) {
+			this.target = target;
+		}
+
+		/**
+		 * proxy:代表动态代理对象
+		 * method：代表正在执行的方法
+		 * args：代表调用目标方法时传入的实参
+		 */
+		@Override
+		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+			System.out.println("代理执行" +method.getName() + "方法");
+
+			//代理过程中插入监测方法,计算该方法耗时
+			MonitorUtil.start();
+			Object result = method.invoke(target, args);
+			MonitorUtil.finish(method.getName());
+			return result;
+		}
+	}
+
+	4.客户端调用方式
+		//创建一个实例对象，这个对象是被代理的对象
+		Person zhangsan = new Student("张三");
+
+		//创建一个与代理对象相关联的InvocationHandler
+		InvocationHandler stuHandler = new StuInvocationHandler<Person>(zhangsan);
+
+		//创建一个代理对象stuProxy来代理zhangsan，代理对象的每个执行方法都会替换执行Invocation中的invoke方法
+		Person stuProxy = (Person) Proxy.newProxyInstance(Person.class.getClassLoader(), new Class<?>[]{Person.class}, stuHandler);
+
+		//代理执行上交班费的方法
+		stuProxy.giveMoney();
+3.原理
+	我们来分析源码：
+	Proxy.newProxyInstance：
+	Proxy.java
+	public static Object newProxyInstance(ClassLoader loader,
+                                          Class<?>[] interfaces,
+                                          InvocationHandler h)
+        throws IllegalArgumentException
+    {
+        ...
+        /*
+         * Look up or generate the designated proxy class.
+         */
+        Class<?> cl = getProxyClass0(loader, intfs);//1处
+        ...
+            final Constructor<?> cons = cl.getConstructor(constructorParams);
+            final InvocationHandler ih = h;
+            if (!Modifier.isPublic(cl.getModifiers())) {
+                // BEGIN Android-removed: Excluded AccessController.doPrivileged call.
+                /*
+                AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                    public Void run() {
+                        cons.setAccessible(true);
+                        return null;
+                    }
+                });
+                */
+
+                cons.setAccessible(true);
+                // END Android-removed: Excluded AccessController.doPrivileged call.
+            }
+            return cons.newInstance(new Object[]{h});//3处
+        ...
+	关键代码1处：Class<?> cl = getProxyClass0(loader, intfs)：获取代理类Class对象，后面分析
+	2处和3处通过反射获取代理类的实例对象。
+	后面就可以通过这个代理类对象处理请求
+	
+	来分析1处：
+	
+	参数1：加载接口Person的类加载器
+	参数2：Person的接口信息
+		
+	private static Class<?> getProxyClass0(ClassLoader loader,
+                                           Class<?>... interfaces) {
+        if (interfaces.length > 65535) {//动态代理类方法不能超过65535
+            throw new IllegalArgumentException("interface limit exceeded");
+        }
+
+        // If the proxy class defined by the given loader implementing
+        // the given interfaces exists, this will simply return the cached copy;
+        // otherwise, it will create the proxy class via the ProxyClassFactory
+        return proxyClassCache.get(loader, interfaces);
+    }
+	核心proxyClassCache.get(loader, interfaces):表示如果缓存中有对应的class信息则直接返回，没有就通过ProxyClassFactory创建一个返回
+	来看下ProxyClassFactory的加载代理类：
+	ProxyClassFactory.java
+	/*
+	 * Generate the specified proxy class.
+	 */
+	byte[] proxyClassFile = ProxyGenerator.generateProxyClass(
+		proxyName, interfaces, accessFlags);
+
+	return defineClass0(loader, proxyName,
+						proxyClassFile, 0, proxyClassFile.length);
+	
+	再来看下这里面是如何创建的：
+	1.使用ProxyGenerator的generateProxyClass加载代理类的字节码信息
+	2.使用defineClass0和1中获取的字节码信息加载class文件
+	
+	
+	在运行期，根据接口类信息，获取字节码，用对应的ClassLoader加载一个新的class文件
+	
+3.使用场景
+	hook，插件化开发
+	

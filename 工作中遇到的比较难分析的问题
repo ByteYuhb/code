@@ -1,0 +1,44 @@
+问题1.调用Camera扫码交易的过程中偶现内核报句柄数超过最大数
+
+	1.1：查找过程：
+		1.首先分析错误日志，提示大概意思就是打开的文件句柄过多，
+		这种情况因为是偶现，概率低，很难复现，但是又一定会出现，当时也让测试做了很多测试都没得到想要的结果，客户催的急
+		2.在第一步无法解决的情况，那就只能深入内核查看，因为对内核来说一切皆文件，所以我们找到报错的文件/proc/self/fd，
+		这个文件主要作用是存储打开的文件句柄，如果超过一定数量的时候再打开文件就会显示too many open files的错误，
+		3.根据第二步的分析，我们写了一段代码去获取这个文件内容，
+			public void saveJu(String fileName){
+			   try{
+				  String savePath = Environment.getExternalStorageDirectory() + File.separator + "allinpay"
+						+ File.separator + fileName;
+				  FileOutputStream fos = new FileOutputStream(new File(savePath));
+				  File fddir = new File("/proc/self/fd");
+				  int count = 0;
+				  for(File file:fddir.listFiles()){
+					 Date lasmodify = new Date(file.lastModified());
+					 String line = String.format("%s -> %s -> %s\n", file.getName(), lasmodify.toString(), file.getCanonicalPath());
+					 fos.write(line.getBytes());
+					 count += 1;
+				  }
+				  fos.close();
+			   }catch (Exception e){
+				  e.printStackTrace();
+			   }
+			}
+		4.做了20笔交易，大概产生了90快100个句柄，很明显这是一种文件打开没释放的错误操作导致。
+		5.在分析了句柄的内容后，发现多了很多/proc/31485/fd/pipe:[895109]，然后查找代码里面对文件和线程的操作，也分析了是否是用了强引用handler导致的，
+		最后得出结论是因为在主线程中直接new了一个线程，在这个子线程中使用了高德的定位功能，高德定位会新建一个线程一直占用这个线程不退出，导致机器卡顿，甚至崩溃。
+
+	1.2：解决方案：
+		在主线程中调用高德的定位，并在使用完成后在Activity的ondestory中停止定位，这样就不会引起内存泄露。
+
+问题2：第三方应用启用https通讯报握手失败。
+	场景分析：设备中装有USDK和设备服务，以及客户自开发的第三方应用接口浮创。
+			开机启动，在浮创应用中调用https服务不会出现握手失败，如果启动了USDK支付应用后，返回浮创应用就会报握手失败。
+		初步怀疑是USDK应用做了某个操作导致浮创应用的握手信息有更改。
+	排查过程：
+		1.将浮创应用的ssl加密套件改为1.0,1.1,1.2，发现指定了ssl加密的方式，只在usdk返回的第一次会报ssl加密方式错误的问题，且数据可以正常返回显示
+		，再次判断可能和加密套件有关，查看支付sdk里面的代码，发现有一处和加密套件有关系的代码，这段代码意思在启动支付sdk的时候会新建一个临时的加密套件，
+		这样在返回浮创后，下次浮创应用启动https，就会使用这个加密套件进行握手验证，检测不通过，就会报握手失败的问题，删除这段代码，一切正常
+	解决方案：支付sdk中不生成加密套件或者开机启动的时候去生成。
+	
+	

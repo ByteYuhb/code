@@ -1,0 +1,623 @@
+协程基础语法：
+	1.协程是什么和线程有啥区别
+首先协程是一种并发设计模式，可以使用他来简化异步执行代码
+协程通过将复杂性异步操作放入库中来简化代码，程序逻辑可以在协程中顺序的表达，底层库为我们解决异步性，
+	2.什么是job Deferred，协程作用域
+Job我们可以理解为是一个协程作业，该作业运行的代码就是协程作用域中的代码，作业有很几个状态：
+	New：新建状态，未激活
+	Active：激活状态，准备启动
+	Completing：启动过程中，内部可能包括子协程启动
+	Cancelling：正在取消，为完成
+	Cancelled：取消完成
+	Completed：结束状态
+
+	图：
+										  wait children
+	+-----+ start  +--------+ complete   +-------------+  finish  +-----------+
+	| New | -----> | Active | ---------> | Completing  | -------> | Completed |
+	+-----+        +--------+            +-------------+          +-----------+
+					 |  cancel / fail       |
+					 |     +----------------+
+					 |     |
+					 V     V
+				 +------------+                           finish  +-----------+
+				 | Cancelling | --------------------------------> | Cancelled |
+				 +------------+                                   +-----------+
+
+
+	3.协程的基础用法
+runBlocking：阻塞创建协程的线程，并运行协程作用域中的job任务
+launch：不阻塞创建线程，返回一个Job，且协程没有被挂起，任务执行中可以被异步取消
+async：不阻塞创建线程，且协程没有被挂起，返回一个DeferredCoroutine，此时协程状态为Active，
+	当调用DeferredCoroutine的挂起函数如aWait的时候，协程被挂起，等待协程执行完毕，并返回最后一行，协程状态变为Completed
+	挂起函数：
+suspend是协程的关键字，表示这个一个挂起函数，每一个被suspend饰的方法只能在suspend方法或者在协程中调用。
+	4.协程并发执行：
+协程内部其实就是使用指定线程或者线程池对协程作用域中的Job进行并发操作，
+但是如果协程指定了Job任务在Main下执行，则Job任务会在主线程上和创建协程的线程同步执行
+GlobalScope.launch(Dispatchers.Main) {
+	for (index in 1 until  10) {
+		//同步执行
+		launch {
+			Log.d("launch$index", "启动一个协程")
+		}
+	}
+}
+
+协程关键知识点
+	协程调度器：
+调度器其实就是指定我们的协程任务Job在哪个线程上执行：协程给我们内置了几个调度器：
+Dispatchers.Default:默认调度器，CPU密集型任务调度器，适合处理后台计算,和rxjava中的Computed调度器一样
+Dispatchers.IO：适合处理IO操作，如网络读取，文件读取等操作
+Dispatchers.Main:主线程执行，UI线程，适合需要在UI线程上操作的，如更新UI等
+Dispatchers.Unconfined:非受限调度器，又或者称为“无所谓”调度器，不要求协程执行在特定线程上
+如果我们需要在实现一个功能：如在IO线程读取网络数据，在UI线程更新获取的UI数据，如何操作？
+协程内部给我们定义了一个挂起函数：withContext
+可以在协程内部切换线程
+GlobalScope.launch(Dispatchers.Main) {
+    val result = withContext(Dispatchers.IO) {
+        //网络请求...
+        "请求结果"
+    }
+    btn.text = result
+}
+
+	协程上下文
+CoroutineContext即协程上下文：
+它是一个包含了用户定义的一些各种不同元素的Element对象集合。
+其中主要元素是
+Job、
+协程调度器CoroutineDispatcher、
+还有包含协程异常CoroutineExceptionHandler、
+拦截器ContinuationInterceptor、
+协程名CoroutineName等。
+这些数据都是和协程密切相关的，每一个Element都一个唯一key。
+
+我们来看下他的源码：
+public interface CoroutineContext {
+    public operator fun <E : CoroutineContext.Element> get(key: Key<E>): E? //`1
+    
+    public fun <R> fold(initial: R, operation: (R, CoroutineContext.Element) -> R): R //4
+    
+    public operator fun plus(context: CoroutineContext): CoroutineContext =
+        if (context === EmptyCoroutineContext) this else context.fold(this) { ...}//2
+        
+    public fun minusKey(key: Key<*>): CoroutineContext//3
+
+    //注意这里，这个key很关键
+    public interface Key <E : CoroutineContext.Element>
+    
+     public interface Element : CoroutineContext {
+        public val key: Key<*>
+    
+        public override operator fun <E : Element> get(key: Key<E>): E? =
+            if (this.key == key) this as E else null
+        
+        public override fun <R> fold(initial: R, operation: (R, Element) -> R): R =
+            operation(initial, this)
+            
+        public override fun minusKey(key: Key<*>): CoroutineContext =
+            if (this.key == key) EmptyCoroutineContext else this
+         }
+}
+1处可以看出CoroutineContext是一个键值对形式的结构，key为他的内部类Key，而value为他的内部类Element的实例
+2处重写了CoroutineContext的+法操作符，这个操作符的重写类似于C++中对数学操作符的重写，外部可以直接使用+法对CoroutineContext进行操作，如相加
+3处减法同2
+4处fold其实是一个对context进行轮询的操作
+下面来看下上下文是如何创建的以及什么时候用到：
+我们使用launch操作来看：
+public fun CoroutineScope.launch(
+    context: CoroutineContext = EmptyCoroutineContext,
+    start: CoroutineStart = CoroutineStart.DEFAULT,
+    block: suspend CoroutineScope.() -> Unit
+): Job {
+    val newContext = newCoroutineContext(context)//1
+    val coroutine = if (start.isLazy)
+        LazyStandaloneCoroutine(newContext, block) else
+        StandaloneCoroutine(newContext, active = true)
+    coroutine.start(start, coroutine, block)
+    return coroutine
+}
+进入1处：
+public actual fun CoroutineScope.newCoroutineContext(context: CoroutineContext): CoroutineContext {
+    val combined = coroutineContext + context //2
+    val debug = if (DEBUG) combined + CoroutineId(COROUTINE_ID.incrementAndGet()) else combined 
+    return if (combined !== Dispatchers.Default && combined[ContinuationInterceptor] == null)
+        debug + Dispatchers.Default else debug
+}
+在2处coroutineContext=EmptyCoroutineContext的实例，调用了+法操作符
+public operator fun plus(context: CoroutineContext): CoroutineContext =
+        if (context === EmptyCoroutineContext) this else // fast path -- avoid lambda creation
+            context.fold(this) { acc, element ->
+                val removed = acc.minusKey(element.key)
+                if (removed === EmptyCoroutineContext) element else {
+                    // make sure interceptor is always last in the context (and thus is fast to get when present)
+                    val interceptor = removed[ContinuationInterceptor]
+                    if (interceptor == null) CombinedContext(removed, element) else {
+                        val left = removed.minusKey(ContinuationInterceptor)
+                        if (left === EmptyCoroutineContext) CombinedContext(element, interceptor) else
+                            CombinedContext(CombinedContext(left, element), interceptor)
+                    }
+                }
+            }
+根据加法操作符的实现：最后返回的是一个CombinedContext的实例对象，内部包含了n个CoroutineContext.Element的子集
+
+上面提到的
+CoroutineId(协程ID)，CoroutineName(协程名称)，CoroutineDispatcher(协程调度器)，
+ContinuationInterceptor(协程拦截器)，CoroutineExceptionHandler(协程异常处理)
+等都继承自CoroutineContext.Element
+也就是说这些操作都可以使用+，-法进行操作，放入到一个协程的上下文中，组合成一个协程的上下文内容
+加法：如果有这个key则，将覆盖原来key中对应的值，如果没有，则追加进入
+减少：如果对应的值的key存在于这个context中，则删除这个key对应的值
+例子：
+fun testCoroutineContext(){
+	val coroutineContext1 = Job() + CoroutineName("这是第一个上下文")
+	println("coroutineContext1$coroutineContext1")
+	val  coroutineContext2 = coroutineContext1 + Dispatchers.Default + CoroutineName("这是第二个上下文")
+	println("coroutineContext2$coroutineContext2")
+	val coroutineContext3 = coroutineContext2 + Dispatchers.Main + CoroutineName("这是第三个上下文")
+	println("coroutineContext3$coroutineContext3")
+}
+结果：
+D/coroutineContext1: [JobImpl{Active}@21a6a21, CoroutineName(这是第一个上下文)]
+D/coroutineContext2: [JobImpl{Active}@21a6a21, CoroutineName(这是第二个上下文), Dispatchers.Default]
+D/coroutineContext3: [JobImpl{Active}@21a6a21, CoroutineName(这是第三个上下文), Dispatchers.Main]
+可以看到第二个context覆盖了第一个context的CoroutineName，并增加了Dispatchers.Default
+第三个覆盖了第二个context的CoroutineName和Dispatchers.Main调度器
+
+	协程启动模式
+协程启动模式，顾名思义就是何时执行协程任务
+CoroutineStart启动模式是启动协程的时候，传入的第二个参数，这个参数有4中模式
+DEFAULT：默认启动模式，这个模式下协程启动之后并不是立即执行，有可能在异步操作中被提前终止
+LAZY：懒汉模式：启动协程的时候不会立即执行协程，等待我们主动调用Job的start，join或者await的时候才会执行协程代码
+ATOMIC：和DEFAULT一样也是启动协程后立即执行任务，区别是在协程执行到第一个挂七起点之前是不会响应Cancel操作，一定要在挂起后才有意义
+UNDISPATCHED ：和ATOMIC一样，区别是UNDISPATCHED在执行到第一个挂起点之前，和启动协程的线程是同一个，只有在挂起后，协程的运行线程才是协程指定的线程
+我们用一个例子来看：
+fun testCoroutineStart(){
+	val defaultJob = GlobalScope.launch{
+		println("CoroutineStart.DEFAULT")
+	}
+	defaultJob.cancel()
+	val lazyJob = GlobalScope.launch(start = CoroutineStart.LAZY) {
+		println("CoroutineStart.LAZY")
+	}
+
+	val atomicJob = GlobalScope.launch(start = CoroutineStart.ATOMIC) {
+		println("CoroutineStart.ATOMIC-挂起前")
+		delay(300)
+		println("CoroutineStart.ATOMIC-挂起后")
+	}
+	atomicJob.cancel()
+	val unDispatched = GlobalScope.launch(start = CoroutineStart.UNDISPATCHED) {
+		println("CoroutineStart.UNDISPATCHED-挂起前")
+		delay(300)
+		println("CoroutineStart.UNDISPATCHED-挂起后")
+	}
+	unDispatched.cancel()
+
+	println("${Thread.sleep(2000)}:休眠2s后，启动lazyJob")
+	lazyJob.start()
+	
+}
+结果：
+CoroutineStart.DEFAULT
+CoroutineStart.ATOMIC-挂起前
+CoroutineStart.UNDISPATCHED-挂起前
+kotlin.Unit:休眠2s后，启动lazyJob
+CoroutineStart.LAZY
+也有可能
+CoroutineStart.ATOMIC-挂起前
+CoroutineStart.UNDISPATCHED-挂起前
+kotlin.Unit:休眠2s后，启动lazyJob
+CoroutineStart.LAZY
+
+分析这个例子：
+我们在启动default模式协程后，调用了cancel，这个时候如果协程执行没有获取到cpu资源，则会直接取消执行
+在启动lazy模式的时候，延迟了2s再启动，可以发现，在延迟启动前是不会执行任务的，在调用了start把协程挂起的时候开始执行协程
+在启动atomic的时候，我们在协程内部调用了delay将函数挂起，按模式要求，在挂起前是不会受cancel影响，只有在挂起后，job的cancel才有意义，所以不会打印出挂起后的状态
+在启动unDispatched模式的时候，和atomic模式一样，在内部调用delay将函数挂起，发现和atomic结果一样
+那unDispatched特殊点在哪里呢。
+我们来看另外一个例子：
+
+fun testUnDispatched(){
+	val x = GlobalScope.launch(start = CoroutineStart.UNDISPATCHED){
+		println("挂起前-执行协程的线程id:${Thread.currentThread().id}")
+		delay(200)
+		println("挂起后-执行协程的线程id:${Thread.currentThread().id}")
+
+	}
+	println("启动协程的线程id:${Thread.currentThread().id}")
+	Thread.sleep(500)
+}
+打印结果：
+挂起前-执行协程的线程id:1
+启动协程的线程id:1
+挂起后-执行协程的线程id:12
+
+可以看到：在不指定协程运行的线程的情况下，在调用挂起函数之前协程默认使用的是主线程和启动协程的线程一致
+我们改下代码:
+增加调度器：Dispatchers.Main
+
+val x = GlobalScope.launch(context = Dispatchers.Main,start = CoroutineStart.UNDISPATCHED){
+	println("挂起前-执行协程的线程id:${Thread.currentThread().id}")
+	delay(200)
+	println("挂起后-执行协程的线程id:${Thread.currentThread().id}")
+
+}
+println("启动协程的线程id:${Thread.currentThread().id}")
+Thread.sleep(500)
+打印结果：
+挂起前-执行协程的线程id:1
+启动协程的线程id:1
+挂起后-执行协程的线程id:1
+可以看到指定线程为主线程后走的是和挂起前的线程一致都是在主线程上
+根据上面例子总结CoroutineStart.UNDISPATCHED模式：
+1.不管指定了调度器与否，挂起前的执行都在当前线程下
+2.对于指定了调度器的情况，挂起后的执行都在指定的调度器的线程下
+3.如果指定的调度器线程和当前线程一直，则挂起后也会在当前线程下执行
+
+	协程作用域
+协程作用域分为三种：
+1.顶级作用域
+没有父协程的协程所在的作用域
+2.协同作用域
+子协程锁在的作用域，当子协程出现异常，会将异常事件场地给父协程，如果父协程也被取消，则所以的子协程也会被取消
+3.主从作用域
+也是子协程所在的作用域，区别是子协程作用域出现异常不会，不会传递给父协程，所以也不会引起其他子协程被取消
+
+PS：对于父协程作用域需要等待所以的子协程作用域完成的时候才会变为Completed状态
+
+子协程会继承父协程的上下文，如果子协程的上下文在父协程中存在，则会覆盖父协程的上下文
+	来看个例子：
+	val x1 = GlobalScope.launch (context = Dispatchers.IO,start = CoroutineStart.ATOMIC){
+		println("scope1:$coroutineContext")
+		val x2 = launch(Dispatchers.Default+CoroutineName("第二个协程")) {
+			println("scope2:$coroutineContext")
+		}
+		val x3 = launch(CoroutineName("第三个协程")) {
+			println("scope3:$coroutineContext")
+		}
+	}
+	结果：
+	scope1:[CoroutineId(1), "coroutine#1":StandaloneCoroutine{Active}@7525500, Dispatchers.IO]
+	scope2:[CoroutineName(第二个协程), CoroutineId(2), "第二个协程#2":StandaloneCoroutine{Active}@18668527, Dispatchers.Default]
+	scope3:[CoroutineName(第三个协程), CoroutineId(3), "第三个协程#3":StandaloneCoroutine{Active}@5cfdb4c8, Dispatchers.IO]
+	上面可以看出：scope3继承额scope1的IO调度器，scope2因为设置了默认调度器，所以会覆盖scope1中的。
+	scope2和3设置了CoroutineName，会在1的基础上新增name的context
+
+前面提到协同作用域取消的时候，会传递给父协程，如果父协程取消，所有子协程也会被取消
+来看个例子:
+val e1 = CoroutineExceptionHandler { coroutineContext, throwable ->
+	println("exception:+$coroutineContext[CoroutineName] ${throwable.message}")
+}
+val x1 = GlobalScope.launch (Dispatchers.IO+e1,start = CoroutineStart.ATOMIC){
+	println("scope1:$coroutineContext")
+	val x2 = launch(Dispatchers.Default+CoroutineName("第二个协程")) {
+		println("scope2:$coroutineContext")
+		throw NullPointerException("testexception")
+	}
+	val x3 = launch(CoroutineName("第三个协程")) {
+		println("scope3:$coroutineContext")
+	}
+}
+打印结果：
+scope1:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@210f1e7a, CoroutineId(1), "coroutine#1":StandaloneCoroutine{Active}@4c0cd601, Dispatchers.IO]
+scope2:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@210f1e7a, CoroutineName(第二个协程), CoroutineId(2), "第二个协程#2":StandaloneCoroutine{Active}@1b89f68, Dispatchers.Default]
+exception:+[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@210f1e7a, CoroutineId(1), "coroutine#1":StandaloneCoroutine{Cancelling}@4c0cd601, Dispatchers.IO][CoroutineName] testexception
+
+可以看到父协程接收到了子协程的异常，且并没有打印出scope3
+结论：子协程将异常传递给父协程，并终止其他子协程
+
+对于主从作用域，子协程不会将异常传递给父协程：使用supervisorScope或者使用supervisorJob创建协程上下文
+我们来看个例子
+val x1 = GlobalScope.launch (Dispatchers.IO+e1,start = CoroutineStart.ATOMIC){
+	supervisorScope {
+		println("scope1:$coroutineContext")
+		val x2 = launch(Dispatchers.Default+CoroutineName("第二个协程")) {
+			println("scope2:$coroutineContext")
+			throw NullPointerException("testexception")
+		}
+		val x3 = launch(CoroutineName("第三个协程")) {
+			println("scope3:$coroutineContext")
+		}
+	}
+	val x3 = launch(CoroutineName("第四个协程")) {
+		println("scope4:$coroutineContext")
+	}
+}
+打印结果：
+scope1:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@478f98c0, CoroutineId(1), "coroutine#1":SupervisorCoroutine{Active}@3b54e532, Dispatchers.IO]
+scope2:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@478f98c0, CoroutineName(第二个协程), CoroutineId(2), "第二个协程#2":StandaloneCoroutine{Active}@1b89f68, Dispatchers.Default]
+exception:+[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@478f98c0, CoroutineName(第二个协程), CoroutineId(2), "第二个协程#2":StandaloneCoroutine{Cancelling}@1b89f68, Dispatchers.Default][CoroutineName] testexception
+scope3:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@478f98c0, CoroutineName(第三个协程), CoroutineId(3), "第三个协程#3":StandaloneCoroutine{Active}@276104b, Dispatchers.IO]
+scope4:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@478f98c0, CoroutineName(第四个协程), CoroutineId(4), "第四个协程#4":StandaloneCoroutine{Active}@4d7eff18, Dispatchers.IO]
+
+可以看到scope2异常的时候，但是并没有终止其他子协程，其他子协程还是正常执行了，且打印出了父协程的异常，那是不是就是说异常事件传递给了父协程了
+我们再来看个例子：
+val e1 = CoroutineExceptionHandler { coroutineContext, throwable ->
+	println("exception1:+$coroutineContext[CoroutineName] ${throwable.message}")
+}
+val e2 = CoroutineExceptionHandler { coroutineContext, throwable ->
+	println("exception2:+$coroutineContext[CoroutineName] ${throwable.message}")
+}
+val x1 = GlobalScope.launch (Dispatchers.IO+e1,start = CoroutineStart.ATOMIC){
+	supervisorScope {
+		println("scope1:$coroutineContext")
+		val x2 = launch(e2+Dispatchers.Default+CoroutineName("第二个协程")) {
+			println("scope2:$coroutineContext")
+			throw NullPointerException("testexception")
+		}
+		val x3 = launch(CoroutineName("第三个协程")) {
+			println("scope3:$coroutineContext")
+		}
+	}
+	val x3 = launch(CoroutineName("第四个协程")) {
+		println("scope4:$coroutineContext")
+	}
+
+}
+打印结果：
+scope1:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@54940182, CoroutineId(1), "coroutine#1":SupervisorCoroutine{Active}@17d164e8, Dispatchers.IO]
+scope2:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$2@29942327, CoroutineName(第二个协程), CoroutineId(2), "第二个协程#2":StandaloneCoroutine{Active}@2753c865, Dispatchers.Default]
+exception2:+[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$2@29942327, CoroutineName(第二个协程), CoroutineId(2), "第二个协程#2":StandaloneCoroutine{Cancelling}@2753c865, Dispatchers.Default][CoroutineName] testexception
+scope3:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@54940182, CoroutineName(第三个协程), CoroutineId(3), "第三个协程#3":StandaloneCoroutine{Active}@74d71d98, Dispatchers.IO]
+scope4:[com.allinpay.testkotlin.CoroutlineScope$Companion$testCoroutineStart$$inlined$CoroutineExceptionHandler$1@54940182, CoroutineName(第四个协程), CoroutineId(4), "第四个协程#4":StandaloneCoroutine{Active}@fa99c8a, Dispatchers.IO]
+
+设置了scope2的异常之后，并没有打印父协程中的e1异常，可以看出子协程并没有将异常事件传递给子协程，那为什么前面例子中会出现打印出父协程的异常呢？
+相信仔细看了前面内容的知道答案：子协程scope2继承了父协程的e1异常，所以打印出了父协程的异常
+
+	挂起函数
+我们先给个例子：
+val x5 = GlobalScope.launch(Dispatchers.Unconfined) {
+	println("scope1-挂起前:${Thread.currentThread().id} $coroutineContext")
+	val s = test1()
+	println("s:$s")
+	withContext(Dispatchers.IO){
+		println("scope2:${Thread.currentThread().id} $coroutineContext")
+		delay(1000)
+	}
+	println("scope1-挂起后:${Thread.currentThread().id}")
+}
+println("after")
+打印结果：
+scope1-挂起前:1 [CoroutineId(1), "coroutine#1":StandaloneCoroutine{Active}@3ab39c39, Dispatchers.Unconfined]
+run test1:1
+after
+s:test1 return
+scope2:12 [CoroutineId(1), "coroutine#1":DispatchedCoroutine{Active}@699bd409, Dispatchers.IO]
+scope1-挂起后:14
+
+在一个协程内部调用了withContext的挂起函数，看协程挂起前后的结果可知，挂起前和挂起后的代码是走在两个线程里面，
+就是说，调用挂起函数后，并没有阻塞挂起前协程的代码，而是继续运行着，而调用挂起函数，恢复协程后，启动了一个新的线程去执行了代码。
+由上面分析可知，调用挂起函数后，只是暂停了协程的执行，并没有阻塞原有线程，待挂起函数运行结束后，启动一个新的线程或者原线程空闲状态使用原线程进行处理。
+用哪个线程取决于使用的是哪个调度器和cpu的处理
+
+对挂起函数做个总结：
+挂起函数是在不阻塞原有线程的情况下，将协程挂起，并在挂起函数结束回调resumeWith回复协程的时候，
+使用原线程或者启用一个新的协程去处理，具体使用哪个取决于传入的调度器和cpu，
+挂起函数一定只能在挂起函数或者协程内部使用，如果在协程外部使用且没有在挂起函数内部使用，则编译器会报错，因为挂起函数就是为了把协程挂起而做的，
+使用bytecode编译可以发现挂起函数编译后会有个协程的参数，且这个参数不能为null
+
+协程异常处理
+异常种类：
+按作用域分：
+	主从作用域的异常：这种情况如果子协程出现异常由子线程自己处理，不会影响子协程和父协程
+	非主从作用域的异常：这种情况如果子协程出现异常，则会将异常提交给父协程并会取消父协程和子协程
+按exception类区分：
+	CancelException：这种情况不会取消父协程
+	其他异常：这种情况会取消父协程和子协程
+源码分析：
+我们启动协程的时候最终会在BaseContinuationImpl中的resumeWith中调用invokeSuspend方法来执行协程中的代码
+如果出现异常会将
+internal abstract class BaseContinuationImpl(
+    public val completion: Continuation<Any?>?
+) : Continuation<Any?>, CoroutineStackFrame, Serializable {
+    public final override fun resumeWith(result: Result<Any?>) {
+        ...
+        var param = result
+        while (true) {
+            with(current) {
+                val completion = completion!!
+                val outcome: Result<Any?> =
+                    try {
+                        // 调用 invokeSuspend 方法执行，执行协程的真正运算逻辑
+                        val outcome = invokeSuspend(param)
+                        // 协程挂起时 invokeSuspend 才会返回 COROUTINE_SUSPENDED，所以协程挂起时，其实只是协程的 resumeWith 运行逻辑执行完成，再次调用 resumeWith 时，协程挂起点之后的逻辑才能继续执行
+                        if (outcome === COROUTINE_SUSPENDED) return
+                        Result.success(outcome)
+                    } catch (exception: Throwable) {
+                        // 注意这个 catch 语句，其实协程运算中所有异常都会在这里被捕获，然后作为一种运算结果
+                        Result.failure(exception)
+                    }
+                releaseIntercepted() // this state machine instance is terminating
+                if (completion is BaseContinuationImpl) {
+                    // unrolling recursion via loop
+                    current = completion
+                    param = outcome
+                } else {
+                    // 这里实际调用的是其父类 AbstractCoroutine 的 resumeWith 方法，当捕获到异常时，调用 resumeWith(Result.failure(exception)) 更新协程状态
+                    completion.resumeWith(outcome)//3
+                    return
+                }
+            }
+        }
+    }
+}
+根据处理调用resumeWith的地方，可以看到调用invokeSuspend启动协程代码的时候，对于异常情况会返回一个Result.failure(exception)给outcome，
+然后调用3处的completion.resumeWith(outcome)：completion是父类AbstractCoroutine对象
+AbstractCoroutine.kt
+public final override fun resumeWith(result: Result<T>) {
+	val state = makeCompletingOnce(result.toState())
+	if (state === COMPLETING_WAITING_CHILDREN) return
+	afterResume(state)
+}
+继续看makeCompletingOnce方法，这个方法在JobSupport中
+ internal fun makeCompletingOnce(proposedUpdate: Any?): Any? {
+	loopOnState { state ->
+            val finalState = tryMakeCompleting(state, proposedUpdate)
+			...
+	}
+ }
+ loopOnState是对子类的轮询操作，轮询调用tryMakeCompleting取消子类的操作，如果子类还有子类则依次调用tryMakeCompleting取消子类的子类
+ state为所有子类的状态，是一个NodeList的对象：
+ List{Active}[ChildCompletion[
+ ChildHandle["coroutine#2":StandaloneCoroutine{Active}@2d6cac4c], kotlin.Unit], 
+ ChildHandle["coroutine#3":StandaloneCoroutine{Active}@46cc1f38]]
+ 来看下tryMakeCompleting的代码：
+ private fun tryMakeCompleting(state: Any?, proposedUpdate: Any?): Any? {
+	...
+	return tryMakeCompletingSlowPath(state, proposedUpdate)
+ }
+ 继续看：tryMakeCompletingSlowPath
+ private fun tryMakeCompletingSlowPath(state: Incomplete, proposedUpdate: Any?): Any? {
+ ...
+	val list = getOrPromoteCancellingList(state) ?//获取state中的list
+	notifyRootCause?.let { notifyCancelling(list, it) }//如果notifyRootCause不为null，说明出现了异常，调用notifyCancelling内部会取消所有子协程和父协程
+...
+ }
+ 继续看：notifyCancelling
+ private fun notifyCancelling(list: NodeList, cause: Throwable) {
+	// first cancel our own children
+	onCancelling(cause)
+	notifyHandlers<JobCancellingNode<*>>(list, cause)
+	// then cancel parent
+	cancelParent(cause) // tentative cancellation -- does not matter if there is no parent
+}
+来看notifyHandlers
+private inline fun <reified T: JobNode<*>> notifyHandlers(list: NodeList, cause: Throwable?) {
+	...
+	list.forEach<T> { node ->
+		try {
+			node.invoke(cause)
+		} catch (ex: Throwable) {
+			exception?.apply { addSuppressedThrowable(ex) } ?: run {
+				exception =  CompletionHandlerException("Exception in completion handler $node for $this", ex)
+			}
+		}
+	}
+	...
+}
+这里对list进行轮询一次调用node.invoke(cause)方法:
+根据前面分析可知这个node为ChildHandle的对象实例
+找到执行点：
+override fun invoke(cause: Throwable?) = childJob.parentCancelled(job)
+看到是调用了childJob.parentCancelled(job)的parentCancelled来取消子协程
+继续进入到parentCancelled中：childJob = StandaloneCoroutine协程实例
+// Parent is cancelling child
+public final override fun parentCancelled(parentJob: ParentJob) {
+	cancelImpl(parentJob)
+}
+根据源码提示这里就是父协程取消子协程的地方
+internal fun cancelImpl(cause: Any?): Boolean {
+	...
+	finalState = makeCancelling(cause)
+	...
+}
+private fun makeCancelling(cause: Any?): Any? {
+	loopOnState { state ->
+		notifyRootCause?.let { notifyCancelling(state.list, it) }
+	}
+}
+这里是不是很熟悉，对的，前面我们在分析父协程取消子协程的时候，调用了loopOnState循环遍历父协程的情况，并调用取消子协程，
+而这里就是调用取消过程中判断是不是还有子协程，如果有，继续调用notifyCancelling取消子协程的子协程，最后取消所有的子协程，回溯向上取消父协程
+相信学过二叉树遍历算法的开发人员应该对这个回溯算法不会陌生
+
+回到notifyCancelling代码处：
+除了调用取消子协程操作，还调用了cancelParent(cause) 看名字就是取消父协程
+进到里面来看看：
+private fun cancelParent(cause: Throwable): Boolean {
+	...
+	val isCancellation = cause is CancellationException
+	// No parent -- ignore CE, report other exceptions.
+	if (parent === null || parent === NonDisposableHandle) {
+		return isCancellation
+	}
+	...
+	// Notify parent but don't forget to check cancellation
+    return parent.childCancelled(cause) || isCancellation
+}
+这里对取消父协程做了判断：
+1.如果是CancellationException，则返回true，表示需要取消父协程
+2.如果没有父协程，则直接根据1中值返回
+3.如果有父协程，则调用parent.childCancelled(cause)，这种情况如果使用主从作用域:supervisorScope或者supervisorJob，则直接返回false不对父协程处理
+来看看这个childCancelled方法：parent = ChildHandleNode节点
+
+ChildHandleNode.kt
+override fun childCancelled(cause: Throwable): Boolean = job.childCancelled(cause)
+调用了job.childCancelled(cause)方法
+public open fun childCancelled(cause: Throwable): Boolean {
+	if (cause is CancellationException) return true
+	return cancelImpl(cause) && handlesException
+}
+这里再次对异常是否是CancellationException做了判断，如果是直接返回，并调用cancelImpl再次判断子协程是否被取消
+
+在tryMakeCompletingSlowPath方法中:最后调用了return finalizeFinishingState(finishing, proposedUpdate)
+private fun finalizeFinishingState(state: Finishing, proposedUpdate: Any?): Any? {
+	// Now handle the final exception
+	if (finalException != null) {
+		val handled = cancelParent(finalException) || handleJobException(finalException)
+		if (handled) (finalState as CompletedExceptionally).makeHandled()
+	}
+}
+来看这句话：val handled = cancelParent(finalException) || handleJobException(finalException)
+这里是对未捕获的异常进行处理，
+使用的是或操作，
+如果cancelParent返回false，则不再调用handleJobException方法，这个方法内部就是将异常传递给父协程
+如果返回true，则将异常传递给父协程
+这里就可以看到为什么主从作用域不会把异常传递给父协程，因为重写了parent.childCancelled返回false
+就不会调用handleJobException传递异常事件给父协程
+ 
+来看下handleJobException方法
+
+StandaloneCoroutine.kt
+override fun handleJobException(exception: Throwable): Boolean {
+	handleCoroutineException(context, exception)
+	return true
+}
+继续看handleCoroutineException方法
+@InternalCoroutinesApi
+public fun handleCoroutineException(context: CoroutineContext, exception: Throwable) {
+    // Invoke an exception handler from the context if present
+    try {
+        context[CoroutineExceptionHandler]?.let {
+            it.handleException(context, exception)//1
+            return
+        }
+    } catch (t: Throwable) {
+        handleCoroutineExceptionImpl(context, handlerException(exception, t))
+        return
+    }
+    // If a handler is not present in the context or an exception was thrown, fallback to the global handler
+    handleCoroutineExceptionImpl(context, exception)//2
+}
+handleCoroutineExceptionImpl方法：
+internal actual fun handleCoroutineExceptionImpl(context: CoroutineContext, exception: Throwable) {
+    // use additional extension handlers
+    for (handler in handlers) {
+        try {
+            handler.handleException(context, exception)
+        } catch (t: Throwable) {
+            // Use thread's handler if custom handler failed to handle exception
+            val currentThread = Thread.currentThread()
+            currentThread.uncaughtExceptionHandler.uncaughtException(currentThread, handlerException(exception, t))
+        }
+    }
+
+    // use thread's handler
+    val currentThread = Thread.currentThread()
+    currentThread.uncaughtExceptionHandler.uncaughtException(currentThread, exception)
+}
+在1处：当协程上下文设置了exceptionHandler，则调用context的exceptionHandler，并返回
+在2处：如果没有设置上下文handler，则会调用默认的全局的handlers，如果没有设置全局handlers则将异常传递给默认的uncaughtExceptionHandler处理
+
+总结;如果需要让子协程不糊影响父协程和其他子协程，则需要使用supervisorScope或者supervisorJob构建协程，这样子协程出现异常不会影响其他协程
+
+
+实际应用
+
+
+源码解析
+
+
+
+	

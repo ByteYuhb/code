@@ -1,0 +1,106 @@
+消息处理机制：
+1.为什么需要消息处理机制
+ 1.1多用于子线程处理耗时操作，将耗时操作获取的结果发给主线程更新UI
+2.消息处理机制的原理：
+ 2.1：消息机制模型见图：handler机制流程图
+ 伪代码：
+ 2.2消息轮询机制：
+ ActivityThread: main
+	Looper.prepareMainLooper();//
+		prepare(false);false表示不允许退出 主线程确实不允许退出
+			sThreadLocal.set(new Looper(quitAllowed));可以看出是使用ThreadLocal<Looper> sThreadLocal变量来存储Looper；后期可以详细看ThreadLocal源码查看具体存放方式
+				在Looper构造方法中mQueue = new MessageQueue(quitAllowed);得到MessageQueue
+		sMainLooper = myLooper();
+			return sThreadLocal.get();获取之前创建的looper。
+			
+	looper.loop
+		final Looper me = myLooper();获取该线程的looper
+		final MessageQueue queue = me.mQueue;获取改线程looper中的queue对象
+		for (;;) {
+           Message msg = queue.next(); // might block 循环获取消息队列中的数据
+				for (;;) {
+					nativePollOnce(ptr, nextPollTimeoutMillis); epool检测是否有msg需要处理，如果没有进入休眠状态，让出CPU。
+					if (msg != null && msg.target == null) {
+                    // Stalled by a barrier.  Find the next asynchronous message in the queue.
+                    do {
+                        prevMsg = msg;
+                        msg = msg.next;
+                    } while (msg != null && !msg.isAsynchronous());//同步屏障机制
+					if (prevMsg != null) {
+                            prevMsg.next = msg.next;
+                        } else {
+                            mMessages = msg.next;
+                        }
+                        msg.next = null;                   
+                        msg.markInUse();
+                        return msg;从消息队列链表中取出msg，并在queue中移除该msg。
+                }
+				}
+		   msg.target.dispatchMessage(msg);处理取出的msg。
+		}   
+  2.3消息发送机制：
+  handler.sendMessage(Message msg)
+		sendMessageDelayed(msg, 0);
+			sendMessageAtTime(msg, SystemClock.uptimeMillis() + delayMillis);
+				enqueueMessage(queue, msg, uptimeMillis);
+					msg.target = this;//将handler放到msg.target里面
+					if (mAsynchronous) {
+						msg.setAsynchronous(true);如果异步消息，将msg设置为异步状态，对于view绘制阶段，一般都会使用同步消息屏障机制优先处理绘制msg。
+					}
+					queue.enqueueMessage(msg, uptimeMillis);
+						if (msg.target == null) { //handler不能为空
+							throw new IllegalArgumentException("Message must have a target.");
+						if (msg.isInUse()) { //msg不能在使用处理中，在looper.loop中如果msg被取出，则会设置markInUse
+								throw new IllegalStateException(msg + " This message is already in use.");
+					if (mQuitting) {如果线程退出，这个标志需查看在哪里设置
+						IllegalStateException e = new IllegalStateException(
+                        msg.target + " sending message to a Handler on a dead thread");
+						Log.w(TAG, e.getMessage(), e);
+						msg.recycle();
+						return false;
+					}
+					if (p == null || when == 0 || when < p.when) {当前queue为空或者延迟时间为0或者延迟时间小余最头部msg的延迟时间，则插入到msg的头部，优先执行
+						// New head, wake up the event queue if blocked.
+						msg.next = p;
+						mMessages = msg;
+						needWake = mBlocked;//msg头插法插入队列中
+					} else {
+						// Inserted within the middle of the queue.  Usually we don't have to wake
+						// up the event queue unless there is a barrier at the head of the queue
+						// and the message is the earliest asynchronous message in the queue.
+						needWake = mBlocked && p.target == null && msg.isAsynchronous();//只有插入的数据是同步屏障消息的时候才需要唤醒looper
+						Message prev;
+						for (;;) {
+							prev = p;
+							p = p.next;
+							if (p == null || when < p.when) {
+								break;
+							}
+							if (needWake && p.isAsynchronous()) {
+								needWake = false;
+							}
+						}
+						msg.next = p; // invariant: p == prev.next
+						prev.next = msg;//msg插入队列中间位置
+					}
+					if (needWake) {
+						nativeWake(mPtr);有msg唤醒CPU处理msg。
+            }
+            }
+	
+        }	
+        }
+  
+3.Handler：
+
+构造函数
+public Handler(Callback callback, boolean async) {
+        mLooper = Looper.myLooper();获取当前线程的looper
+        if (mLooper == null) {
+            throw new RuntimeException(
+                "Can't create handler inside thread that has not called Looper.prepare()");
+        }
+        mQueue = mLooper.mQueue;
+        mCallback = callback;
+        mAsynchronous = async;设置消息是否为异步消息，一般处理消息都是同步消息，只有在view的绘制阶段会用到异步优先处理机制
+    }

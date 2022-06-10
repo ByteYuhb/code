@@ -1,0 +1,45 @@
+SystemServer启动源码分析
+1.根据之前android进程启动过程源码分析中可以看到
+1.调用SystemServer的main方法
+	 // Ensure binder calls into the system always run at foreground priority.这个就是为什么在服务保活的时候，在需要保活的服务里面启动另外一个服务可以让该保活的服务在前台，提高其优先级
+    BinderInternal.disableBackgroundScheduling(true);
+	BinderInternal.setMaxThreads(sMaxBinderThreads);设置系统最大的binder驱动线程 sMaxBinderThreads = 31个
+	Looper.prepareMainLooper();创建SystemServer应用的looper
+	System.loadLibrary("android_servers");加载SystemServer需要的so库
+	createSystemContext();创建SystemServer应用的context
+	mSystemServiceManager = new SystemServiceManager(mSystemContext);创建SystemServiceManager
+	LocalServices.addService(SystemServiceManager.class, mSystemServiceManager);将SystemServiceManager放到LocalServices的map中
+		static final ArrayMap<Class<?>, Object> sLocalServiceObjects =new ArrayMap<Class<?>, Object>();
+	// Prepare the thread pool for init tasks that can be parallelized 创建SystemServer应用使用的线程池
+    SystemServerInitThreadPool.get();
+	
+	//注册过程有addService和startService，前者是将服务注册到ServiceManager中后者是将服务注册到本地SystemServerManager中。
+	startBootstrapServices();启动引导服务
+	startCoreServices();启动核心服务
+		mSystemServiceManager.startService(DropBoxManagerService.class);启动服务并将服务注册到SystemServiceManager中，其实是一个本地注册
+		ServiceManager.addService("sec_key_att_app_id_provider",new KeyAttestationApplicationIdProviderService(context));启动服务并将服务注册到ServiceManager中，非本地注册
+	startOtherServices();启动其他服务
+		mActivityManagerService.systemReady(() -> {}
+AMS：systemReady：
+			mStackSupervisor.resumeFocusedStackTopActivityLocked();
+ActivityStackSupervisor.java:resumeFocusedStackTopActivityLocked:
+				resumeFocusedStackTopActivityLocked(null, null, null);
+					if (r == null || r.state != RESUMED) {开始的时候r=ActivityRecord为null
+						mFocusedStack.resumeTopActivityUncheckedLocked(null, null);
+ActivityStack.java:resumeTopActivityUncheckedLocked:
+							result = resumeTopActivityInnerLocked(prev, options);
+								return isOnHomeDisplay() && mStackSupervisor.resumeHomeStackTask(prev, "prevFinished");
+ActivityStackSupervisor.java:resumeHomeStackTask
+									return mService.startHomeActivityLocked(mCurrentUser, myReason);
+AMS:startHomeActivityLocked
+										Intent intent = getHomeIntent();获取Launcher Intent
+										mActivityStarter.startHomeActivityLocked(intent, aInfo, myReason);
+ActivityStarter.java:startHomeActivityLocked：
+											mSupervisor.moveHomeStackTaskToTop(reason);Returns true if the focus activity was adjusted to the home stack top activity
+											startActivityLocked
+												startActivity这里启动了Launcher的MainActivity
+											
+					}
+	
+            
+	

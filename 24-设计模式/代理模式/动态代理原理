@@ -1,0 +1,21 @@
+动态代理原理：
+1.获取代理的类
+/*
+ * Look up or generate the designated proxy class.
+ */
+Class<?> cl = getProxyClass0(loader, intfs);
+	if (interfaces.length > 65535) {接口 数不能超过65535
+		throw new IllegalArgumentException("interface limit exceeded");
+	}
+	 // If the proxy class defined by the given loader implementing
+	// the given interfaces exists, this will simply return the cached copy;
+	// otherwise, it will create the proxy class via the ProxyClassFactor
+	如果存在就从缓存中获取，不存在就通过ProxyClassFactor重新创建一个代理类
+	proxyClassCache.get(loader, interfaces);
+		
+	
+2.final Constructor<?> cons = cl.getConstructor(constructorParams);
+获取代理类构造方法
+
+3.cons.newInstance(new Object[]{h});
+获得代理类实例
