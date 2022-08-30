@@ -17,14 +17,14 @@ IntentService：
         // method that would launch the service & hand off a wakelock.
 
         super.onCreate();
-		1.创建HandlerThread
+		//1.创建HandlerThread
         HandlerThread thread = new HandlerThread("IntentService[" + mName + "]");
-        2.启动这个HandlerThread
+        //2.启动这个HandlerThread
 		3.thread.start();
-		获取HandlerThread线程的looper
+		//获取HandlerThread线程的looper
         4.mServiceLooper = thread.getLooper();
 		5.新建一个Handler并传入之前创建的HandlerThread对象的looper
-        mServiceHandler = new ServiceHandler(mServiceLooper);
+        //mServiceHandler = new ServiceHandler(mServiceLooper);
     }
 	
 	private final class ServiceHandler extends Handler {

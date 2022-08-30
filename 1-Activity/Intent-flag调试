@@ -3,45 +3,45 @@ Intent的Flag，优先级比在Activity中设置launchMode高，这样可以让�
 	一：在一个应用中
 	二：在两个应用中
 
-	1.1：设置flag=Intent.FLAG_ACTIVITY_NEW_TASK，结果和标准启动方式没区别：
-		但是设置了android:taskAffinity=“com.allinpay.usdk”之后，就会新建一个taskAffinity=“com.allinpay.usdk”的任务栈：
-		ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
-		Display #0 (activities from top to bottom):
-		  Stack #1:
-		  mFullscreen=true
-		  mBounds=null
-			Task id #904
-			mFullscreen=true
-			mBounds=null
-			mMinWidth=-1
-			mMinHeight=-1
-			mLastNonFullscreenBounds=null
-			  TaskRecord{7a3560 #904 A=com.allinpay.usdk U=0 StackId=1 sz=1}
+1.1：设置flag=Intent.FLAG_ACTIVITY_NEW_TASK，结果和标准启动方式没区别：
+	但是设置了android:taskAffinity=“com.allinpay.usdk”之后，就会新建一个taskAffinity=“com.allinpay.usdk”的任务栈：
+	ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
+	Display #0 (activities from top to bottom):
+	  Stack #1:
+	  mFullscreen=true
+	  mBounds=null
+		Task id #904
+		mFullscreen=true
+		mBounds=null
+		mMinWidth=-1
+		mMinHeight=-1
+		mLastNonFullscreenBounds=null
+		  TaskRecord{7a3560 #904 A=com.allinpay.usdk U=0 StackId=1 sz=1}
+		  Intent { flg=0x10000000 cmp=com.android.yuhb.test/.BActivity }
+			Hist #0: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
 			  Intent { flg=0x10000000 cmp=com.android.yuhb.test/.BActivity }
-				Hist #0: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
-				  Intent { flg=0x10000000 cmp=com.android.yuhb.test/.BActivity }
-				  ProcessRecord{e0dd563 29365:com.android.yuhb.test/u0a89}
-			Task id #903
-			mFullscreen=true
-			mBounds=null
-			mMinWidth=-1
-			mMinHeight=-1
-			mLastNonFullscreenBounds=null
-			  TaskRecord{88c2a19 #903 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+			  ProcessRecord{e0dd563 29365:com.android.yuhb.test/u0a89}
+		Task id #903
+		mFullscreen=true
+		mBounds=null
+		mMinWidth=-1
+		mMinHeight=-1
+		mLastNonFullscreenBounds=null
+		  TaskRecord{88c2a19 #903 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+		  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10000000 cmp=com.android.yuhb.test/.AActivity }
+			Hist #0: ActivityRecord{7ec855e u0 com.android.yuhb.test/.AActivity t903}
 			  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10000000 cmp=com.android.yuhb.test/.AActivity }
-				Hist #0: ActivityRecord{7ec855e u0 com.android.yuhb.test/.AActivity t903}
-				  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10000000 cmp=com.android.yuhb.test/.AActivity }
-				  ProcessRecord{e0dd563 29365:com.android.yuhb.test/u0a89}
+			  ProcessRecord{e0dd563 29365:com.android.yuhb.test/u0a89}
 
-			Running activities (most recent first):
-			  TaskRecord{7a3560 #904 A=com.allinpay.usdk U=0 StackId=1 sz=1}
-				Run #1: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
-			  TaskRecord{88c2a19 #903 A=com.android.yuhb.test U=0 StackId=1 sz=1}
-				Run #0: ActivityRecord{7ec855e u0 com.android.yuhb.test/.AActivity t903}
+		Running activities (most recent first):
+		  TaskRecord{7a3560 #904 A=com.allinpay.usdk U=0 StackId=1 sz=1}
+			Run #1: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
+		  TaskRecord{88c2a19 #903 A=com.android.yuhb.test U=0 StackId=1 sz=1}
+			Run #0: ActivityRecord{7ec855e u0 com.android.yuhb.test/.AActivity t903}
 
-			mResumedActivity: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
-			
-	模型如图：A-B(FLAG_ACTIVITY_NEW_TASK)(taskAffinity)	
+		mResumedActivity: ActivityRecord{3962a82 u0 com.android.yuhb.test/.BActivity t904}
+		
+模型如图：A-B(FLAG_ACTIVITY_NEW_TASK)(taskAffinity)	
 
 1.2：在两个应用中设置。不需要设置taskAffinity，默认是另外一个应用的包名
 

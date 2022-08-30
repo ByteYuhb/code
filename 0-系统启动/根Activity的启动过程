@@ -7,8 +7,9 @@
 1.要启动一个应用APP，需要先创建一个应用程序进程，这个创建过程是MS给孵化进程发送的创建进程的请求fork
 	AMS：
 	startProcessLocked：
-		int uid = app.uid;获取要创建的进程的用户uid
-		对gid创建和赋值
+		//获取要创建的进程的用户uid
+		int uid = app.uid;
+		//对gid创建和赋值
 		if (ArrayUtils.isEmpty(permGids)) {
 			gids = new int[3];
 		} else {
@@ -18,36 +19,42 @@
 		gids[0] = UserHandle.getSharedAppGid(UserHandle.getAppId(uid));
 		gids[1] = UserHandle.getCacheAppGid(UserHandle.getAppId(uid));
 		gids[2] = UserHandle.getUserGid(UserHandle.getUserId(uid));
-		if (entryPoint == null) entryPoint = "android.app.ActivityThread";设置待启动的类名
-		startResult = Process.start(entryPoint,...)启动进程
+		//设置待启动的类名
+		if (entryPoint == null) entryPoint = "android.app.ActivityThread";
+		//启动进程
+		startResult = Process.start(entryPoint,...)
 			zygoteProcess.start(processClass...)
 				startViaZygote(processClass...)
 					zygoteSendArgsAndGetResult(openZygoteSocketIfNeeded(abi), argsForZygote);
-						分析1：openZygoteSocketIfNeeded：如果没有打开孵化进程的socket通讯，那就尝试打开，如果已经打开，那就什么都不做，可能会阻塞并多次尝试连接
-									primaryZygoteState = ZygoteState.connect(mSocket);与孵化进程建立连接
-										zygoteSocket.connect(new LocalSocketAddress(socketAddress,LocalSocketAddress.Namespace.RESERVED));连接
-											zygoteInputStream = new DataInputStream(zygoteSocket.getInputStream());获取InputStream
-											zygoteWriter = new BufferedWriter(new OutputStreamWriter(zygoteSocket.getOutputStream()), 256);获取OutPutStream
-											return new ZygoteState(zygoteSocket, zygoteInputStream, zygoteWriter..)返回一个ZygoteState里面包含了输入和输出流
+						分析1：openZygoteSocketIfNeeded：//如果没有打开孵化进程的socket通讯，那就尝试打开，如果已经打开，那就什么都不做，可能会阻塞并多次尝试连接
+									primaryZygoteState = ZygoteState.connect(mSocket);//与孵化进程建立连接
+										zygoteSocket.connect(new LocalSocketAddress(socketAddress,LocalSocketAddress.Namespace.RESERVED));//连接
+											zygoteInputStream = new DataInputStream(zygoteSocket.getInputStream());//获取InputStream
+											zygoteWriter = new BufferedWriter(new OutputStreamWriter(zygoteSocket.getOutputStream()), 256);//获取OutPutStream
+											return new ZygoteState(zygoteSocket, zygoteInputStream, zygoteWriter..)//返回一个ZygoteState里面包含了输入和输出流
 						分析2：zygoteSendArgsAndGetResult(new ZygoteState(zygoteSocket, zygoteInputStream, zygoteWriter..),args)
-									writer.write(Integer.toString(args.size()));给socket写数据
-									result.pid = inputStream.readInt();从socket中读数据
+									writer.write(Integer.toString(args.size()));//给socket写数据
+									result.pid = inputStream.readInt();//从socket中读数据
 									result.usingWrapper = inputStream.readBoolean();
-									return result; result = Process.ProcessStartResult();此处已经表明应用进程启动成功
-									之后会从fork处启动应用程序进程：进程类为："android.app.ActivityThread" 方法为main，这个时候就正式进入应用程序的main方法中
+									return result; result = Process.ProcessStartResult();//此处已经表明应用进程启动成功
+									//之后会从fork处启动应用程序进程：进程类为："android.app.ActivityThread" 方法为main，这个时候就正式进入应用程序的main方法中
 									
 		
 2.android.app.ActivityThread   main方法	
 	ActivityThread.main{
 		ActivityThread thread = new ActivityThread();
         thread.attach(false);
-			mgr.attachApplication(mAppThread);调用AMS的attachApplication
+			//调用AMS的attachApplication
+			mgr.attachApplication(mAppThread);
 				attachApplicationLocked(thread, callingPid);
-					app = mPidsSelfLocked.get(pid);获取之前创建的ProcessRecord
-					thread.bindApplication(processName, appInfo, providers...)回调到ActivityThread的ApplicationThread中
-						1.包含创建Application，调用application的onCreate方法等
+					//获取之前创建的ProcessRecord
+					app = mPidsSelfLocked.get(pid);
+					//回调到ActivityThread的ApplicationThread中
+					thread.bindApplication(processName, appInfo, providers...)
+					//1.包含创建Application，调用application的onCreate方法等
 					mStackSupervisor.attachApplicationLocked(app)
-						realStartActivityLocked(hr, app, true, true)内部又调用到了realStartActivityLocked方法，这个方法之前分析过就是启动Activity的方式
+						//内部又调用到了realStartActivityLocked方法，这个方法之前分析过就是启动Activity的方式
+						realStartActivityLocked(hr, app, true, true)
 	
 	}
 

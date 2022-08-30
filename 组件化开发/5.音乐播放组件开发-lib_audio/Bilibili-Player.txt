@@ -1,0 +1,873 @@
+--------------- Metadata Starting ---------------
+version: 3.10.1
+revision: b062bf58
+lastCompiled: 2022-06-14T15:44:06+08:00
+userAgent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36
+cookieEnabled: true
+hardwareConcurrency: 4
+maxTouchPoints: 0
+deviceMemory: 8
+devicePixelRatio: 0.8999999761581421
+viewport: width:1517,height:688
+screen: width:1366,height:768,colorDepth:24
+gpu: vendor:Google Inc.,renderer:ANGLE (Intel(R) HD Graphics 5500 Direct3D11 vs_5_0 ps_5_0)
+frameUrl: https://www.bilibili.com/bangumi/play/ss41533?from_spmid=666.4.0.0
+referrer: https://www.bilibili.com/anime/?spm_id_from=333.1007.0.0
+--------------- Metadata Finished ---------------
+--------------- Contents Starting ---------------
+[2022-07-23 09:42:22] Info [FrameStatus] isEmbed:false,isEmbedSOP:false
+[2022-07-23 09:42:22] Warning [PrefetchProxy] Invalid data
+[2022-07-23 09:42:22] Info [EntryTiming] {"name":"https://s1.hdslb.com/bfs/static/player/main/core.c62a80bf.js","duration":306.84000000474043,"requestStart":246.75500000012107,"entryType":"resource","initiatorType":"script","nextHopProtocol":"h2","decodedBodySize":0,"transferSize":0,"redirectTime":0,"dnsTime":0,"tcpTime":0,"sslTime":0,"responseTime":553.5950000048615}
+[2022-07-23 09:42:22] Info [EventStore] onGraphFlatten
+[2022-07-23 09:42:22] Info [EventStore] onStorageBuild
+[2022-07-23 09:42:22] Info [EventStore] onStateCreate
+[2022-07-23 09:42:22] Info [ConfigStore] [InitialPlaybackState] 0
+[2022-07-23 09:42:22] Info [ConfigStore] [onStateCreated] {"aq":0,"vq":0}
+[2022-07-23 09:42:22] Info [StatueStore] [requestStatue] kind:0,canExitPip:,alt:
+[2022-07-23 09:42:22] Info [EventStore] onStateCreated
+[2022-07-23 09:42:22] Info [StatueStore] M_Fullscreen:true
+[2022-07-23 09:42:22] Info [EventStore] onMount
+[2022-07-23 09:42:22] Info [EventStore] onMounted
+[2022-07-23 09:42:22] Info [StoryHandler] 视频参数正常
+[2022-07-23 09:42:22] Info [PlayUrlStore] [PlayUrl] Starting on "Committed" hook
+[2022-07-23 09:42:22] Info [HttpPlayUrl] request start //api.bilibili.com/pgc/player/web/playurl?avid=726398521&cid=720072535&qn=0&fnver=0&fnval=4048&fourk=1&ep_id=510676&session=8545656b9c6a55a0f259bddaf33008ae
+[2022-07-23 09:42:22] Info [EventStore] onCommitted
+[2022-07-23 09:42:22] Info [EventStore] onPrepared Manifest: {"p":1,"aid":726398521,"cid":720072535,"pid":2,"bvid":null,"seasonId":41533,"episodeId":510676,"kind":1,"screenKind":0,"channelKind":0,"seasonType":1,"hasPrev":null,"hasNext":null,"hasPipFn":true,"hasFullscreenFn":true}
+[2022-07-23 09:42:22] Info [HttpUser] request start //api.bilibili.com/x/player/v2?aid=726398521&cid=720072535&ep_id=510676&season_id=41533
+[2022-07-23 09:42:23] Info [HttpPlayUrl] request done 200  //api.bilibili.com/pgc/player/web/playurl
+[2022-07-23 09:42:23] Info [KernelStore] [CIS] keep:false
+[2022-07-23 09:42:23] Info [KernelStore] [attachMediaSourceProxy]
+[2022-07-23 09:42:23] Info [DashAgent] [attachSource] KernelType:Dash
+[2022-07-23 09:42:23] Info [DashAgent] daq:30280,dvq:32
+[2022-07-23 09:42:23] Info [DashAgent] [attachEvent] forceCheck:undefined
+[2022-07-23 09:42:23] Info [HttpUser] request done 200  //api.bilibili.com/x/player/v2
+[2022-07-23 09:42:23] Info [HttpDanmaku] request start //api.bilibili.com/x/v2/dm/web/view?type=1&oid=720072535&pid=726398521
+[2022-07-23 09:42:23] Info [EventStore] onUserLoaded err:false,mid:null
+[2022-07-23 09:42:23] Info [MediaStore] LoadStart
+[2022-07-23 09:42:24] Info [HttpDanmaku] request done 200  //api.bilibili.com/x/v2/dm/web/view?type=1&oid=720072535&pid=726398521
+[2022-07-23 09:42:24] Info [HttpDanmaku] request start //api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid=720072535&pid=726398521&segment_index=1
+[2022-07-23 09:42:24] Info [HttpDanmaku] request done 200  //api.bilibili.com/x/v2/dm/web/seg.so?type=1&oid=720072535&pid=726398521&segment_index=1
+[2022-07-23 09:42:24] Info [MediaStore] Loadedmetadata
+[2022-07-23 09:42:24] Info [DashAgent] [setInitQuality] q:0
+[2022-07-23 09:42:24] Info [QualityStore] [setRenderedQuality] initialA:0
+[2022-07-23 09:42:24] Info [QualityStore] [setRenderedQuality] nowQ:0,targetQ:0,
+[2022-07-23 09:42:24] Info [QualityStore] [setRenderedQuality] Only audio rendered
+[2022-07-23 09:42:25] Info [MediaStore] LoadedData
+[2022-07-23 09:42:25] Info [HttpPlayUrl] [hit] //api.bilibili.com/pgc/player/web/playurl?avid=726398521&cid=720072535&qn=0&fnver=0&fnval=4048&fourk=1&ep_id=510676&session=8545656b9c6a55a0f259bddaf33008ae
+[2022-07-23 09:42:25] Info [HttpUser] [hit] //api.bilibili.com/x/player/v2?aid=726398521&cid=720072535&ep_id=510676&season_id=41533
+[2022-07-23 09:42:25] Info [HttpView] request start //api.bilibili.com/pgc/view/web/season?ep_id=510676
+[2022-07-23 09:42:25] Info [HttpVideoShot] request start //api.bilibili.com/x/player/videoshot?aid=726398521&cid=720072535
+[2022-07-23 09:42:25] Info [HttpUser] [hit] //api.bilibili.com/x/player/v2?aid=726398521&cid=720072535&ep_id=510676&season_id=41533
+[2022-07-23 09:42:25] Info [MediaHandler] [autoplay:1] start
+[2022-07-23 09:42:25] Info [SAPIStore] [play] alt:{"initiator":"Initial:Autoplay"}
+[2022-07-23 09:42:25] Info [MediaHandler] startAutoPlayback
+[2022-07-23 09:42:25] Info [HttpBroadcast] request start //api.bilibili.com/x/web-interface/broadcast/servers?platform=web
+[2022-07-23 09:42:25] Info [MediaHandler] [autoplay:1] done
+[2022-07-23 09:42:26] Info [HttpView] request done 200  //api.bilibili.com/pgc/view/web/season
+[2022-07-23 09:42:26] Info [HttpVideoShot] request done 200  //api.bilibili.com/x/player/videoshot
+[2022-07-23 09:42:26] Info [HttpBroadcast] request done 200  //api.bilibili.com/x/web-interface/broadcast/servers
+[2022-07-23 09:42:52] Info [SAPIStore] [pause] alt:{"initiator":"ManualAction"}
+[2022-07-23 09:42:54] Info [SAPIStore] [play] alt:{"initiator":"ManualAction"}
+[2022-07-23 09:44:13] Info [SAPIStore] [pause] alt:{"initiator":"ManualAction"}
+[2022-07-23 09:44:15] Info [SAPIStore] [play] alt:{"initiator":"ManualAction"}
+[2022-07-23 09:44:16] Info [SAPIStore] [pause] alt:{"initiator":"ManualAction"}
+[2022-07-23 09:45:29] Info [HttpDmLike] request start //api.bilibili.com/x/v2/dm/thumbup/stats?oid=720072535&ids=1054490516013472512
+[2022-07-23 09:45:29] Info [HttpDmLike] request start //api.bilibili.com/x/v2/dm/thumbup/stats?oid=720072535&ids=1054490516013472512
+[2022-07-23 09:45:37] Info [HttpDmLike] request done 200  //api.bilibili.com/x/v2/dm/thumbup/stats
+[2022-07-23 09:45:38] Info [HttpDmLike] request done 200  //api.bilibili.com/x/v2/dm/thumbup/stats
+--------------- Contents Finished ---------------
+
+mozilla/5.0 (windows nt 6.1; wow64) applewebkit/537.36 (khtml, like gecko) chrome/86.0.4240.198 safari/537.36
+[0]Ability: isAV1CodecSupported: 1, isAV1HasCurrentQn: true        isHEVCCodecSupported: 0, isHEVCHasCurrentQn: true
+[1] Apply AV1 strategy, enable: true, preferType: 0, hardwareLimit: 120, softwareLimit: 116, prevEnableAV1Error: false
+Dash player log history, {"version":"1.13.10","gitHash":"907064e5","build":281,"release":"2022-06-06T09:11:13.040Z","mode":"production"}
+[7] Streaming Initialized 
+[13] Parsing complete: ( xml2json: 1.82ms, objectiron: 0.00500ms, total: 0.00182s) 
+[15] Set default quality for video - 1 
+[15] Set default quality for audio - 2 
+[22] Added 0 inline events 
+[23] video codec: video/mp4;codecs="av01.0.01M.08.0.110.01.01.01.0" 
+[47] Perform SIDX load: https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[47] audio codec: audio/mp4;codecs="mp4a.40.2" 
+[51] Perform SIDX load: https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[52] Start Event Controller 
+[53] MediaSource attached to element.  Waiting on open... 
+[54] Manifest has been refreshed at Sat Jul 23 2022 09:42:23 GMT+0800 (中国标准时间)[1658540543.796]  
+[54] Playback Initialized 
+[54] [dash.js 2.7.0] MediaPlayer has been initialized 
+[151] MediaSource is open! 
+[152] Duration successfully set to: 1423 
+[241] Parsing segments from SIDX. 
+[241] Set real min period duration 1423.255 ( 0 ) 
+[493] Parsing segments from SIDX. 
+[494] Set real min period duration 1423.255 ( 0 ) 
+[496] [ScheduleController][ video ] start 
+[496] [ScheduleController][ video ] isFragmentProcessingInProgress is already equal to false 
+[496] [ScheduleController][ audio ] start 
+[496] [ScheduleController][ audio ] isFragmentProcessingInProgress is already equal to false 
+[501] Top quality video index has changed from undefined to 3 
+[501] ScheduleController - video - quality has changed, get init request for representationid = 32 
+[502] [ScheduleController][ video ] isFragmentProcessingInProgress is already equal to true 
+[504] Top quality audio index has changed from undefined to 2 
+[504] ScheduleController - audio - quality has changed, get init request for representationid = 30280 
+[504] [ScheduleController][ audio ] isFragmentProcessingInProgress is already equal to true 
+[534] push video {"index":null,"isCurrentNaNRequest":true,"isMediaRequest":false,"currentTime":0,"range":"0-940"} 
+[535] Init fragment finished loading saving to video's init cache 
+[535] Append Init fragment video  with representationId: 32  and quality: 1 
+[535] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[761] push audio {"index":null,"isCurrentNaNRequest":true,"isMediaRequest":false,"currentTime":0,"range":"0-919"} 
+[761] Init fragment finished loading saving to audio's init cache 
+[761] Append Init fragment audio  with representationId: 30280  and quality: 2 
+[761] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[857] Getting the request for video time : 0 
+[858] SegmentBase: 0 / 1423.255 
+[858] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[877] Native video element event: loadedmetadata 
+[878] Getting the request for audio time : 0 
+[878] SegmentBase: 0.02 / 1423.255 
+[878] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[959] push video {"index":0,"isLastNaNRequest":true,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":true,"isMediaRequest":true,"currentTime":0,"range":"4745-172531"} 
+[960] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[966] Getting the request for video time : 5.005 
+[966] SegmentBase: 0 / 1423.255 
+[967] Getting the next request at index: 1, type: video 
+[967] SegmentBase: 5.005 / 1423.255 
+[967] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[1067] push video {"index":1,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":true,"isMediaRequest":true,"currentTime":0,"range":"172532-312571"} 
+[1067] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[1071] Getting the request for video time : 10.01 
+[1071] Index for video time 10.01 is 1 
+[1071] SegmentBase: 5.005 / 1423.255 
+[1071] Getting the next request at index: 2, type: video 
+[1071] SegmentBase: 10.01 / 1423.255 
+[1071] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[1182] push video {"index":2,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":true,"isMediaRequest":true,"currentTime":0,"range":"312572-434653"} 
+[1183] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[1669] push audio {"index":0,"isLastNaNRequest":true,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":true,"isMediaRequest":true,"currentTime":0,"range":"4372-205259"} 
+[1669] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[1817] Getting the request for video time : 15.015 
+[1817] Index for video time 15.015 is 2 
+[1817] SegmentBase: 10.01 / 1423.255 
+[1817] Getting the next request at index: 3, type: video 
+[1817] SegmentBase: 15.015 / 1423.255 
+[1817] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[1845] Requesting seek to time: 0.22 
+[2042] Seeking to: 0.22 
+[2043] [ScheduleController][onPlaybackSeeking] for video, call fragmentModel.abortRequests in order to seek quicker 
+[2044] [ScheduleController][onFragmentLoadingAbandoned] for video, request: https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 has been aborted 
+[2044] [ScheduleController][onFragmentLoadingAbandoned] for video, request: https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 has been aborted 
+[2045] [ScheduleController][ video ] isFragmentProcessingInProgress is already equal to false 
+[2045] [ScheduleController][ video ] isFragmentProcessingInProgress is already equal to false 
+[2157] Native video element event: play 
+[2157] [StreamController][onPlaybackStarted] 
+[2162] Native video element event: waiting 
+[2179] Native video element event: seeked 
+[2198] Native video element event: playing 
+[2240] Getting the request for audio time : 0.22 
+[2240] SegmentBase: 0.02 / 1423.255 
+[2240] Getting the next request at index: 1, type: audio 
+[2240] SegmentBase: 5.012 / 1423.255 
+[2240] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[3141] Getting the request for video time : 0.22 
+[3141] SegmentBase: 0 / 1423.255 
+[3141] Getting the next request at index: 1, type: video 
+[3141] SegmentBase: 5.005 / 1423.255 
+[3141] Getting the next request at index: 2, type: video 
+[3141] SegmentBase: 10.01 / 1423.255 
+[3141] Getting the next request at index: 3, type: video 
+[3141] SegmentBase: 15.015 / 1423.255 
+[3141] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[3162] push audio {"index":1,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":1.278597,"range":"205260-405795"} 
+[3162] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[3177] push video {"index":3,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":1.29425,"range":"434654-557151"} 
+[3178] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[3184] Getting the request for audio time : 10.004 
+[3184] Index for audio time 10.004 is 1 
+[3184] SegmentBase: 5.012 / 1423.255 
+[3184] Getting the next request at index: 2, type: audio 
+[3184] SegmentBase: 10.004 / 1423.255 
+[3184] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[3194] Getting the request for video time : 20.02 
+[3194] Index for video time 20.02 is 3 
+[3194] SegmentBase: 15.015 / 1423.255 
+[3194] Getting the next request at index: 4, type: video 
+[3194] SegmentBase: 20.02 / 1423.255 
+[3194] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[3235] push video {"index":4,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":1.351986,"range":"557152-606810"} 
+[3235] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[3236] AbrController (video) switching from throughput to buffer occupancy ABR rule (buffer: 23.672). 
+[3236] Got enough buffer to start for video 
+[3527] push audio {"index":2,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":1.643431,"range":"405796-607386"} 
+[3527] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[3535] Getting the request for audio time : 15.017333333333333 
+[3535] Index for audio time 15.017333333333333 is 2 
+[3535] SegmentBase: 10.004 / 1423.255 
+[3535] Getting the next request at index: 3, type: audio 
+[3535] SegmentBase: 15.01733 / 1423.255 
+[3535] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[3535] Is Use NCLoader, {"rangeStart":607387,"qn":30280,"bufferRemaining":13.366366000000001,"bufferLevel":11.367956000000001,"isSeeking":false,"bitrate":321675,"originBufferLevel":13.367956000000001} 
+[3536] NCLoader latency, bufferLevel: 13.367956000000001, latencyTimeout: 5000 
+[5601] [HTTPLoader] internalLoad failure retry 
+[6193] push audio {"index":3,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":4.310118,"range":"607387-808176"} 
+[6194] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[6234] Getting the request for audio time : 20.009333333333334 
+[6234] Index for audio time 20.009333333333334 is 3 
+[6234] SegmentBase: 15.01733 / 1423.255 
+[6234] Getting the next request at index: 4, type: audio 
+[6234] SegmentBase: 20.00933 / 1423.255 
+[6234] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[6235] Is Use NCLoader, {"rangeStart":808177,"qn":30280,"bufferRemaining":15.658816000000002,"bufferLevel":13.660464000000001,"isSeeking":false,"bitrate":321675,"originBufferLevel":15.660464000000001} 
+[6235] NCLoader latency, bufferLevel: 15.660464000000001, latencyTimeout: 5000 
+[7246] Getting the request for video time : 25.025 
+[7246] Index for video time 25.025 is 4 
+[7246] SegmentBase: 20.02 / 1423.255 
+[7246] Getting the next request at index: 5, type: video 
+[7246] SegmentBase: 25.025 / 1423.255 
+[7246] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[7247] Is Use NCLoader, {"rangeStart":606811,"qn":100023,"bufferRemaining":14.646517000000003,"bufferLevel":17.856350999999997,"isSeeking":false,"bitrate":231751,"originBufferLevel":19.856350999999997} 
+[7247] NCLoader latency, bufferLevel: 19.856350999999997, latencyTimeout: 9000 
+[7530] push audio {"index":4,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":5.646695,"range":"808177-1008769"} 
+[7530] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[7534] Getting the request for audio time : 25.001333333333335 
+[7534] Index for audio time 25.001333333333335 is 4 
+[7534] SegmentBase: 20.00933 / 1423.255 
+[7534] Getting the next request at index: 5, type: audio 
+[7534] SegmentBase: 25.00133 / 1423.255 
+[7534] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[7534] Is Use NCLoader, {"rangeStart":1008770,"qn":30280,"bufferRemaining":19.351114,"bufferLevel":17.353081,"isSeeking":false,"bitrate":321675,"originBufferLevel":19.353081} 
+[7534] NCLoader latency, bufferLevel: 19.353081, latencyTimeout: 9000 
+[8048] AbrController (video) switching from buffer occupancy to throughput ABR rule (buffer: 18.860). 
+[8133] push audio {"index":5,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":6.25035,"range":"1008770-1210334"} 
+[8134] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[9293] [HTTPLoader] internalLoad failure retry 
+[9353] push video {"index":5,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":7.47018,"range":"606811-657026"} 
+[9354] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[9356] Prior to making a request for time, NextFragmentRequestRule is aligning index handler's currentTime with bufferedRange.end for video . 30.029999999999998 was changed to 30.03 
+[9356] Getting the request for video time : 30.03 
+[9356] Index for video time 30.03 is 5 
+[9356] SegmentBase: 25.025 / 1423.255 
+[9356] Getting the next request at index: 6, type: video 
+[9356] SegmentBase: 30.03 / 1423.255 
+[9356] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[9356] Is Use NCLoader, {"rangeStart":657027,"qn":100023,"bufferRemaining":22.541902999999998,"bufferLevel":20.559004,"isSeeking":false,"bitrate":231751,"originBufferLevel":22.559004} 
+[9356] NCLoader latency, bufferLevel: 22.559004, latencyTimeout: 10000 
+[9641] Getting the request for audio time : 30.01466666666667 
+[9641] Index for audio time 30.01466666666667 is 5 
+[9641] SegmentBase: 25.00133 / 1423.255 
+[9641] Getting the next request at index: 6, type: audio 
+[9641] SegmentBase: 30.01467 / 1423.255 
+[9641] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[9642] Is Use NCLoader, {"rangeStart":1210335,"qn":30280,"bufferRemaining":22.256826999999998,"bufferLevel":20.322991,"isSeeking":false,"bitrate":321675,"originBufferLevel":22.322991} 
+[9642] NCLoader latency, bufferLevel: 22.322991, latencyTimeout: 10000 
+[10460] push audio {"index":6,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":8.577211,"range":"1210335-1411042"} 
+[10461] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[11391] [HTTPLoader] internalLoad failure retry 
+[11471] push video {"index":6,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":9.588122,"range":"657027-766066"} 
+[11471] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[11475] Getting the request for video time : 35.035000000000004 
+[11475] Index for video time 35.035000000000004 is 6 
+[11475] SegmentBase: 30.03 / 1423.255 
+[11475] Getting the next request at index: 7, type: video 
+[11475] SegmentBase: 35.035 / 1423.255 
+[11475] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[11476] Is Use NCLoader, {"rangeStart":766067,"qn":100023,"bufferRemaining":25.414907000000003,"bufferLevel":23.445451999999996,"isSeeking":false,"bitrate":231751,"originBufferLevel":25.445451999999996} 
+[11476] NCLoader latency, bufferLevel: 25.445451999999996, latencyTimeout: 10000 
+[11967] Getting the request for audio time : 35.00666666666667 
+[11967] Index for audio time 35.00666666666667 is 6 
+[11967] SegmentBase: 30.01467 / 1423.255 
+[11967] Getting the next request at index: 7, type: audio 
+[11967] SegmentBase: 35.00667 / 1423.255 
+[11967] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[11967] Is Use NCLoader, {"rangeStart":1411043,"qn":30280,"bufferRemaining":24.923205000000003,"bufferLevel":23.091807000000003,"isSeeking":false,"bitrate":321675,"originBufferLevel":25.091807000000003} 
+[11967] NCLoader latency, bufferLevel: 25.091807000000003, latencyTimeout: 10000 
+[12502] push audio {"index":7,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":10.618935,"range":"1411043-1612675"} 
+[12503] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[13503] [HTTPLoader] internalLoad failure retry 
+[13594] push video {"index":7,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":11.711048,"range":"766067-965093"} 
+[13595] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[13598] Getting the request for video time : 40.04 
+[13598] Index for video time 40.04 is 7 
+[13598] SegmentBase: 35.035 / 1423.255 
+[13598] Getting the next request at index: 8, type: video 
+[13598] SegmentBase: 40.04 / 1423.255 
+[13598] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[13598] Is Use NCLoader, {"rangeStart":965094,"qn":100023,"bufferRemaining":28.305419,"bufferLevel":26.327463,"isSeeking":false,"bitrate":231751,"originBufferLevel":28.327463} 
+[13598] NCLoader latency, bufferLevel: 28.327463, latencyTimeout: 10000 
+[14011] Getting the request for audio time : 40.02 
+[14011] Index for audio time 40.02 is 7 
+[14011] SegmentBase: 35.00667 / 1423.255 
+[14011] Getting the next request at index: 8, type: audio 
+[14011] SegmentBase: 40.02 / 1423.255 
+[14011] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[14011] Is Use NCLoader, {"rangeStart":1612676,"qn":30280,"bufferRemaining":27.892317,"bufferLevel":26.105173999999998,"isSeeking":false,"bitrate":321675,"originBufferLevel":28.105173999999998} 
+[14011] NCLoader latency, bufferLevel: 28.105173999999998, latencyTimeout: 10000 
+[14371] push audio {"index":8,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":12.488259,"range":"1612676-1813316"} 
+[14372] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[14437] push video {"index":8,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":12.554441,"range":"965094-1177655"} 
+[14438] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[14441] Getting the request for video time : 45.045 
+[14441] Index for video time 45.045 is 8 
+[14441] SegmentBase: 40.04 / 1423.255 
+[14441] Getting the next request at index: 9, type: video 
+[14441] SegmentBase: 45.045 / 1423.255 
+[14441] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[14441] Is Use NCLoader, {"rangeStart":1177656,"qn":100023,"bufferRemaining":32.454741000000006,"bufferLevel":30.489558000000002,"isSeeking":false,"bitrate":231751,"originBufferLevel":32.489558} 
+[14441] NCLoader latency, bufferLevel: 32.489558, latencyTimeout: 10000 
+[14768] push video {"index":9,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":12.884619,"range":"1177656-1353692"} 
+[14768] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[14771] Getting the request for video time : 50.050000000000004 
+[14771] Index for video time 50.050000000000004 is 9 
+[14771] SegmentBase: 45.045 / 1423.255 
+[14771] Getting the next request at index: 10, type: video 
+[14771] SegmentBase: 50.05 / 1423.255 
+[14771] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[14771] Is Use NCLoader, {"rangeStart":1353693,"qn":100023,"bufferRemaining":32.12445700000001,"bufferLevel":35.163869999999996,"isSeeking":false,"bitrate":231751,"originBufferLevel":37.163869999999996} 
+[14771] NCLoader latency, bufferLevel: 37.163869999999996, latencyTimeout: 10000 
+[14880] Getting the request for audio time : 45.012 
+[14880] Index for audio time 45.012 is 8 
+[14880] SegmentBase: 40.02 / 1423.255 
+[14880] Getting the next request at index: 9, type: audio 
+[14880] SegmentBase: 45.012 / 1423.255 
+[14880] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[14880] Is Use NCLoader, {"rangeStart":1813317,"qn":30280,"bufferRemaining":32.015846,"bufferLevel":30.073218000000004,"isSeeking":false,"bitrate":321675,"originBufferLevel":32.073218000000004} 
+[14880] NCLoader latency, bufferLevel: 32.073218000000004, latencyTimeout: 10000 
+[15391] push video {"index":10,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":13.508116,"range":"1353693-1537880"} 
+[15391] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[15393] AbrController (video) switching from throughput to buffer occupancy ABR rule (buffer: 41.545). 
+[15574] push audio {"index":9,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":13.691388,"range":"1813317-2014024"} 
+[15575] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[15579] Getting the request for audio time : 50.004 
+[15579] Index for audio time 50.004 is 9 
+[15579] SegmentBase: 45.012 / 1423.255 
+[15579] Getting the next request at index: 10, type: audio 
+[15579] SegmentBase: 50.004 / 1423.255 
+[15579] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[15579] Is Use NCLoader, {"rangeStart":2014025,"qn":30280,"bufferRemaining":36.308465,"bufferLevel":34.311104,"isSeeking":false,"bitrate":321675,"originBufferLevel":36.311104} 
+[15579] NCLoader latency, bufferLevel: 36.311104, latencyTimeout: 10000 
+[16262] push audio {"index":10,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":14.379267,"range":"2014025-2215589"} 
+[16263] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[16263] AbrController (audio) switching from throughput to buffer occupancy ABR rule (buffer: 40.637). 
+[16263] Got enough buffer to start for audio 
+[16265] Getting the request for audio time : 55.01733333333333 
+[16265] Index for audio time 55.01733333333333 is 10 
+[16265] SegmentBase: 50.004 / 1423.255 
+[16265] Getting the next request at index: 11, type: audio 
+[16265] SegmentBase: 55.01733 / 1423.255 
+[16265] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[16265] Is Use NCLoader, {"rangeStart":2215590,"qn":30280,"bufferRemaining":40.635568,"bufferLevel":38.636986,"isSeeking":false,"bitrate":321675,"originBufferLevel":40.636986} 
+[16265] NCLoader latency, bufferLevel: 40.636986, latencyTimeout: 10000 
+[17263] push audio {"index":11,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":15.379853,"range":"2215590-2416393"} 
+[17263] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[17399] Getting the request for video time : 55.055 
+[17399] Index for video time 55.055 is 10 
+[17399] SegmentBase: 50.05 / 1423.255 
+[17400] Getting the next request at index: 11, type: video 
+[17400] SegmentBase: 55.055 / 1423.255 
+[17400] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[17400] Is Use NCLoader, {"rangeStart":1537881,"qn":100023,"bufferRemaining":39.539032,"bufferLevel":37.640175,"isSeeking":false,"bitrate":231751,"originBufferLevel":39.640175} 
+[17400] NCLoader latency, bufferLevel: 39.640175, latencyTimeout: 10000 
+[17720] push video {"index":11,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":15.83705,"range":"1537881-1696618"} 
+[17720] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[18268] Getting the request for audio time : 60.00933333333333 
+[18268] Index for audio time 60.00933333333333 is 11 
+[18268] SegmentBase: 55.01733 / 1423.255 
+[18268] Getting the next request at index: 12, type: audio 
+[18268] SegmentBase: 60.00933 / 1423.255 
+[18268] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[18268] Is Use NCLoader, {"rangeStart":2416394,"qn":30280,"bufferRemaining":43.624404999999996,"bufferLevel":41.844345,"isSeeking":false,"bitrate":321675,"originBufferLevel":43.844345} 
+[18268] NCLoader latency, bufferLevel: 43.844345, latencyTimeout: 10000 
+[18912] push audio {"index":12,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":17.028619,"range":"2416394-2617247"} 
+[18912] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[22935] Getting the request for video time : 60.06 
+[22935] Index for video time 60.06 is 11 
+[22935] SegmentBase: 55.055 / 1423.255 
+[22935] Getting the next request at index: 12, type: video 
+[22935] SegmentBase: 60.06 / 1423.255 
+[22936] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[22936] Is Use NCLoader, {"rangeStart":1696619,"qn":100023,"bufferRemaining":39.007907,"bufferLevel":37.127458000000004,"isSeeking":false,"bitrate":231751,"originBufferLevel":39.127458000000004} 
+[22936] NCLoader latency, bufferLevel: 39.127458000000004, latencyTimeout: 10000 
+[23262] push video {"index":12,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":21.378747,"range":"1696619-1841630"} 
+[23263] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[23446] Getting the request for audio time : 65.00133333333333 
+[23446] Index for audio time 65.00133333333333 is 12 
+[23447] SegmentBase: 60.00933 / 1423.255 
+[23447] Getting the next request at index: 13, type: audio 
+[23447] SegmentBase: 65.00133 / 1423.255 
+[23447] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[23448] Is Use NCLoader, {"rangeStart":2617248,"qn":30280,"bufferRemaining":43.438755,"bufferLevel":41.586839,"isSeeking":false,"bitrate":321675,"originBufferLevel":43.586839} 
+[23448] NCLoader latency, bufferLevel: 43.586839, latencyTimeout: 10000 
+[23766] Getting the request for video time : 65.065 
+[23766] Index for video time 65.065 is 12 
+[23766] SegmentBase: 60.06 / 1423.255 
+[23766] Getting the next request at index: 13, type: video 
+[23766] SegmentBase: 65.065 / 1423.255 
+[23766] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[23767] Is Use NCLoader, {"rangeStart":1841631,"qn":100023,"bufferRemaining":43.118216000000004,"bufferLevel":41.376532,"isSeeking":false,"bitrate":231751,"originBufferLevel":43.376532} 
+[23767] NCLoader latency, bufferLevel: 43.376532, latencyTimeout: 10000 
+[23929] Removing video buffer from: 0 to 2.0454350000000012 
+[23929] Removing audio buffer from: 0 to 2.0454350000000012 
+[23931] [BufferController][ video ] onRemoved buffer from: 0 to 2.0454350000000012 
+[23931] onRemoved : call updateBufferLevel 
+[23931] [BufferController][ audio ] onRemoved buffer from: 0 to 2.0454350000000012 
+[23931] onRemoved : call updateBufferLevel 
+[24029] push video {"index":13,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":22.14653,"range":"1841631-1935117"} 
+[24030] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[24032] Getting the request for video time : 70.07 
+[24033] Index for video time 70.07 is 13 
+[24033] SegmentBase: 65.065 / 1423.255 
+[24033] Getting the next request at index: 14, type: video 
+[24033] SegmentBase: 70.07 / 1423.255 
+[24033] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[24033] Is Use NCLoader, {"rangeStart":1935118,"qn":100023,"bufferRemaining":42.852098,"bufferLevel":45.92263299999999,"isSeeking":false,"bitrate":231751,"originBufferLevel":47.92263299999999} 
+[24033] NCLoader latency, bufferLevel: 47.92263299999999, latencyTimeout: 10000 
+[24350] push audio {"index":13,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":22.466603,"range":"2617248-2818570"} 
+[24350] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[24354] Getting the request for audio time : 70.01466666666667 
+[24354] Index for audio time 70.01466666666667 is 13 
+[24354] SegmentBase: 65.00133 / 1423.255 
+[24355] Getting the next request at index: 14, type: audio 
+[24355] SegmentBase: 70.01467 / 1423.255 
+[24355] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[24355] Is Use NCLoader, {"rangeStart":2818571,"qn":30280,"bufferRemaining":47.543440000000004,"bufferLevel":45.54539100000001,"isSeeking":false,"bitrate":321675,"originBufferLevel":47.54539100000001} 
+[24355] NCLoader latency, bufferLevel: 47.54539100000001, latencyTimeout: 10000 
+[24383] push video {"index":14,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":22.500268,"range":"1935118-2120916"} 
+[24384] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[24386] Prior to making a request for time, NextFragmentRequestRule is aligning index handler's currentTime with bufferedRange.end for video . 75.07499999999999 was changed to 75.075 
+[24386] Getting the request for video time : 75.075 
+[24386] Index for video time 75.075 is 14 
+[24386] SegmentBase: 70.07 / 1423.255 
+[24386] Getting the next request at index: 15, type: video 
+[24386] SegmentBase: 75.075 / 1423.255 
+[24386] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[24387] Is Use NCLoader, {"rangeStart":2120917,"qn":100023,"bufferRemaining":47.511511000000006,"bufferLevel":50.573736000000004,"isSeeking":false,"bitrate":231751,"originBufferLevel":52.573736000000004} 
+[24387] NCLoader latency, bufferLevel: 52.573736000000004, latencyTimeout: 10000 
+[24599] push video {"index":15,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":22.715864,"range":"2120917-2221478"} 
+[24599] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[24601] Getting the request for video time : 80.08 
+[24602] Index for video time 80.08 is 15 
+[24602] SegmentBase: 75.075 / 1423.255 
+[24602] Getting the next request at index: 16, type: video 
+[24602] SegmentBase: 80.08 / 1423.255 
+[24602] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[24602] Is Use NCLoader, {"rangeStart":2221479,"qn":100023,"bufferRemaining":47.296379,"bufferLevel":55.363336,"isSeeking":false,"bitrate":231751,"originBufferLevel":57.363336} 
+[24602] NCLoader latency, bufferLevel: 57.363336, latencyTimeout: 10000 
+[25416] push video {"index":16,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":23.53349,"range":"2221479-2364629"} 
+[25417] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[25440] push audio {"index":14,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":23.557204,"range":"2818571-3019278"} 
+[25441] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[25514] Getting the request for audio time : 75.00666666666667 
+[25514] Index for audio time 75.00666666666667 is 14 
+[25514] SegmentBase: 70.01467 / 1423.255 
+[25514] Getting the next request at index: 15, type: audio 
+[25514] SegmentBase: 75.00667 / 1423.255 
+[25514] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[25515] Is Use NCLoader, {"rangeStart":3019279,"qn":30280,"bufferRemaining":51.375868999999994,"bufferLevel":49.39236699999999,"isSeeking":false,"bitrate":321675,"originBufferLevel":51.39236699999999} 
+[25515] NCLoader latency, bufferLevel: 51.39236699999999, latencyTimeout: 10000 
+[26734] push audio {"index":15,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":24.851317,"range":"3019279-3220844"} 
+[26735] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[26738] Getting the request for audio time : 80.02 
+[26738] Index for audio time 80.02 is 15 
+[26738] SegmentBase: 75.00667 / 1423.255 
+[26738] Getting the next request at index: 16, type: audio 
+[26738] SegmentBase: 80.02 / 1423.255 
+[26738] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[26738] Is Use NCLoader, {"rangeStart":3220845,"qn":30280,"bufferRemaining":55.165569,"bufferLevel":53.167505,"isSeeking":false,"bitrate":321675,"originBufferLevel":55.167505} 
+[26738] NCLoader latency, bufferLevel: 55.167505, latencyTimeout: 10000 
+[27664] Getting the request for video time : 85.085 
+[27664] Index for video time 85.085 is 16 
+[27664] SegmentBase: 80.08 / 1423.255 
+[27664] Getting the next request at index: 17, type: video 
+[27664] SegmentBase: 85.085 / 1423.255 
+[27664] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[27664] Is Use NCLoader, {"rangeStart":2364630,"qn":100023,"bufferRemaining":54.239992,"bufferLevel":57.42017,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.42017} 
+[27664] NCLoader latency, bufferLevel: 59.42017, latencyTimeout: 10000 
+[27912] push audio {"index":16,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":26.028757,"range":"3220845-3421552"} 
+[27912] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[27918] push video {"index":17,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":26.034852,"range":"2364630-2449265"} 
+[27918] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[27921] Getting the request for audio time : 85.012 
+[27921] Index for audio time 85.012 is 16 
+[27921] SegmentBase: 80.02 / 1423.255 
+[27921] Getting the next request at index: 17, type: audio 
+[27921] SegmentBase: 85.012 / 1423.255 
+[27921] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[27921] Is Use NCLoader, {"rangeStart":3421553,"qn":30280,"bufferRemaining":58.97453300000001,"bufferLevel":56.976531,"isSeeking":false,"bitrate":321675,"originBufferLevel":58.976531} 
+[27921] NCLoader latency, bufferLevel: 58.976531, latencyTimeout: 10000 
+[28490] Native video element event: pause 
+[28491] [StreamController][onPlaybackPaused] 
+[29065] push audio {"index":17,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":26.599418,"range":"3421553-3622260"} 
+[29066] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[29072] Getting the request for audio time : 90.004 
+[29072] Index for audio time 90.004 is 17 
+[29072] SegmentBase: 85.012 / 1423.255 
+[29072] Getting the next request at index: 18, type: audio 
+[29072] SegmentBase: 90.004 / 1423.255 
+[29072] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[29072] Is Use NCLoader, {"rangeStart":3622261,"qn":30280,"bufferRemaining":63.40458099999999,"bufferLevel":61.40458099999999,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.40458099999999} 
+[29072] NCLoader latency, bufferLevel: 63.40458099999999, latencyTimeout: 10000 
+[30233] push audio {"index":18,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":26.599418,"range":"3622261-3823835"} 
+[30234] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[30891] Native video element event: play 
+[30891] [StreamController][onPlaybackStarted] 
+[30892] Native video element event: playing 
+[34435] Prior to making a request for time, NextFragmentRequestRule is aligning index handler's currentTime with bufferedRange.end for video . 90.08999999999999 was changed to 90.09 
+[34435] Getting the request for video time : 90.09 
+[34435] Index for video time 90.09 is 17 
+[34435] SegmentBase: 85.085 / 1423.255 
+[34435] Getting the next request at index: 18, type: video 
+[34435] SegmentBase: 90.09 / 1423.255 
+[34435] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[34435] Is Use NCLoader, {"rangeStart":2449266,"qn":100023,"bufferRemaining":59.938057,"bufferLevel":57.995063,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.995063} 
+[34435] NCLoader latency, bufferLevel: 59.995063, latencyTimeout: 10000 
+[34836] push video {"index":18,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":30.552806,"range":"2449266-2533578"} 
+[34836] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[35250] Getting the request for audio time : 95.01733333333334 
+[35250] Index for audio time 95.01733333333334 is 18 
+[35250] SegmentBase: 90.004 / 1423.255 
+[35250] Getting the next request at index: 19, type: audio 
+[35250] SegmentBase: 95.01733 / 1423.255 
+[35250] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[35250] Is Use NCLoader, {"rangeStart":3823836,"qn":30280,"bufferRemaining":64.05054899999999,"bufferLevel":62.172321,"isSeeking":false,"bitrate":321675,"originBufferLevel":64.172321} 
+[35250] NCLoader latency, bufferLevel: 64.172321, latencyTimeout: 10000 
+[36402] push audio {"index":19,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":32.119561,"range":"3823836-4024750"} 
+[36405] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[39462] Getting the request for video time : 95.095 
+[39462] Index for video time 95.095 is 18 
+[39462] SegmentBase: 90.09 / 1423.255 
+[39462] Getting the next request at index: 19, type: video 
+[39462] SegmentBase: 95.095 / 1423.255 
+[39462] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[39463] Is Use NCLoader, {"rangeStart":2533579,"qn":100023,"bufferRemaining":59.915849,"bufferLevel":57.999497,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.999497} 
+[39463] NCLoader latency, bufferLevel: 59.999497, latencyTimeout: 10000 
+[40103] push video {"index":19,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":35.819823,"range":"2533579-2738948"} 
+[40103] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[40600] Getting the request for audio time : 100.00933333333334 
+[40600] Index for audio time 100.00933333333334 is 19 
+[40600] SegmentBase: 95.01733 / 1423.255 
+[40600] Getting the next request at index: 20, type: audio 
+[40600] SegmentBase: 100.00933 / 1423.255 
+[40600] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[40600] Is Use NCLoader, {"rangeStart":4024751,"qn":30280,"bufferRemaining":63.693137,"bufferLevel":61.914184,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.914184} 
+[40600] NCLoader latency, bufferLevel: 63.914184, latencyTimeout: 10000 
+[41482] push audio {"index":20,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":37.199096,"range":"4024751-4225241"} 
+[41483] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[44670] Getting the request for video time : 100.1 
+[44670] Index for video time 100.1 is 19 
+[44670] SegmentBase: 95.095 / 1423.255 
+[44670] Getting the next request at index: 20, type: video 
+[44670] SegmentBase: 100.1 / 1423.255 
+[44670] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[44671] Is Use NCLoader, {"rangeStart":2738949,"qn":100023,"bufferRemaining":59.712655999999996,"bufferLevel":57.75424099999999,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.75424099999999} 
+[44671] NCLoader latency, bufferLevel: 59.75424099999999, latencyTimeout: 10000 
+[45329] push video {"index":20,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":41.046581,"range":"2738949-2914350"} 
+[45330] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[45585] Getting the request for audio time : 105.00133333333333 
+[45585] Index for audio time 105.00133333333333 is 20 
+[45585] SegmentBase: 100.00933 / 1423.255 
+[45586] Getting the next request at index: 21, type: audio 
+[45586] SegmentBase: 105.00133 / 1423.255 
+[45586] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[45586] Is Use NCLoader, {"rangeStart":4225242,"qn":30280,"bufferRemaining":63.699902,"bufferLevel":61.904837,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.904837} 
+[45586] NCLoader latency, bufferLevel: 63.904837, latencyTimeout: 10000 
+[46179] Removing video buffer from: 0 to 21.895859 
+[46179] Removing audio buffer from: 0 to 21.895859 
+[46186] [BufferController][ video ] onRemoved buffer from: 0 to 21.895859 
+[46186] onRemoved : call updateBufferLevel 
+[46187] [BufferController][ audio ] onRemoved buffer from: 0 to 21.895859 
+[46187] onRemoved : call updateBufferLevel 
+[47925] push audio {"index":21,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":43.642185,"range":"4225242-4426806"} 
+[47926] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[49897] Prior to making a request for time, NextFragmentRequestRule is aligning index handler's currentTime with bufferedRange.end for video . 105.10499999999999 was changed to 105.105 
+[49897] Getting the request for video time : 105.105 
+[49897] Index for video time 105.105 is 20 
+[49897] SegmentBase: 100.1 / 1423.255 
+[49897] Getting the next request at index: 21, type: video 
+[49897] SegmentBase: 105.105 / 1423.255 
+[49897] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[49897] Is Use NCLoader, {"rangeStart":2914351,"qn":100023,"bufferRemaining":59.49548300000001,"bufferLevel":57.677769000000005,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.677769000000005} 
+[49897] NCLoader latency, bufferLevel: 59.677769000000005, latencyTimeout: 10000 
+[51211] push video {"index":21,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":46.927873,"range":"2914351-3155070"} 
+[51212] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[51521] Getting the request for audio time : 110.01466666666667 
+[51521] Index for audio time 110.01466666666667 is 21 
+[51521] SegmentBase: 105.00133 / 1423.255 
+[51521] Getting the next request at index: 22, type: audio 
+[51521] SegmentBase: 110.01467 / 1423.255 
+[51521] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[51522] Is Use NCLoader, {"rangeStart":4426807,"qn":30280,"bufferRemaining":62.777399,"bufferLevel":60.91958100000001,"isSeeking":false,"bitrate":321675,"originBufferLevel":62.91958100000001} 
+[51522] NCLoader latency, bufferLevel: 62.91958100000001, latencyTimeout: 10000 
+[53481] push audio {"index":22,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":49.198121,"range":"4426807-4627641"} 
+[53482] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[54723] Getting the request for video time : 110.11 
+[54723] Index for video time 110.11 is 21 
+[54724] SegmentBase: 105.105 / 1423.255 
+[54724] Getting the next request at index: 22, type: video 
+[54724] SegmentBase: 110.11 / 1423.255 
+[54724] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[54724] Is Use NCLoader, {"rangeStart":3155071,"qn":100023,"bufferRemaining":59.670147,"bufferLevel":57.763162,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.763162} 
+[54724] NCLoader latency, bufferLevel: 59.763162, latencyTimeout: 10000 
+[55172] push video {"index":22,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":50.888934,"range":"3155071-3294824"} 
+[55173] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[55489] Getting the request for audio time : 115.00666666666667 
+[55489] Index for audio time 115.00666666666667 is 22 
+[55489] SegmentBase: 110.01467 / 1423.255 
+[55489] Getting the next request at index: 23, type: audio 
+[55489] SegmentBase: 115.00667 / 1423.255 
+[55489] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[55489] Is Use NCLoader, {"rangeStart":4627642,"qn":30280,"bufferRemaining":63.801748999999994,"bufferLevel":61.867248999999994,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.867248999999994} 
+[55489] NCLoader latency, bufferLevel: 63.867248999999994, latencyTimeout: 10000 
+[59145] push audio {"index":23,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":54.86216,"range":"4627642-4829208"} 
+[59146] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[59773] Getting the request for video time : 115.115 
+[59773] Index for video time 115.115 is 22 
+[59773] SegmentBase: 110.11 / 1423.255 
+[59773] Getting the next request at index: 23, type: video 
+[59773] SegmentBase: 115.115 / 1423.255 
+[59773] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[59774] Is Use NCLoader, {"rangeStart":3294825,"qn":100023,"bufferRemaining":59.625234999999996,"bufferLevel":57.76850999999999,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.76850999999999} 
+[59774] NCLoader latency, bufferLevel: 59.76850999999999, latencyTimeout: 10000 
+[60189] push video {"index":23,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":55.906031,"range":"3294825-3467605"} 
+[60190] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[60653] Getting the request for audio time : 120.02 
+[60653] Index for audio time 120.02 is 23 
+[60653] SegmentBase: 115.00667 / 1423.255 
+[60653] Getting the next request at index: 24, type: audio 
+[60654] SegmentBase: 120.02 / 1423.255 
+[60654] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[60654] Is Use NCLoader, {"rangeStart":4829209,"qn":30280,"bufferRemaining":63.650706,"bufferLevel":61.673280999999996,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.673280999999996} 
+[60654] NCLoader latency, bufferLevel: 63.673280999999996, latencyTimeout: 10000 
+[62579] push audio {"index":24,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":58.296067,"range":"4829209-5029788"} 
+[62580] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[64700] Prior to making a request for time, NextFragmentRequestRule is aligning index handler's currentTime with bufferedRange.end for video . 120.11999999999999 was changed to 120.12 
+[64700] Getting the request for video time : 120.12 
+[64700] Index for video time 120.12 is 23 
+[64700] SegmentBase: 115.115 / 1423.255 
+[64700] Getting the next request at index: 24, type: video 
+[64700] SegmentBase: 120.12 / 1423.255 
+[64700] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[64700] Is Use NCLoader, {"rangeStart":3467606,"qn":100023,"bufferRemaining":59.703476,"bufferLevel":57.774486,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.774486} 
+[64700] NCLoader latency, bufferLevel: 59.774486, latencyTimeout: 10000 
+[65693] push video {"index":24,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":61.409501,"range":"3467606-3635491"} 
+[65694] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[66301] Getting the request for audio time : 125.012 
+[66301] Index for audio time 125.012 is 24 
+[66301] SegmentBase: 120.02 / 1423.255 
+[66301] Getting the next request at index: 25, type: audio 
+[66301] SegmentBase: 125.012 / 1423.255 
+[66301] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[66301] Is Use NCLoader, {"rangeStart":5029789,"qn":30280,"bufferRemaining":62.994753,"bufferLevel":61.285697000000006,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.285697000000006} 
+[66301] NCLoader latency, bufferLevel: 63.285697000000006, latencyTimeout: 10000 
+[67003] push audio {"index":25,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":62.720033,"range":"5029789-5230828"} 
+[67004] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[67379] Removing video buffer from: 0 to 43.095431 
+[67379] Removing audio buffer from: 0 to 43.095431 
+[67382] [BufferController][ video ] onRemoved buffer from: 0 to 43.095431 
+[67382] onRemoved : call updateBufferLevel 
+[67382] [BufferController][ audio ] onRemoved buffer from: 0 to 43.095431 
+[67382] onRemoved : call updateBufferLevel 
+[69859] Getting the request for video time : 125.125 
+[69859] Index for video time 125.125 is 24 
+[69859] SegmentBase: 120.12 / 1423.255 
+[69859] Getting the next request at index: 25, type: video 
+[69859] SegmentBase: 125.125 / 1423.255 
+[69859] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[69859] Is Use NCLoader, {"rangeStart":3635492,"qn":100023,"bufferRemaining":59.54923599999999,"bufferLevel":57.780108,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.780108} 
+[69859] NCLoader latency, bufferLevel: 59.780108, latencyTimeout: 10000 
+[70997] push video {"index":25,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":66.713995,"range":"3635492-3856151"} 
+[70998] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[71031] Getting the request for audio time : 130.004 
+[71031] Index for audio time 130.004 is 25 
+[71031] SegmentBase: 125.012 / 1423.255 
+[71031] Getting the next request at index: 26, type: audio 
+[71032] SegmentBase: 130.004 / 1423.255 
+[71032] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[71032] Is Use NCLoader, {"rangeStart":5230829,"qn":30280,"bufferRemaining":63.256051,"bufferLevel":61.407799999999995,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.407799999999995} 
+[71032] NCLoader latency, bufferLevel: 63.407799999999995, latencyTimeout: 10000 
+[72773] push audio {"index":26,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":68.489647,"range":"5230829-5432193"} 
+[72774] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[75011] Getting the request for video time : 130.13 
+[75012] Index for video time 130.13 is 25 
+[75012] SegmentBase: 125.125 / 1423.255 
+[75013] Getting the next request at index: 26, type: video 
+[75013] SegmentBase: 130.13 / 1423.255 
+[75013] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[75013] Is Use NCLoader, {"rangeStart":3856152,"qn":100023,"bufferRemaining":59.40247199999999,"bufferLevel":57.533942999999994,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.533942999999994} 
+[75013] NCLoader latency, bufferLevel: 59.533942999999994, latencyTimeout: 10000 
+[75838] push video {"index":26,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":71.554967,"range":"3856152-4073436"} 
+[75839] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[76284] Getting the request for audio time : 135.0173333333333 
+[76285] Index for audio time 135.0173333333333 is 26 
+[76285] SegmentBase: 130.004 / 1423.255 
+[76285] Getting the next request at index: 27, type: audio 
+[76285] SegmentBase: 135.01733 / 1423.255 
+[76285] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[76285] Is Use NCLoader, {"rangeStart":5432194,"qn":30280,"bufferRemaining":63.01648700000001,"bufferLevel":61.171913,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.171913} 
+[76285] NCLoader latency, bufferLevel: 63.171913, latencyTimeout: 10000 
+[77089] push audio {"index":27,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":72.805697,"range":"5432194-5632769"} 
+[77089] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[79852] Getting the request for video time : 135.135 
+[79852] Index for video time 135.135 is 26 
+[79852] SegmentBase: 130.13 / 1423.255 
+[79852] Getting the next request at index: 27, type: video 
+[79852] SegmentBase: 135.135 / 1423.255 
+[79852] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[79852] Is Use NCLoader, {"rangeStart":4073437,"qn":100023,"bufferRemaining":59.56663399999999,"bufferLevel":57.78738299999999,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.78738299999999} 
+[79852] NCLoader latency, bufferLevel: 59.78738299999999, latencyTimeout: 10000 
+[81175] push video {"index":27,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":76.891852,"range":"4073437-4289499"} 
+[81175] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[81601] Getting the request for audio time : 140.00933333333333 
+[81601] Index for audio time 140.00933333333333 is 27 
+[81601] SegmentBase: 135.01733 / 1423.255 
+[81601] Getting the next request at index: 28, type: audio 
+[81601] SegmentBase: 140.00933 / 1423.255 
+[81601] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[81601] Is Use NCLoader, {"rangeStart":5632770,"qn":30280,"bufferRemaining":62.691773999999995,"bufferLevel":60.912351,"isSeeking":false,"bitrate":321675,"originBufferLevel":62.912351} 
+[81602] NCLoader latency, bufferLevel: 62.912351, latencyTimeout: 10000 
+[82590] push audio {"index":28,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":78.306835,"range":"5632770-5833604"} 
+[82590] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[84688] Getting the request for video time : 140.14 
+[84688] Index for video time 140.14 is 27 
+[84688] SegmentBase: 135.135 / 1423.255 
+[84688] Getting the next request at index: 28, type: video 
+[84688] SegmentBase: 140.14 / 1423.255 
+[84688] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[84688] Is Use NCLoader, {"rangeStart":4289500,"qn":100023,"bufferRemaining":59.73533299999998,"bufferLevel":57.79123999999999,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.79123999999999} 
+[84688] NCLoader latency, bufferLevel: 59.79123999999999, latencyTimeout: 10000 
+[85881] push video {"index":28,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":81.598109,"range":"4289500-4530940"} 
+[85882] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[86102] Getting the request for audio time : 145.00133333333332 
+[86102] Index for audio time 145.00133333333332 is 28 
+[86102] SegmentBase: 140.00933 / 1423.255 
+[86102] Getting the next request at index: 29, type: audio 
+[86102] SegmentBase: 145.00133 / 1423.255 
+[86102] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[86102] Is Use NCLoader, {"rangeStart":5833605,"qn":30280,"bufferRemaining":63.18248799999999,"bufferLevel":61.40141899999999,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.40141899999999} 
+[86102] NCLoader latency, bufferLevel: 63.40141899999999, latencyTimeout: 10000 
+[87348] push audio {"index":29,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":83.06551,"range":"5833605-6035229"} 
+[87349] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[87678] Removing video buffer from: 0 to 63.395177000000004 
+[87679] Removing audio buffer from: 0 to 63.395177000000004 
+[87683] [BufferController][ video ] onRemoved buffer from: 0 to 63.395177000000004 
+[87683] onRemoved : call updateBufferLevel 
+[87683] [BufferController][ audio ] onRemoved buffer from: 0 to 63.395177000000004 
+[87683] onRemoved : call updateBufferLevel 
+[89894] Prior to making a request for time, NextFragmentRequestRule is aligning index handler's currentTime with bufferedRange.end for video . 145.14499999999998 was changed to 145.145 
+[89894] Getting the request for video time : 145.145 
+[89894] Index for video time 145.145 is 28 
+[89894] SegmentBase: 140.14 / 1423.255 
+[89894] Getting the next request at index: 29, type: video 
+[89894] SegmentBase: 145.145 / 1423.255 
+[89894] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[89894] Is Use NCLoader, {"rangeStart":4530941,"qn":100023,"bufferRemaining":59.53405400000001,"bufferLevel":57.54991100000001,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.54991100000001} 
+[89895] NCLoader latency, bufferLevel: 59.54991100000001, latencyTimeout: 10000 
+[90469] push video {"index":29,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":86.1857,"range":"4530941-4688025"} 
+[90469] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[90859] Getting the request for audio time : 150.01466666666664 
+[90859] Index for audio time 150.01466666666664 is 29 
+[90859] SegmentBase: 145.00133 / 1423.255 
+[90859] Getting the next request at index: 30, type: audio 
+[90859] SegmentBase: 150.01467 / 1423.255 
+[90859] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[90860] Is Use NCLoader, {"rangeStart":6035230,"qn":30280,"bufferRemaining":63.43859400000001,"bufferLevel":61.525377000000006,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.525377000000006} 
+[90860] NCLoader latency, bufferLevel: 63.525377000000006, latencyTimeout: 10000 
+[91386] push audio {"index":30,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":87.103428,"range":"6035230-6235872"} 
+[91387] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[94993] Getting the request for video time : 150.15 
+[94993] Index for video time 150.15 is 29 
+[94993] SegmentBase: 145.145 / 1423.255 
+[94993] Getting the next request at index: 30, type: video 
+[94993] SegmentBase: 150.15 / 1423.255 
+[94993] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[94993] Is Use NCLoader, {"rangeStart":4688026,"qn":100023,"bufferRemaining":59.440342,"bufferLevel":57.554727,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.554727} 
+[94993] NCLoader latency, bufferLevel: 59.554727, latencyTimeout: 10000 
+[95787] push video {"index":30,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":91.504175,"range":"4688026-4866059"} 
+[95787] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[95904] Getting the request for audio time : 155.00666666666666 
+[95904] Index for audio time 155.00666666666666 is 30 
+[95904] SegmentBase: 150.01467 / 1423.255 
+[95904] Getting the next request at index: 31, type: audio 
+[95904] SegmentBase: 155.00667 / 1423.255 
+[95904] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[95904] Is Use NCLoader, {"rangeStart":6235873,"qn":30280,"bufferRemaining":63.38579999999999,"bufferLevel":61.41132999999999,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.41132999999999} 
+[95904] NCLoader latency, bufferLevel: 63.41132999999999, latencyTimeout: 10000 
+[96729] push audio {"index":31,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":92.44584,"range":"6235873-6437457"} 
+[96729] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[99805] Getting the request for video time : 155.155 
+[99806] Index for video time 155.155 is 30 
+[99806] SegmentBase: 150.15 / 1423.255 
+[99806] Getting the next request at index: 31, type: video 
+[99806] SegmentBase: 155.155 / 1423.255 
+[99806] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[99806] Is Use NCLoader, {"rangeStart":4866060,"qn":100023,"bufferRemaining":59.63269,"bufferLevel":57.808161,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.808161} 
+[99806] NCLoader latency, bufferLevel: 59.808161, latencyTimeout: 10000 
+[100587] push video {"index":31,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":96.30406,"range":"4866060-5062071"} 
+[100587] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[100741] Getting the request for audio time : 160.01999999999998 
+[100741] Index for audio time 160.01999999999998 is 31 
+[100741] SegmentBase: 155.00667 / 1423.255 
+[100742] Getting the next request at index: 32, type: audio 
+[100742] SegmentBase: 160.02 / 1423.255 
+[100742] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[100742] Is Use NCLoader, {"rangeStart":6437458,"qn":30280,"bufferRemaining":63.56231800000002,"bufferLevel":61.67433600000001,"isSeeking":false,"bitrate":321675,"originBufferLevel":63.67433600000001} 
+[100742] NCLoader latency, bufferLevel: 63.67433600000001, latencyTimeout: 10000 
+[101214] push audio {"index":32,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":96.930814,"range":"6437458-6638024"} 
+[101215] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[105150] Getting the request for video time : 160.16 
+[105150] Index for video time 160.16 is 31 
+[105151] SegmentBase: 155.155 / 1423.255 
+[105152] Getting the next request at index: 32, type: video 
+[105152] SegmentBase: 160.16 / 1423.255 
+[105152] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[105152] Is Use NCLoader, {"rangeStart":5062072,"qn":100023,"bufferRemaining":59.29349499999999,"bufferLevel":57.564127,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.564127} 
+[105152] NCLoader latency, bufferLevel: 59.564127, latencyTimeout: 10000 
+[106738] push video {"index":32,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":102.455703,"range":"5062072-5274975"} 
+[106742] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[106933] Getting the request for audio time : 165.012 
+[106933] Index for audio time 165.012 is 32 
+[106933] SegmentBase: 160.02 / 1423.255 
+[106933] Getting the next request at index: 33, type: audio 
+[106933] SegmentBase: 165.012 / 1423.255 
+[106934] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[106934] Is Use NCLoader, {"rangeStart":6638025,"qn":30280,"bufferRemaining":62.36201700000001,"bufferLevel":60.41672200000001,"isSeeking":false,"bitrate":321675,"originBufferLevel":62.41672200000001} 
+[106934] NCLoader latency, bufferLevel: 62.41672200000001, latencyTimeout: 10000 
+[108595] push audio {"index":33,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":104.312046,"range":"6638025-6838947"} 
+[108595] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[108628] Removing video buffer from: 0 to 84.34534 
+[108629] Removing audio buffer from: 0 to 84.34534 
+[108633] [BufferController][ video ] onRemoved buffer from: 0 to 84.34534 
+[108633] onRemoved : call updateBufferLevel 
+[108634] [BufferController][ audio ] onRemoved buffer from: 0 to 84.34534 
+[108634] onRemoved : call updateBufferLevel 
+[109258] Native video element event: pause 
+[109258] [StreamController][onPlaybackPaused] 
+[111494] Native video element event: play 
+[111497] [StreamController][onPlaybackStarted] 
+[111497] Native video element event: playing 
+[111830] Getting the request for video time : 165.165 
+[111830] Index for video time 165.165 is 32 
+[111830] SegmentBase: 160.16 / 1423.255 
+[111830] Getting the next request at index: 33, type: video 
+[111830] SegmentBase: 165.165 / 1423.255 
+[111830] ScheduleController - video - getNextFragment - request is https://upos-sz-mirrorhw.bilivideo.com/upgcxcode/35/25/720072535/720072535-1-100023.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=hwbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=0eb41ea21092c00f1a8d4f4aa581dcc1&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=29189&logo=80000000 
+[111831] Is Use NCLoader, {"rangeStart":5274976,"qn":100023,"bufferRemaining":59.85777399999999,"bufferLevel":57.951510999999996,"isSeeking":false,"bitrate":231751,"originBufferLevel":59.951510999999996} 
+[111831] NCLoader latency, bufferLevel: 59.951510999999996, latencyTimeout: 10000 
+[112391] Native video element event: pause 
+[112392] [StreamController][onPlaybackPaused] 
+[115003] push video {"index":33,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":105.861582,"range":"5274976-5544082"} 
+[115004] [ScheduleController][ video ] - onFragmentLoadingCompleted 
+[115115] Getting the request for audio time : 170.004 
+[115115] Index for audio time 170.004 is 33 
+[115115] SegmentBase: 165.012 / 1423.255 
+[115115] Getting the next request at index: 34, type: audio 
+[115115] SegmentBase: 170.004 / 1423.255 
+[115115] ScheduleController - audio - getNextFragment - request is https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/35/25/720072535/720072535_nb2-1-30280.m4s?e=ig8euxZM2rNcNbdlhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&nbs=1&deadline=1658554953&gen=playurlv2&os=cosbv&oi=0&trid=643bacbc3b344e12920a4bee386dcde3p&mid=0&platform=pc&upsig=a08f5861632a1ef3ec066c34a49ebf4b&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,mid,platform&bvc=vod&nettype=0&orderid=0,3&agrr=0&bw=40218&logo=80000000 
+[115115] Is Use NCLoader, {"rangeStart":6838948,"qn":30280,"bufferRemaining":64.142417,"bufferLevel":62.142416999999995,"isSeeking":false,"bitrate":321675,"originBufferLevel":64.142417} 
+[115115] NCLoader latency, bufferLevel: 64.142417, latencyTimeout: 10000 
+[116147] push audio {"index":34,"isLastNaNRequest":false,"isCurrentNaNRequest":false,"isCurrentTimeInFirstRequest":false,"isMediaRequest":true,"currentTime":105.861582,"range":"6838948-7040429"} 
+[116147] [ScheduleController][ audio ] - onFragmentLoadingCompleted 
+[128730] Removing video buffer from: 0 to 85.861582 
+[128730] Removing audio buffer from: 0 to 85.861582 
+[128737] [BufferController][ video ] onRemoved buffer from: 0 to 85.861582 
+[128738] onRemoved : call updateBufferLevel 
+[128738] [BufferController][ audio ] onRemoved buffer from: 0 to 85.861582 
+[128738] onRemoved : call updateBufferLevel 

@@ -81,31 +81,33 @@ stack#5为系统创建的一个RecentsActivity任务栈，如果点击了任务�
 
 1.1:默认模式从A-B-C
 	Display #0 (activities from top to bottom):
+	//表示id为1的ActivityStack，应用stack
 	  Stack #1:
-	  mFullscreen=true
-	  mBounds=null
+	  ...
+		//表示id为1的ActivityStack中的id为878的TaskRecord，内部包含3个ActivityRecord实例
 		Task id #878
-		mFullscreen=true
-		mBounds=null
-		mMinWidth=-1
-		mMinHeight=-1
-		mLastNonFullscreenBounds=null
+		...
 		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=3}
 		  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity }
-			Hist #2: ActivityRecord{6905c8a u0 com.android.yuhb.test/.CActivity t878}
+			//ActivityRecord:id=2,CActivity的实例
+			Hist #2: ActivityRecord{6905c8a u0 com.android.yuhb.test/.CActivity t878} 
 			  Intent { cmp=com.android.yuhb.test/.CActivity }
+			  //当前Activity的属于哪个进程：ProcessRecord表示一个进程记录
 			  ProcessRecord{91f3fa7 24522:com.android.yuhb.test/u0a89}
+			//ActivityRecord:id=1,BActivity的实例
 			Hist #1: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}
 			  Intent { cmp=com.android.yuhb.test/.BActivity }
 			  ProcessRecord{91f3fa7 24522:com.android.yuhb.test/u0a89}
+			//ActivityRecord:id=0,AActivity的实例：android.intent.action.MAIN表示是根Activity
 			Hist #0: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
+			  Intent { cmp=com.android.yuhb.test/.AActivity }
 			  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity bnds=[437,373][644,651] }
-
+		//这个表示当前Display内部最近运行的Activity
 		Running activities (most recent first):
 		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=2}
 			Run #1: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}
 			Run #0: ActivityRecord{1ebc783 u0 com.android.yuhb.test/.AActivity t878}
-
+		//这个表示当前正处于Resume状态的Activity
 		mResumedActivity: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}
 可以看到：在Task id #878中多出了一个Hist #1和Hist #1: ActivityRecord CActivity且放在任务顶端。
 结果如图：A-B-C(Standard)
@@ -117,14 +119,9 @@ stack#5为系统创建的一个RecentsActivity任务栈，如果点击了任务�
 结果：
 Display #0 (activities from top to bottom):
 	  Stack #1:
-	  mFullscreen=true
-	  mBounds=null
+	  ...
 		Task id #878
-		mFullscreen=true
-		mBounds=null
-		mMinWidth=-1
-		mMinHeight=-1
-		mLastNonFullscreenBounds=null
+		...
 		  TaskRecord{9dd2c54 #878 A=com.android.yuhb.test U=0 StackId=1 sz=3}
 		  Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.android.yuhb.test/.AActivity }
 			Hist #1: ActivityRecord{a3ae8dd u0 com.android.yuhb.test/.BActivity t878}

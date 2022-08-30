@@ -1,0 +1,169 @@
+groovy sdk
+IntelliJ IDEA Community Edition 2022.1.3
+groovy项目创建
+
+def
+{}可扩展字符串
+
+String GString
+
+逻辑控制 for switch case  map list
+
+闭包基础
+闭包使用
+与基本数据类型
+println(fab(1,5))
+int fab(int from,int to){
+    def result = from
+    from.upto(5,{result*=it})
+    return result
+}
+字符串与闭包
+	each
+	find findAll
+	any
+	collect
+
+数据结构与闭包
+文件与闭包
+
+闭包进阶
+闭包关键字：this owner，delegate
+
+闭包的委托策略
+
+数据结构：列表，映射，范围
+列表：arraylist
+	排序sort方法
+	查找find findAll any every
+	比较 min max
+	统计count
+映射：map
+	遍历：each eachWithIndex 
+	查找：find findAll 
+	println students
+        .findAll {it.value.age>10}
+        .sort{it.value.age}
+        .collect {it.value.name}
+	分组：groupBy
+	排序：sort
+
+范围：range ：继承list
+1..10 1到10
+
+元编程：metaClass
+运行期动态注入属性，方法等
+
+Json
+
+xml
+
+文件读取和写入
+
+readlines
+gettext
+lines.each
+withReader
+withWriter
+withObjectOutputStream
+withObjectInputStream
+
+groovy与java的不同点：
+写法上groovy没那么多限制，如分号 public等
+功能上有很多扩展：json xml，string，还有闭包
+作用上即可编写脚本也可以编写应用
+
+
+gradle：
+优势：
+灵活性上：自己构建脚本
+粒度性上：源代码编译，使用task
+扩展性：可以使用扩展插件	
+兼容maven所有功能
+
+有自己语法和api
+语法：groovy
+gradle api
+build script block
+
+
+gradle生命周期
+init：初始化
+配置
+执行
+task有向无环图
+
+gradle：编程框架，构建工具
+
+project：核心Api
+
+project api
+	
+task api
+属性相关api、
+	扩展属性：ext
+	gradle.property
+file相关api
+	路径获取：rootDir projectDir buildProject
+	文件定位：file files
+	文件树遍历 filetree
+gradle生命周期api
+其他api：外部命令api
+
+
+exclude:排除包重复
+changing = true,每次包都从服务器获取
+provided：只在编译期起作用，运行期不起作用
+
+
+
+task定义和配置
+有向无环图
+task、依赖
+dependsOn：强依赖
+输入输出依赖
+
+TaskContainer
+InputTask
+OutputTask
+
+使用task自动添加版本信息到xml中
+
+插入task到build任务中:挂件生命周期中
+
+
+doLast
+doFirst
+
+
+官方api
+
+
+settings.gradle:include
+
+sourceSet
+
+自定义Plugin
+
+变体
+graphviz
+
+gradle工具改造和迁移
+
+
+https://avatarqing.github.io/Gradle-Plugin-User-Guide-Chinese-Verision/basic_project/android_tasks.html
+
+
+
+jenkins持续集成工具
+
+
+
+
+
+
+
+
+
+
+

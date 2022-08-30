@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>350</x>
+      <y>140</y>
+      <w>250</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>
+VideoAdContext
+--
+接收app业务层数据</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>350</x>
+      <y>620</y>
+      <w>250</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>
+SmartVideoView
+--
+1.负责视频播放
+2.负责事件回调</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>640</x>
+      <y>360</y>
+      <w>250</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>
+VideoFullScreenDialog
+--
+全屏播放</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>80</x>
+      <y>360</y>
+      <w>250</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>
+VideoAdSlot
+--
+1.接受业务层参数
+2.初始化播放器
+3.大小屏切换功能</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>590</x>
+      <y>470</y>
+      <w>130</w>
+      <h>230</h>
+    </coordinates>
+    <panel_attributes>调用
+lt=&lt;-
+
+
+</panel_attributes>
+    <additional_attributes>10.0;170.0;110.0;170.0;110.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>250</x>
+      <y>470</y>
+      <w>120</w>
+      <h>230</h>
+    </coordinates>
+    <panel_attributes>调用
+lt=&lt;-
+
+
+</panel_attributes>
+    <additional_attributes>100.0;170.0;10.0;170.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>590</x>
+      <y>470</y>
+      <w>390</w>
+      <h>270</h>
+    </coordinates>
+    <panel_attributes>VedioPlayerListener
+lt=&lt;-
+
+
+</panel_attributes>
+    <additional_attributes>250.0;10.0;250.0;250.0;10.0;250.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>110</x>
+      <y>470</y>
+      <w>260</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>VedioPlayerListener
+lt=&lt;-
+
+
+</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;260.0;240.0;260.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>180</x>
+      <y>190</y>
+      <w>190</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>SdkSlotListener
+lt=&lt;-
+
+
+</panel_attributes>
+    <additional_attributes>170.0;20.0;10.0;20.0;10.0;170.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>590</x>
+      <y>190</y>
+      <w>200</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>SdkSlotListener
+lt=&lt;-
+
+
+</panel_attributes>
+    <additional_attributes>10.0;20.0;180.0;20.0;180.0;170.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>460</x>
+      <y>0</y>
+      <w>100</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-
+与外界通讯</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;140.0</additional_attributes>
+  </element>
+</diagram>

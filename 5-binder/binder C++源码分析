@@ -6,13 +6,13 @@ main{
 		ProcessState::self(){
 			gProcess = new ProcessState("/dev/binder");
 				ProcessState::ProcessState(const char *driver)
-					: mDriverName(String8(driver))设置驱动名称"/dev/binder"
+					: mDriverName(String8(driver))//设置驱动名称"/dev/binder"
 					, mDriverFD(open_driver(driver))-->
 							open_driver(driver){
-								int fd = open(driver, O_RDWR | O_CLOEXEC);打开驱动
-								status_t result = ioctl(fd, BINDER_VERSION, &vers);获取驱动版本号
-								result = ioctl(fd, BINDER_SET_MAX_THREADS, &maxThreads);设置最大并发线程数，即同时有几个线程可以访问该服务进程
-								
+								int fd = open(driver, O_RDWR | O_CLOEXEC);//打开驱动
+								status_t result = ioctl(fd, BINDER_VERSION, &vers);//获取驱动版本号
+								result = ioctl(fd, BINDER_SET_MAX_THREADS, &maxThreads);//设置最大并发线程数，即同时有几个线程可以访问该服务进程
+								return fd;
 							}
 					, mVMStart(MAP_FAILED)
 					, mThreadCountLock(PTHREAD_MUTEX_INITIALIZER)
@@ -27,23 +27,23 @@ main{
 					, mThreadPoolSeq(1)
 				{
 					if (mDriverFD >= 0) {
-						// mmap the binder, providing a chunk of virtual address space to receive transactions.
-						mVMStart = mmap(0, BINDER_VM_SIZE, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, mDriverFD, 0);调用mmap函数，为该服务创建一块虚拟共享内存
+						//调用mmap函数，为该服务创建一块虚拟共享内存
+						mVMStart = mmap(0, BINDER_VM_SIZE, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, mDriverFD, 0);
 					}
-
-					LOG_ALWAYS_FATAL_IF(mDriverFD < 0, "Binder driver could not be opened.  Terminating.");判断驱动是否打开成功
 				}
 		}
-	//获取BpServiceManager,最红返回的是一个new BpServiceManager(new BpBinder(handle));
+	//获取BpServiceManager,最终返回的是一个new BpServiceManager(new BpBinder(handle));
 	2.sp<IServiceManager> sm = defaultServiceManager();
 		gDefaultServiceManager = interface_cast<IServiceManager>(ProcessState::self()->getContextObject(NULL));
+			//这段代码分两部分：2.1返回一个new BpBinder(handle) 2.2：返回一个new BpServiceManager(new BpBinder(handle))
 			2.1.ProcessState::self()->getContextObject(NULL){
 				ProcessState->getContextObject(NULL){
 					return getStrongProxyForHandle(0);{
 						if (handle == 0) {
 							status_t status = IPCThreadState::self()->transact(
 									0, IBinder::PING_TRANSACTION, data, NULL, 0);
-							if (status == DEAD_OBJECT)调用PING_TRANSACTION判断serverManager是否活着
+							//调用PING_TRANSACTION判断serverManager是否活着
+							if (status == DEAD_OBJECT)
 							   return NULL;
 						}
 						return new BpBinder(handle);					
@@ -51,10 +51,12 @@ main{
 								
 				}
 			}
+			//这里的参数为2.1部分返回的new BpBinder(handle) handle=0：代表是ServiceManager的handle
 			2.2.interface_cast<IServiceManager>(new BpBinder(handle))
 					return INTERFACE::asInterface(obj);{INTERFACE==IServiceManager
 						IServiceManager::asInterface(obj)
-							android::sp<I##INTERFACE> I##INTERFACE::asInterface(  ##INTERFACE==  ServiceManager(去掉I)          \
+							//##INTERFACE==  ServiceManager(去掉I)
+							android::sp<I##INTERFACE> I##INTERFACE::asInterface(            \
 									const ::android::sp<::android::IBinder>& obj)               \
 							{                                                                   \
 								::android::sp<I##INTERFACE> intr;                               \
@@ -62,12 +64,13 @@ main{
 									intr = static_cast<I##INTERFACE*>(                          \
 										obj->queryLocalInterface(                               \
 												I##INTERFACE::descriptor).get());               \
-									if (intr == NULL) {                                         \
-										intr = new Bp##INTERFACE(obj);    返回一个Bp##INTERFACE(obj)==  BpServiceManager(obj)    obj=  BpBinder(handle)         \
+									if (intr == NULL) {
+										//返回一个Bp##INTERFACE(obj)==  BpServiceManager(obj)    obj=  BpBinder(handle)    
+										intr = new Bp##INTERFACE(obj);         \
 											new BpServiceManager(new BpBinder(handle));
-												new BpInterface(const sp<IBinder>& remote)父类
-													new BpRefBase(remote) 父类的父类
-														mRemote(o.get())实现给mRemote赋值操作
+												new BpInterface(const sp<IBinder>& remote)//父类
+													new BpRefBase(remote) //父类的父类
+														mRemote(o.get())//实现给mRemote赋值操作
 														
 									}                                                           \
 								}                                                               \
@@ -76,35 +79,49 @@ main{
 					}
 			
 	//注册服务，写入服务名称hello和一个binder实体
-	3.sm->addService(String16("hello"), new BnHelloService(sockets[1]));//sm = BpServiceManager{
-		Parcel data, reply; data发送包 reply返回包
+	//sm = BpServiceManager
+	3.sm->addService(String16("hello"), new BnHelloService(sockets[1])){
+		//data发送包 reply返回包
+		Parcel data, reply; 
         data.writeInterfaceToken(IServiceManager::getInterfaceDescriptor());
-        data.writeString16(name);服务名称string16格式
-        data.writeStrongBinder(service);服务实例，内部是通过写入一个flat_binder_object结构体实现的
+		//服务名称string16格式
+        data.writeString16(name);
+		//服务实例，内部是通过写入一个flat_binder_object结构体实现的
+        data.writeStrongBinder(service);
 			flatten_binder(ProcessState::self(), val, this);{
 				flat_binder_object obj;
-				IBinder *local = binder->localBinder();是否是本地binder = 传入的BnHelloService，后面client调用的时候会在cookie中返回
-				if (!local) { local = null
-					BpBinder *proxy = binder->remoteBinder();获取远程binder 
+				//本地缓存的IBinder对象 = 传入的BnHelloService，后面client调用的时候会在cookie中返回
+				IBinder *local = binder->localBinder();
+				//local = null
+				if (!local) { 
+					//获取远程binder 
+					BpBinder *proxy = binder->remoteBinder();
 					if (proxy == NULL) {
 						ALOGE("null proxy");
 					}
 					const int32_t handle = proxy ? proxy->handle() : 0;
-					obj.type = BINDER_TYPE_HANDLE;对于获取服务type=handle
+					//对于获取服务type=handle
+					obj.type = BINDER_TYPE_HANDLE;
 					obj.binder = 0; /* Don't pass uninitialized stack data to a remote process */
 					obj.handle = handle;
 					obj.cookie = 0;
 				} else {
-					obj.type = BINDER_TYPE_BINDER;对于注册服务type=binder，传入的是实体
-					obj.binder = reinterpret_cast<uintptr_t>(local->getWeakRefs());binder中存放的是实体的弱引用
-					obj.cookie = reinterpret_cast<uintptr_t>(local); cookie中存放的是实体的引用，
+					//对于注册服务type=binder，传入的是实体
+					obj.type = BINDER_TYPE_BINDER;
+					//binder中存放的是实体的弱引用
+					obj.binder = reinterpret_cast<uintptr_t>(local->getWeakRefs());
+					//cookie中存放的是实体的引用，
+					obj.cookie = reinterpret_cast<uintptr_t>(local); 
 				}
 				return finish_flatten_binder(binder, obj, out);{
 					return out->writeObject(flat, false);{
-						const bool enoughData = (mDataPos+sizeof(val)) <= mDataCapacity;判断数据是否达到最大容量
-						const bool enoughObjects = mObjectsSize < mObjectsCapacity;判断object是否达到最大容量
+						//判断数据是否达到最大容量
+						const bool enoughData = (mDataPos+sizeof(val)) <= mDataCapacity;
+						//判断object是否达到最大容量
+						const bool enoughObjects = mObjectsSize < mObjectsCapacity;
 						if (!enoughData) {
-							const status_t err = growData(sizeof(val));写数据最后都是转为字节数组
+							//写数据最后都是转为字节数组
+							const status_t err = growData(sizeof(val));
 								
 							if (err != NO_ERROR) return err;
 						}
@@ -123,15 +140,18 @@ main{
 			}
 				
         data.writeInt32(allowIsolated ? 1 : 0);
-        status_t err = remote()->transact(ADD_SERVICE_TRANSACTION, data, &reply);code = ADD_SERVICE_TRANSACTION表示注册服务
-			此处remote()等于2.2中实现的BpBinder
+		//code = ADD_SERVICE_TRANSACTION表示注册服务
+        status_t err = remote()->transact(ADD_SERVICE_TRANSACTION, data, &reply);
+			//此处remote()等于2.2中实现的BpBinder
 			BpBinder->transact
 				status_t status = IPCThreadState::self()->transact(mHandle, code, data, reply, flags);
-				3.1:IPCThreadState::self(){一个线程一个IPCThreadState
-					通过key获取IPCThreadState实例，每个线程有唯一的key
+				//一个线程一个IPCThreadState
+				3.1:IPCThreadState::self(){
+					//通过key获取IPCThreadState实例，每个线程有唯一的key
 				}
 				3.2:IPCThreadState::self()->transact{
-					err = writeTransactionData(BC_TRANSACTION, flags, handle, code, data, NULL);{组需要发送的数据
+					//组需要发送的数据
+					err = writeTransactionData(BC_TRANSACTION, flags, handle, code, data, NULL);{
 						binder_transaction_data tr;
 						tr.target.ptr = 0; /* Don't pass uninitialized stack data to a remote process */
 						tr.target.handle = handle;
@@ -146,13 +166,14 @@ main{
 								bwr.write_size = outAvail;
 								bwr.write_buffer = (uintptr_t)mOut.data();
 								do{
-									ioctl(mProcess->mDriverFD, BINDER_WRITE_READ, &bwr)写入数据并等待返回
-								}while()
+									//写入数据并等待返回
+									ioctl(mProcess->mDriverFD, BINDER_WRITE_READ, &bwr)
+								}while(1)
 							switch (cmd) {
 								case BR_REPLY:
 									binder_transaction_data tr;
 									err = mIn.read(&tr, sizeof(tr));
-									freeBuffer(NULL,....)是否资源
+									freeBuffer(NULL,....)
 									break;
 					
 							}

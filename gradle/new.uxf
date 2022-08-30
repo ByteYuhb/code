@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>460</x>
+      <y>210</y>
+      <w>190</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>插件1             插件2
+
+
+插件3      AGP         插件4
+
+插件5			        插件6
+
+插件7
+
+bg=yellow
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>510</x>
+      <y>390</y>
+      <w>100</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>Gradle Plugin</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

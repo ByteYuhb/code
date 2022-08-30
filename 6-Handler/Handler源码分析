@@ -102,151 +102,151 @@ Handler源码解析：
 			 之后还要判断当前消息是不是最早的异步消息，如果不是最早的，则needWake 置为 false即不需要唤醒，如果是最早的异步消息，则直接唤醒消息处理循环
 4.消息获取过程：
 	Looper的loop方法：
-	public static void loop() {
-		final Looper me = myLooper();获取当前线程的looper对象
-		final MessageQueue queue = me.mQueue;获取MessageQueue对象
-		for (;;) {
-            Message msg = queue.next(); // might block获取msg
-			if (msg == null) {没有消息的时候则退出循环，即主线程退出，应用退出
-                // No message indicates that the message queue is quitting.
-                return;
-            }
-            try {
-                msg.target.dispatchMessage(msg);处理msg
-            }
-			msg.recycleUnchecked();回收msg
-        }
+public static void loop() {
+	final Looper me = myLooper();获取当前线程的looper对象
+	final MessageQueue queue = me.mQueue;获取MessageQueue对象
+	for (;;) {
+		Message msg = queue.next(); // might block获取msg
+		if (msg == null) {没有消息的时候则退出循环，即主线程退出，应用退出
+			// No message indicates that the message queue is quitting.
+			return;
+		}
+		try {
+			msg.target.dispatchMessage(msg);处理msg
+		}
+		msg.recycleUnchecked();回收msg
 	}
-	void recycleUnchecked() {回收消息，并将消息放到消息池中前提是消息池没有满
-        // Mark the message as in use while it remains in the recycled object pool.
-        // Clear out all other details.
-        flags = FLAG_IN_USE;
-        what = 0;
-        arg1 = 0;
-        arg2 = 0;
-        obj = null;
-        replyTo = null;
-        sendingUid = -1;
-        when = 0;
-        target = null;
-        callback = null;
-        data = null;
+}
+void recycleUnchecked() {回收消息，并将消息放到消息池中前提是消息池没有满
+	// Mark the message as in use while it remains in the recycled object pool.
+	// Clear out all other details.
+	flags = FLAG_IN_USE;
+	what = 0;
+	arg1 = 0;
+	arg2 = 0;
+	obj = null;
+	replyTo = null;
+	sendingUid = -1;
+	when = 0;
+	target = null;
+	callback = null;
+	data = null;
 
-        synchronized (sPoolSync) {
-            if (sPoolSize < MAX_POOL_SIZE) {
-                next = sPool;
-                sPool = this;
-                sPoolSize++;
-            }
-        }
-    }
-	MessageQueue.java:
-	Message next() {
-        // Return here if the message loop has already quit and been disposed.
-        // This can happen if the application tries to restart a looper after quit
-        // which is not supported.
-        final long ptr = mPtr;
-        if (ptr == 0) {
-            return null;
-        }
+	synchronized (sPoolSync) {
+		if (sPoolSize < MAX_POOL_SIZE) {
+			next = sPool;
+			sPool = this;
+			sPoolSize++;
+		}
+	}
+}
+MessageQueue.java:
+Message next() {
+	// Return here if the message loop has already quit and been disposed.
+	// This can happen if the application tries to restart a looper after quit
+	// which is not supported.
+	final long ptr = mPtr;
+	if (ptr == 0) {
+		return null;
+	}
 
-        int pendingIdleHandlerCount = -1; // -1 only during first iteration
-        int nextPollTimeoutMillis = 0;
-        for (;;) {
-            if (nextPollTimeoutMillis != 0) {
-                Binder.flushPendingCommands();
-            }
-			在这里休眠，如果有消息并唤醒
-            nativePollOnce(ptr, nextPollTimeoutMillis);
+	int pendingIdleHandlerCount = -1; // -1 only during first iteration
+	int nextPollTimeoutMillis = 0;
+	for (;;) {
+		if (nextPollTimeoutMillis != 0) {
+			Binder.flushPendingCommands();
+		}
+		在这里休眠，如果有消息并唤醒
+		nativePollOnce(ptr, nextPollTimeoutMillis);
 
-            synchronized (this) {
-                // Try to retrieve the next message.  Return if found.
-                final long now = SystemClock.uptimeMillis();
-                Message prevMsg = null;
-                Message msg = mMessages;
-                if (msg != null && msg.target == null) {同步屏障消息的msg.target == null，循环遍历取出第一个异步消息处理
-                    // Stalled by a barrier.  Find the next asynchronous message in the queue.
-                    do {
-                        prevMsg = msg;
-                        msg = msg.next;
-                    } while (msg != null && !msg.isAsynchronous());
-                }
-                if (msg != null) {msg不为空
-                    if (now < msg.when) {当前时间小余msg的延迟时间，则等待：msg.when - now
-                        // Next message is not ready.  Set a timeout to wake up when it is ready.
-                        nextPollTimeoutMillis = (int) Math.min(msg.when - now, Integer.MAX_VALUE);
-                    } else {当前时间大于取出的msg的延迟时间
-                        // Got a message.
-                        mBlocked = false;将mBlocked空闲时间置为false
-                        if (prevMsg != null) {
-                            prevMsg.next = msg.next;
-                        } else {
-                            mMessages = msg.next;取出msg后，将msg的next节点置为头节点
-                        }
-                        msg.next = null;打断msg到msg next的链表链接
-                        if (DEBUG) Log.v(TAG, "Returning message: " + msg);
-                        msg.markInUse();将msg的使用标志置为true
-                        return msg;返回msg
-                    }
-                } else {msg为空表示没有消息需要处理
-                    // No more messages.
-                    nextPollTimeoutMillis = -1;
-                }
+		synchronized (this) {
+			// Try to retrieve the next message.  Return if found.
+			final long now = SystemClock.uptimeMillis();
+			Message prevMsg = null;
+			Message msg = mMessages;
+			if (msg != null && msg.target == null) {同步屏障消息的msg.target == null，循环遍历取出第一个异步消息处理
+				// Stalled by a barrier.  Find the next asynchronous message in the queue.
+				do {
+					prevMsg = msg;
+					msg = msg.next;
+				} while (msg != null && !msg.isAsynchronous());
+			}
+			if (msg != null) {msg不为空
+				if (now < msg.when) {当前时间小余msg的延迟时间，则等待：msg.when - now
+					// Next message is not ready.  Set a timeout to wake up when it is ready.
+					nextPollTimeoutMillis = (int) Math.min(msg.when - now, Integer.MAX_VALUE);
+				} else {当前时间大于取出的msg的延迟时间
+					// Got a message.
+					mBlocked = false;将mBlocked空闲时间置为false
+					if (prevMsg != null) {
+						prevMsg.next = msg.next;
+					} else {
+						mMessages = msg.next;取出msg后，将msg的next节点置为头节点
+					}
+					msg.next = null;打断msg到msg next的链表链接
+					if (DEBUG) Log.v(TAG, "Returning message: " + msg);
+					msg.markInUse();将msg的使用标志置为true
+					return msg;返回msg
+				}
+			} else {msg为空表示没有消息需要处理
+				// No more messages.
+				nextPollTimeoutMillis = -1;
+			}
 
-                // Process the quit message now that all pending messages have been handled.
-                if (mQuitting) {当调用了退出方法则返回null给上层
-                    dispose();内部调用nativeDestroy(mPtr);
-                    return null;
-                }
+			// Process the quit message now that all pending messages have been handled.
+			if (mQuitting) {当调用了退出方法则返回null给上层
+				dispose();内部调用nativeDestroy(mPtr);
+				return null;
+			}
 
-                // If first time idle, then get the number of idlers to run.
-                // Idle handles only run if the queue is empty or if the first message
-                // in the queue (possibly a barrier) is due to be handled in the future.
-				下面这些信息是处理对于设置了空闲消息处理任务的流程，这个可以用来提高Ui性能，即将主线程空闲状态来处理一些其他事情，充分利用资源
-                if (pendingIdleHandlerCount < 0
-                        && (mMessages == null || now < mMessages.when)) {
-                    pendingIdleHandlerCount = mIdleHandlers.size();
-                }
-                if (pendingIdleHandlerCount <= 0) {
-                    // No idle handlers to run.  Loop and wait some more.
-                    mBlocked = true; 如果没有任何空闲状态事情处理后，将mBlocked置为true，表示是真正空闲状态，无任何处理事务包括空闲事务，这个值在消息插入的时候对是否唤醒消息处理有关系
-                    continue;
-                }
+			// If first time idle, then get the number of idlers to run.
+			// Idle handles only run if the queue is empty or if the first message
+			// in the queue (possibly a barrier) is due to be handled in the future.
+			下面这些信息是处理对于设置了空闲消息处理任务的流程，这个可以用来提高Ui性能，即将主线程空闲状态来处理一些其他事情，充分利用资源
+			if (pendingIdleHandlerCount < 0
+					&& (mMessages == null || now < mMessages.when)) {
+				pendingIdleHandlerCount = mIdleHandlers.size();
+			}
+			if (pendingIdleHandlerCount <= 0) {
+				// No idle handlers to run.  Loop and wait some more.
+				mBlocked = true; 如果没有任何空闲状态事情处理后，将mBlocked置为true，表示是真正空闲状态，无任何处理事务包括空闲事务，这个值在消息插入的时候对是否唤醒消息处理有关系
+				continue;
+			}
 
-                if (mPendingIdleHandlers == null) {
-                    mPendingIdleHandlers = new IdleHandler[Math.max(pendingIdleHandlerCount, 4)];
-                }
-                mPendingIdleHandlers = mIdleHandlers.toArray(mPendingIdleHandlers);
-            }
+			if (mPendingIdleHandlers == null) {
+				mPendingIdleHandlers = new IdleHandler[Math.max(pendingIdleHandlerCount, 4)];
+			}
+			mPendingIdleHandlers = mIdleHandlers.toArray(mPendingIdleHandlers);
+		}
 
-            // Run the idle handlers.
-            // We only ever reach this code block during the first iteration.
-            for (int i = 0; i < pendingIdleHandlerCount; i++) {
-                final IdleHandler idler = mPendingIdleHandlers[i];
-                mPendingIdleHandlers[i] = null; // release the reference to the handler
+		// Run the idle handlers.
+		// We only ever reach this code block during the first iteration.
+		for (int i = 0; i < pendingIdleHandlerCount; i++) {
+			final IdleHandler idler = mPendingIdleHandlers[i];
+			mPendingIdleHandlers[i] = null; // release the reference to the handler
 
-                boolean keep = false;
-                try {
-                    keep = idler.queueIdle();
-                } catch (Throwable t) {
-                    Log.wtf(TAG, "IdleHandler threw exception", t);
-                }
+			boolean keep = false;
+			try {
+				keep = idler.queueIdle();
+			} catch (Throwable t) {
+				Log.wtf(TAG, "IdleHandler threw exception", t);
+			}
 
-                if (!keep) {
-                    synchronized (this) {
-                        mIdleHandlers.remove(idler);
-                    }
-                }
-            }
+			if (!keep) {
+				synchronized (this) {
+					mIdleHandlers.remove(idler);
+				}
+			}
+		}
 
-            // Reset the idle handler count to 0 so we do not run them again.
-            pendingIdleHandlerCount = 0;
+		// Reset the idle handler count to 0 so we do not run them again.
+		pendingIdleHandlerCount = 0;
 
-            // While calling an idle handler, a new message could have been delivered
-            // so go back and look again for a pending message without waiting.
-            nextPollTimeoutMillis = 0;
-        }
-    }
+		// While calling an idle handler, a new message could have been delivered
+		// so go back and look again for a pending message without waiting.
+		nextPollTimeoutMillis = 0;
+	}
+}
 	总结：
 		消息取出过程：
 		首先判断消息头是否是一个同步屏障消息msg.traget=null，
@@ -255,43 +255,43 @@ Handler源码解析：
     
 	
 5.消息处理：
-		Looper.loop方法中：
-		msg.target.dispatchMessage(msg);msg.target =Handler
-			Handler.dispatchMessage(msg){
-				if (msg.callback != null) {如果msg在创建过程中msg.callback不为null，则直接调用handleCallback(msg)---> message.callback.run();
-					handleCallback(msg);
-				} else {
-					if (mCallback != null) {
-						if (mCallback.handleMessage(msg)) {如果Handler在创建的时候传入的Handler.CallBack不为空则调用CallBack的handleMessage方法
-							return;如果返回值为true则不会回调Handler的handleMessage，这里可以做一个消息拦截的处理
-						}
-					}
-					handleMessage(msg);调用Handler的handleMessage
-				}	
+Looper.loop方法中：
+msg.target.dispatchMessage(msg);msg.target =Handler
+Handler.dispatchMessage(msg){
+	if (msg.callback != null) {如果msg在创建过程中msg.callback不为null，则直接调用handleCallback(msg)---> message.callback.run();
+		handleCallback(msg);
+	} else {
+		if (mCallback != null) {
+			if (mCallback.handleMessage(msg)) {如果Handler在创建的时候传入的Handler.CallBack不为空则调用CallBack的handleMessage方法
+				return;如果返回值为true则不会回调Handler的handleMessage，这里可以做一个消息拦截的处理
 			}
+		}
+		handleMessage(msg);调用Handler的handleMessage
+	}	
+}
 	
 6.消息循环处理退出：调用Looper的quit方法
-	void quit(boolean safe) {
-        if (!mQuitAllowed) {
-            throw new IllegalStateException("Main thread not allowed to quit.");
-        }
+void quit(boolean safe) {
+	if (!mQuitAllowed) {
+		throw new IllegalStateException("Main thread not allowed to quit.");
+	}
 
-        synchronized (this) {
-            if (mQuitting) {
-                return;
-            }
-            mQuitting = true;将mQuitting标志置为true
+	synchronized (this) {
+		if (mQuitting) {
+			return;
+		}
+		mQuitting = true;将mQuitting标志置为true
 
-            if (safe) {
-                removeAllFutureMessagesLocked();待处理消息执行完再清理
-            } else {
-                removeAllMessagesLocked();直接清理，可能会有内存泄露风险
-            }
+		if (safe) {
+			removeAllFutureMessagesLocked();待处理消息执行完再清理
+		} else {
+			removeAllMessagesLocked();直接清理，可能会有内存泄露风险
+		}
 
-            // We can assume mPtr != 0 because mQuitting was previously false.
-            nativeWake(mPtr);唤醒消息处理线程
-        }
-    }
+		// We can assume mPtr != 0 because mQuitting was previously false.
+		nativeWake(mPtr);唤醒消息处理线程
+	}
+}
 
 7.View的绘制流程中：View绘制会走到scheduleTraversals中
 	/**
@@ -357,7 +357,7 @@ Handler源码解析：
                 msg.next = p;
                 mMessages = msg;
             }
-            return token;返回sg的token
+            return token;返回msg的token
         }
     }
 	总结：postSyncBarrier的作用是去消息池中获取一个msg，设置了msg.arg1 = token是同步屏障消息的token值，且msg.target = null;并将这个msg放入到消息池mMessages中
@@ -372,7 +372,7 @@ Handler源码解析：
             mCallbackQueues[callbackType].addCallbackLocked(dueTime, action, token);
 
             if (dueTime <= now) {
-                scheduleFrameLocked(now);
+                scheduleFrameLocked(now);//分析8
             } else {
                 Message msg = mHandler.obtainMessage(MSG_DO_SCHEDULE_CALLBACK, action);获取一个msg
                 msg.arg1 = callbackType;设置arg1参数类型
@@ -380,7 +380,35 @@ Handler源码解析：
                 mHandler.sendMessageAtTime(msg, dueTime);发送消息
             }
         }
+	分析8：scheduleFrameLocked(now);
+	private void scheduleFrameLocked(long now) {
+		...
+		scheduleVsyncLocked();
+		...
+	}
+	private void scheduleVsyncLocked() {
+        mDisplayEventReceiver.scheduleVsync();//这个mDisplayEventReceiver = FrameDisplayEventReceiver对象
+    }
+	public void scheduleVsync() {
+        if (mReceiverPtr == 0) {
+            Log.w(TAG, "Attempted to schedule a vertical sync pulse but the display event "
+                    + "receiver has already been disposed.");
+        } else {
+            nativeScheduleVsync(mReceiverPtr);//这里调用nativeScheduleVsync注册了一个Vsync事件接收器，接收者为前面的mDisplayEventReceiver
+        }
+    }
+	private final class FrameDisplayEventReceiver extends DisplayEventReceiver{
+		@Override
+        public void onVsync(long timestampNanos, int builtInDisplayId, int frame) {
+			Message msg = Message.obtain(mHandler, this);
+            msg.setAsynchronous(true);
+            mHandler.sendMessageAtTime(msg, timestampNanos / TimeUtils.NANOS_PER_MS);//这里发送了一个异步信号，每16ms接收到一次信号，并绘制ui
+		}
+		
+	}
+	
 	总结：postCallback内部主要实现的是获取一个msg，并设置msg为异步消息，最后发送消息给MessageQueue	
+	注册了vsync信号回调，每16ms获取到vsync信号，并更新ui，所以ondraw方法是在接收到vsync信号后才调用的，会每16ms回调一次ondraw方法
 	
 	分析3：mHandler.getLooper().getQueue().removeSyncBarrier(mTraversalBarrier);
 	public void removeSyncBarrier(int token) {
@@ -415,7 +443,7 @@ Handler源码解析：
             }
         }
     }
-	总结：根据token值移除消息链表中的msg并根据	情况唤醒消息处理线程
+	总结：根据token值移除消息链表中的msg并根据情况唤醒消息处理线程
 	
 	由分析1和分析2，3可知：View的绘制流程其实就是在View绘制流程启动前，给消息池发送一个msg.target为空的消息，然后给View的绘制任务的msg设置为异步消息，
 	下次在Handler取消息的过程中优先判断消息池的msg.target是不是空，如果是，则去消息池中取出第一个异步消息执行。执行前先把同步屏障消息移除。
@@ -479,7 +507,7 @@ Handler源码解析：
 		}
 	
 	总结：ThreadLocal其实是一种用空间换时间的机制：
-	ThreadLocal内部的才做其实都是针对当前线程的ThreadLocalMap做的操作，一个线程只有一个Thread，一个Thread只有一个ThreadLocalMap，所以其内部存储的数据都是线程隔离的。
+	ThreadLocal内部的其实都是针对当前线程的ThreadLocalMap做的操作，一个线程只有一个Thread，一个Thread只有一个ThreadLocalMap，所以其内部存储的数据都是线程隔离的。
 	而且在static final ThreadLocal<Looper> sThreadLocal = new ThreadLocal<Looper>();
 	可以看到这个sThreadLocal在所有线程中只有一个，所以获取value的时候key都是同一个，只是这个ThreadLocalMap是在每个线程中有一份，所以获取的值是不同线程中的value值
 	sThreadLocal同一个对象中，相当于一个统一入口，内部操作获取value的和设置value都是针对当前线程来操作的，所以在不用线程中获取的是当前线程的值

@@ -1,7 +1,12 @@
 注解：
 
-注解基础：
-元注解：
+## 前言
+这段时间在写一些组件化相关的文章，其中有用到开源库ARoute相关知识，查看了下源码，内部使用了APT动态生成类的方式，
+于是就有了这篇文章，记录下自己对APT注解处理器的一些理解。
+注解在我们android开发和java开发中有很多作用，今天我们就来介绍下他的一种高级用法：注解处理器的用法
+
+- 注解基础：
+1.1元注解：
 1.@Target：目标，表示注解修饰的目标
 	ElementType.ANNOTIONS_TYPE:目标是注解，给注解设置的注解
 	ElementType.CONSTRUCTOR:构造方法
@@ -24,7 +29,7 @@
 5.@Repeatable:定义注解可重复
 
 
-创建注解：
+2.注解的使用方式：
 	@Target(ElementType.METHOD) :表示作用在方法中
 	@Retention(RetentionPolicy.SOURCE) ：表示只在编译器有效
 	public @interface Demo1 {
@@ -70,7 +75,7 @@
 	father
 	son
 	
-运行时注解：需要使用反射获取
+3.运行时注解：需要使用反射获取
 @Retention(RetentionPolicy.RUNTIME)
 public void getAnnoInfo() {
 	Class clazz = GetAnno.class;
@@ -84,7 +89,7 @@ public void getAnnoInfo() {
 	}
 }
 
-编译时注解：需要使用到APT工具
+4.编译时注解：需要使用到APT工具
 @Retention(RetentionPolicy.SOURCE)或者CLASS注解的获取
 可以使用编译期注解动态生成代码，很多优秀的开源库都是使用这个方式：如ButterKnife，GreenDao，EventBus3等
 
@@ -143,7 +148,7 @@ APT知识储备：
 		所以一般复杂的都使用Square出品的sdk：javapoet
 			implementation "com.squareup:javapoet:1.11.1"
 			
-自己实现自定义APT工具类步骤：
+5.自己实现自定义APT工具类步骤：
 1.建立一个javalib模块
 2.创建一个继承AbstractProcessor的类
 3.重写以下方法

@@ -1,0 +1,37 @@
+1.点击lacher-》启动app进程：zygote fork进程阶段app
+2.反射：ActivityThread.main ->attachApplication:binder赋值给AMS-》AMS-app
+AMS->handleBindApplication Application->attachBaseContext->installProvider->application:onCreate
+3.startActivity:执行onCreate->onStart->onResume -->View构建-->View渲染
+4数据架子啊
+
+app状态？黑白屏：改了theme，logo
+欺骗手段，并未实际修复黑白屏？WindowSplashScreenContent
+黑白屏可以替换布局么
+黑白屏是在fork前显示还是后显示
+fork是个耗时操作，猜测是在fork前显示黑白屏，防止用户重复点击图标
+UI显示是否在主线程执行？系统可以跳出主线程更新UI
+黑白屏可以用什么替换？
+wms.addView()
+
+为啥非系统应用需要在主线程更新UI？
+ViewRootImpl->checkThread
+
+Android12黑白屏可以为动画
+
+黑白屏在什么时候销毁？wm.addView(view)->在SplashActivity显示前消失
+
+触发器函数：schduleTransaction
+根据Activity的状态触发onCreate，onStart，onResume等
+
+
+
+
+
+
+
+
+广告页（SplashActivity）：预加载数据？赚广告引流？
+优化数据加载效率
+
+
+

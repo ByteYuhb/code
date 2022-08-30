@@ -12,7 +12,7 @@ MeaasgaQueue的next方法 如果发现message就调用handler的dispatchMessage�
 	可以，子线程通过调用Looper.looper和looper.loop开启一个循环，在子线程中可以调用new Handler(looper.myLooper),创建一个子线程handler来处理消息
 3.Handler导致的内存泄露原因及其解决方案
 	原因：message在延迟处理期间，进程关闭了Activity,Activity退出之后，因为msg中会持有handler的引用，handler是属于Activity的内部类，内部类会持有外部类的引用。
-			导致handler持有Activity的引用，导致Activity内存泄露。
+			handler持有Activity的引用，导致Activity内存泄露。
 	解决方式：将handler定义为静态内部类，在内部持有Activity的弱引用。并及时移除所有消息：
 	伪代码：
 		private static class SafeHandler extends Handler {
@@ -110,7 +110,7 @@ MeaasgaQueue的next方法 如果发现message就调用handler的dispatchMessage�
 	ThreadLocalMap是采用数组的方式来存储数据，其中key(弱引用)指向当前ThreadLocal对象，value为设的值 通过
 	ThreadLocal计算出Hash key，通过这个哈 ThreadLocal对象，value为设的值
 11.HandlerThread是什么 & 好处 &原理 & 使用场景
-	HHandlerThread本质上是一个线程类，它继承了Thread； HandlerThread有自己的内部Looper对象，通过Looper.loop()进行looper循环；
+	HandlerThread本质上是一个线程类，它继承了Thread； HandlerThread有自己的内部Looper对象，通过Looper.loop()进行looper循环；
 	通过获取HandlerThread的looper对象传递给Handler对象，然后在handleMessage()方法中执行异步任务；
 	优势:
 	1.将loop运行在子线程中处理,减轻了主线程的压力,使主线程更流畅,有自己的消息队列,不会干扰UI线程

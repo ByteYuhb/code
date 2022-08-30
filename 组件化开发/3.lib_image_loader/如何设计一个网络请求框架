@@ -1,0 +1,236 @@
+前面一篇文章介绍了组件化开发中lib_network的封装，配合maven私服的局域网共享功能，很好的实现了功能组件之间的共享开发。
+今天我们再来介绍下图片加载框架的封装。
+笔者先问下大家，如果让你设计一套图片加载框架，你会怎么设计？先不要看下文，自己好好想想，设计思路是什么？
+..
+...
+好了，没想好也没关系，看完这篇文章你就会懂了。
+
+我们来聊下我们平时使用的网络请求都需要有哪些步骤
+1.组装我们的请求实体类，内部封装了请求需要的url，header，以及一些参数信息
+2.通过请求信息，去本地缓存中查找是否有缓存数据，如果有，直接使用缓存中的数据，通过回调或者Handler传递给业务层
+3.没有缓存数据，则需要去服务器上拉取数据，这个过程需要使用异步加载的方式，线程池也许是个好选择
+4.获取数据后，将图片数据解码，解码后，缓存到本地，然后回调解码后的响应数据给业务层。
+
+以上就是一个完整的图片加载请求的流程：
+我们从流程中考量下我们需要做的工作：
+根据第一步说明：组装我们的请求实体类，内部封装了请求需要的url，header，以及一些参数信息
+设计一个Request的接口，接口中可以调用开始请求和暂停请求，以及获取我们的请求状态等方法，
+public interface Request {
+	/**
+	开始请求
+	*/
+	void begin();
+	/**
+	清除当前请求数据
+	*/
+	void clear();
+	/**
+	暂停请求
+	*/
+	void pause();
+	 /**查看请求正在请求中 */
+	boolean isRunning();
+
+	/** 查看请求是否成功获取数据，并完成 */
+	boolean isComplete();
+
+	/** 查看请求是否被清除 */
+	boolean isCleared();
+
+}
+实现这个Request接口，假设为SingleRequest，在这个类中可能需要有
+请求状态，传入的请求控件的长宽属性，请求的url信息，请求参数信息：
+
+public final class SingleRequest<R> implements Request {
+	//这个url为什么是一个object呢，因为不一定是传入的是String，有可能是封装了String url的其他类
+	private final Object url;
+	/**控件的长宽*/
+	private int width;
+	private int height;
+	
+	/**请求的参数信息，这个是外部需要作出可配置的*/
+	private final BaseRequestOptions<?> requestOptions;
+	
+	//这里是一个请求的状态信息，加载过程中可以根据状态不同，做不同的操作
+	private enum Status {
+		/** Created but not yet running. */
+		PENDING,
+		/** In the process of fetching media. */
+		RUNNING,
+		/** Waiting for a callback given to the Target to be called to determine target dimensions. */
+		WAITING_FOR_SIZE,
+		/** Finished loading media successfully. */
+		COMPLETE,
+		/** Failed to load media, may be restarted. */
+		FAILED,
+		/** Cleared by the user with a placeholder set, may be restarted. */
+		CLEARED,
+	}
+	...
+	当然这里面需要实现Request接口中的方法
+	
+}
+
+
+根据步骤2:去缓存中拿数据
+这里我们可以设计一个三级缓存：分别为：
+磁盘缓存：DiskLruCache，网络上有很多开源框架，可以直接拿过来用，或者根据自己需求设计一套，建议使用工厂模式创建，这样可以更好的对外扩展
+
+内存缓存：MemoryCache：这个缓存中持有缓存数据的强引用，防止在gc时被回收，这个也可以做成一个接口，接口封装方法如下：
+一些基本操作：put ，remove，clear清空缓存，监听设备内存状况，及时回收缓存，防止OOM。
+public interface MemoryCache {
+	//首先需要有put方法
+	Resource<?> put(@NonNull Key key, @Nullable Resource<?> resource);
+	//需要有remove方法
+	Resource<?> remove(@NonNull Key key);
+	//清空缓存
+	void clearMemory();
+	//监听内存状态
+	void trimMemory(int level);
+	//获取当前缓存大小信息
+	long getCurrentSize();
+	...
+	其他方法
+}
+
+使用一个LruResourceCache 去实现MemoryCache接口中的方法。
+我们了解到Android系统有为我们提供一个LruCache的内存缓存类，让LruResourceCache直接去继承这个LruCache即实现了我们的内存缓存。
+
+继承关系如下：
+public class LruResourceCache extends LruCache<Key, Value> implements MemoryCache
+
+然后我们的所有的缓存请求，都可以直接提交给父类LruCache去做，只实现MemoryCache接口中的方法即可，有点代理模式那味了
+
+那可能有同学要说了，你这个内存缓存，如果装的太多，不是会内存溢出么甚至出现OOM么？
+好，那就需要引入我们的第3级缓存了：
+
+我们创建一个ActiveResourcesCache：这个类也是一个内存缓存，那又有同学要说了，你前面不是设计了一个缓存了么，为啥又来设计一个内存缓存
+别急别急。。
+我们来说下这个缓存和前面的MemoryCache有啥区别：
+这个类中我们使用一个包含弱引用的HashMap来存储当前缓存数据
+Map<Key, ResourceWeakReference> activeEngineResources = new HashMap<>();
+创建一个ReferenceQueue来监听当前缓存数据被回收状态
+private final ReferenceQueue<EngineResource<?>> resourceReferenceQueue = new ReferenceQueue<>();
+
+这样做的目的是什么呢？
+1.在内存紧张需要回收资源的时候，首先回收的就是弱引用中的缓存，这样可以防止应用出现OOM。
+2.在某些情况下，我们可以将数据放入到二级缓存MemoryCache中，防止被回收。
+
+取用的时候：先去三级缓存ActiveResourcesCache中获取弱引用数据，如果取不到，则再去二级缓存MemoryCache中获取
+
+上面就很好的实现了我们的三级缓存机制
+
+步骤2中还有个如果拿到数据，我们可以使用Handler(Looper.getMainLooper())将数据传递到主线程上给业务层处理
+
+好了步骤2我们就讲到这里
+
+
+继续步骤3：没有缓存数据，则需要去服务器上拉取数据，这个过程需要使用异步加载的方式，线程池也许是个好选择
+这个步骤我们可以提取哪些信息呢：
+1.异步加载：因为图片加载都是短时间并发加载，所以需要使用线程池来解决，建议把线程池的核心线程数设置为0，非核心线程数设置一个较大的值，尽量满足多并发需求
+
+public final class AndroidExecutor implements ExecutorService {
+	//这里面可以根据具体需求创建不同类型的线程池
+	//
+	public ThreadPoolExecutor getThreadPollExcutor{
+		return new ThreadPoolExecutor(
+              corePoolSize,//0
+              maximumPoolSize,//10
+              /*keepAliveTime=*/ threadTimeoutMillis,
+              TimeUnit.MILLISECONDS,
+              new PriorityBlockingQueue<Runnable>(),
+              new DefaultThreadFactory(
+                  threadFactory, name, uncaughtThrowableStrategy, preventNetworkOperations));
+	}
+}
+
+图片加载过程因为有很多的不同状态：如初始化init状态，数据加载running，数据加载Success，加载失败Fail，数据缓存操作，原数据解码等操作
+所以可以使用一个Job类来管理我们的网络加载过程：
+class Job<R> implements Runnable{
+	public void run{
+		执行这里面的run逻辑，对不同的Job状态做不同的处理
+	
+	}
+}
+每个Job代表一个状态，需要处理的逻辑，可能同一个Job下需要连续处理多个状态。
+
+
+来看步骤4：获取数据后，将图片数据解码，解码后，缓存到本地，然后回调解码后的响应数据给业务层。
+
+我们抽取关键信息：图片解码，图片缓存，回调响应业务层
+
+图片解码：因为是图片在一些低内存的设备上，可能还需要做降采样，裁剪等处理：
+解码逻辑如下：
+1.先使用options.inJustDecodeBounds = true：获取到图片的宽和高
+2.获取实际控件Target的宽和高，和1做对比对数据进行裁剪
+3.然后将原数据解码成需要的尺寸
+
+图片缓存：
+我们做两次缓存，获取服务器请求的元数据后，缓存到磁盘，这个步骤需要异步处理。
+然后对元数据解码，得到后的数据，放入内存缓存中，这样在取的时候，优先去内存缓存中获取缓存，
+没有数据才会去磁盘中获取数据，磁盘中的数据是元数据，需要使用解码才能被控件使用
+
+其实数据加载前和加载后是一个层层对应的关系，包括我们的缓存处理逻辑
+
+回调响应业务层：
+这个我们封装好响应数据使用主线程回调的方式给业务层。
+
+好了，以上就是设计一个标准的网络请框架需要流程。
+
+除了上面的这些还需要注意哪些么？
+
+1.我们想象下如果一个控件被销毁了，但是我们的任务还在继续会出现什么情况呢？对了，会出现内存溢出的情况
+所以我们需要做好控件生命周期和任务的管理。
+管理生命周期需要和你传入的target关联，
+如果是Activity或者Fragment的Activity，可以监听这些组件的生命周期
+如果是Application的，需要监听Application的生命周期。
+
+还有什么要补充的么？
+对了，还有图片加载动画，列表动画加载View的复用，Bitmap复用和回收等，都是我们要考虑的方面。
+
+细心的朋友可能发现，我上面讲解的内容都是Glide里面实现了的，这些大型开源框架已经帮我们处理好了，
+我们只需要复用就可以，没必要重复造轮子些大型开源框架已经帮我们处理好了，我们只需要复用就可以，没必要重复造轮子，
+但是框架的原理你一定要清楚。
+相关文章：https://juejin.cn/post/7120130046722834440
+
+最后来总结下前面所讲的：
+设计一个图片加载框架需要注意的地方：
+1.异步加载数据：线程池
+2.线程切换：Handler
+3.需要支持多种图片格式加载
+4.使用多级缓存：磁盘，内存，弱引用对象，
+5.防止OOM：弱引用，图片字节数组存放位置如native
+6.生命周期管理
+7.资源解码降采样
+9.Bitmap回收和复用
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+

@@ -1,27 +1,26 @@
 Activity面试题
 
-1..Activity的启动流程
+1.Activity的启动流程有了解么？
 	参考：Activity-->startActivity启动流程
 	其中包括根Activity和普通Activity启动的分析
-2.onSaveInstanceState(),onRestoreInstanceState的掉用时机
+2.onSaveInstanceState(),onRestoreInstanceState的调用时机
 	2.1：onSaveInstanceState(Bundle outState)会在以下情况被调用：
 		2.1.1：从最近应用中选择运行其他的程序时。
 		2.1.2：当用户按下HOME键时。
 		2.1.3：屏幕方向切换时(无论竖屏切横屏还是横屏切竖屏都会调用)。
-		2.1.4：按下电源按键（关闭屏幕显示）时。
-		2.1.5：从当前activity启动一个新的activity时
-		2.1.6：Activity被系统异常销毁或回收等情况
+		2.1.4：Activity被系统异常销毁或回收等情况
 	onPause -> onSaveInstanceState -> onStop。
 	2.2：onRestoreInstanceState(Bundle outState)会在以下情况被调用：
 		onRestoreInstanceState(Bundle savedInstanceState)只有在activity确实是被系统回收，重新创建activity的情况下才会被调用
 	    2.2.1：屏幕方向切换时，activity生命周期如下：onPause->onSaveInstanceState->onStop->onDestroy->onCreate->onStart->onRestoreInstanceState->onResume
 		2.2.2：Activity在后台被回收
 	源码：
-	点击home键后，系统会调用ActivityThread的performStopActivity，将状态保存在mActivity的信息表中当Activity重启时候，会从mActivities中查询到对应的ActivityClientRecord。
-	如果有信息，则调用Activity的onResoreInstanceState方法，
-	在ActivityThread的performLaunchActivity方法中，统会判断ActivityClientRecord对象的state是否为空，不为空则通过Activity的onSaveInstanceState获取其UI状态信息，通过这些信息传递给Activity的onCreate方法
+	点击home键后，系统会调用ActivityThread的performStopActivity，将状态保存在mActivity的信息表中。
+	当Activity重启时候，会从mActivities中查询到对应的ActivityClientRecord。
+		如果有信息，则调用Activity的onResoreInstanceState方法，
+		在ActivityThread的performLaunchActivity方法中，系统会判断ActivityClientRecord对象的state是否为空，不为空则通过Activity的onSaveInstanceState获取其UI状态信息，通过这些信息传递给Activity的onCreate方法
 3.activity的启动模式和使用场景
-	3.1：android任务栈：类TaskRecord：一个TaskRecord中包含一个ActivityRecord的集合，每个ActivityRecord只属于一个任务栈
+	3.1：android任务栈：类TaskRecord：一个TaskRecord中包含一组ActivityRecord的集合，每个ActivityRecord只属于一个任务栈
 	3.2：ActivityRecord：一个ActivityRecord表示一个Activity的实例所有的信息
 	3.3：ActivityStack：是一个TaskRecord的集合，内部包含N个TaskRecord：主要是包括HomeStack(Launcher任务栈)和FocusStack(应用任务栈)
 	启动模式：
@@ -64,12 +63,14 @@ Activity面试题
 6.Activity之间传递数据的方式Intent是否有大小限制，如果传递的数据量偏大，有哪些方案
 	6.1：我们先来理解一个intent传输数据的过程：
 		A Activity--->binder通讯-->AMS-->binder通讯--> B Activity
-	可以看出Activity直接传递数据是通过binder机制传输的，binder机制对应用传递数据有一个大小限制1M-8K，这个是MMAP接收数据的缓冲区大小，所以实际应用传递的数据要小余1M-8K，这个是MMAP接收数据的缓冲区大小，所以实际应用传递的数据要小余1M-8K
+	可以看出Activity直接传递数据是通过binder机制传输的，binder机制对应用传递数据有一个大小限制1M-8K，
+	这个是MMAP接收数据的缓冲区大小，所以实际应用传递的数据要小余1M-8K，这个是MMAP接收数据的缓冲区大小，所以实际应用传递的数据要小余1M-8K
 	因为数据传输还有head和body两部分。
 	6.2：MMAP机制：
-	服务启动给的时候，会调用mmap函数，在内核开辟一块内核缓冲区空间，这块空间指向一个物理内存地址，而在用户空间也对同一块物理内存地址做了映射，
-	当有数据来的时候，先放到内核缓冲区，系统会自动将数据映射到物理内存，而用户空间因为也做了映射，可以直接使用这块物理内存地址中的数据，这就是binder一次拷贝的机制原理
-	6.3：binder本身就不是用来传递大数据，而传递大数据建议使用：实时性要求已经高使用单例类，全局变量等，对数据实时性要求不高的可以放到文件里面或者数据库sqlite，shardPreference等或者等
+	服务启动的时候，会调用mmap函数，在内核开辟一块内核缓冲区空间，这块空间指向一个物理内存地址，而在用户空间也对同一块物理内存地址做了映射，
+	当有数据来的时候，先放到内核缓冲区，系统会自动将数据映射到物理内存，
+	而用户空间因为也做了映射，可以直接使用这块物理内存地址中的数据，这就是binder一次拷贝的机制原理
+	6.3：binder本身就不是用来传递大数据，而传递大数据建议使用：实时性要求已经高使用单例类，全局变量等，对数据实时性要求不高的且需要永久性的数据可以放到文件里面或者数据库sqlite，shardPreference等或者等
 	6.4：和其他几种ipc通讯方式的比较：
 	共享内存：只需要一次拷贝，速度很快，但是对开发者要求比较高，难于控制
 	socket或者管道：需要两次拷贝，性能比较低

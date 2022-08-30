@@ -1,0 +1,291 @@
+## 前言
+> 本文主要记录笔者对Android系统启动流程的一个的一个过程了解
+
+笔者刚开始学习Android的时候也和大部分同学一样，只会使用一些应用层面的知识，对于一些比较常见的开源框架如<mark>RxJava</mark>，<mark>OkHttp</mark>，<mark>Retrofit</mark>，以及后来谷歌推出的<mark>协程</mark>等，都只在使用层面，对于他们<mark>内部原理</mark>，基本没有去了解觉得够用就可以了，又比如Activity，Service等四大组件的使用原理，系统开机过程，Launcher启动过程等知之甚少，知其然而不知其所以然，结果就是出现某些问题，不知道从哪里找原因，只能依赖万能的百度，但是百度看多了，你会发现自己还是什么都不会，过一段时间可能就忘记了
+
+- 为了能更加深刻的理解这些机制，笔者决定自己深入Framework层面去考察下这些代码的机制：
+
+***讲解时间线如下：***
+
+- 1.[android体系课-系统启动流程-之zygote进程启动过程源码分析](https://juejin.cn/post/7112465356991496200/)
+
+- 2.[android体系课-系统启动流程-之SystemServer启动过程源码分析](https://juejin.cn/post/7112663893205319716/)
+
+- 3.android体系课-系统启动流程-之startActivity启动流程源码分析
+- 4.android体系课-系统启动流程-之android系统启动面试题
+
+对于源码解析部分，可能大家会有部分疑惑，我们列出部分：
+
+- 1.zygoye是什么？有什么作用 
+
+    答：zygote英文翻译是“孵化”。
+
+在了解zygote之前首先我们需要知道我们进程是如何创建的？
+
+	我们安卓设备内核使用的是linux内核，
+	开机先是启动一个init进程，在init进程中会创建一个zygote进程，
+	zygote进程会启动java虚拟机并注册java-native 的jni方法，通过jni调用到java层的ZygoteInit，在这个类里面会注册一个ServerSocket用于设备创建应用进程的需要。
+	当启动一个应用需要创建一个进程时，会调用到这个ServerSocket的创建进程流程，主要是通过fork的方式创建进程，这样子进程就拥有了父进程所有的资源，
+	fork会返回两次，当返回的pid=0时说明现在是处于子进程，继续处理子进程流程就可以了。如果是SystemServer进程，则会启动各类服务，包括AMS,WMS等系统服务。
+
+**按上面所讲，zygote就是作为创建子进程的一个孵化器。**‘
+
+- 2.SystemServer是什么？有什么作用？它与zygote的关系是什么？
+
+答：SystemServer是一个由zygotefork出来的子进程，该进程主要作用是创建创建<mark>binder</mark>线程池和启动android运行需要的诸多系统服务，比如：<mark>AMS</mark>，<mark>PMS</mark>，<mark>WMS</mark>等并启动系统Launcher
+	
+- 3.ActivityManagerService是什么？什么时候初始化的？有什么作用？
+
+答：ActivityManagerService，简称AMS，服务端对象，负责统一调度系统中四大组件的生命周期。ActivityManagerService进行初始化的时机很明确，就是在SystemServer进程开启的时候，就会初始化ActivityManagerService
+
+    **APP和AMS其实是通过binder进行通讯的。**
+    
+	binder机制简述。
+> 	binder其实是进程间通信的一种方式，在linux进程中有socket，管道，共享内存，消息队列等方式，
+> 	而由于binder对性能消耗低和安全性方面的考虑，android大量的使用了binder通讯 ，可以说binder是android的基石。
+
+	binder模型简述：
+        
+> 	首先我们binder是通过CS架构进行设计的：Client和Service
+> 	先搞懂三个概念：client，server和serverManger
+> 	server通过binder通讯将自己注册到serverManager中，client通过binder获取serverManager中注册的server，
+> 	其实是获取一个handle，通过这个handle就可以在bidner驱动中找找到server进程和需要处理的方法地址等信息。
+> 	从而间接实现了进程间通讯，这个是binder的一个简要概述，详细的需要去了解binder驱动实现原理。
+
+- 4.Launcher是什么？什么时候启动的？
+	
+        答：Launcher也是一个应用app，是在SystemServer启动的时候，启动的一个应用
+	
+- 5.Instrumentation是什么？和ActivityThread是什么关系？
+
+	答：Instrumentation是一个沟通Activity和AMS以及ActivityThread和Activity中间桥梁工具类
+	例如：Activity.startActivity
+			->mInstrumentation.execStartActivity
+			->ActivityManagerService.startActivity->ActivityThread.thread.scheduleLaunchActivity
+			->ActivityThread.handleLaunchActivity
+			->mInstrumentation.callActivityOnCreate
+
+
+**针对以上问题：笔者会以源码的方式呈现**
+
+前面一篇文章我们已经介绍过了：
+
+Android系统启动-zygote进程详解：
+
+[android体系课-系统启动流程-之zygote进程启动过程源码分析](https://juejin.cn/post/7112465356991496200/)
+
+和Android系统启动-SystemServer启动过程详解：
+
+[android体系课-系统启动流程-之SystemServer启动过程源码分析](https://juejin.cn/post/7112663893205319716/)
+
+
+今天这篇文章我们来介绍下Activity的启动过程
+
+
+## startActivity分为根Activity和普通Activity
+### 根Activity即应用启动的第一个Activity：
+应用根Activity的启动过程：
+	根据之前对startActivity启动流程的分析，在ActivityStackSupervisor.startSpecificActivityLocked(next, true, true);方法中：
+	对是否创建进程进行判断：
+	如果有创建(针对普通Activity)：则直接调用realStartActivityLocked(activity, app, top == activity, true)，这个就是普通Activity的启动流程
+	没有创建(针对根Activity  )：则调用AMS的startProcessLocked：
+	
+1.要启动一个应用APP，需要先创建一个应用程序进程，这个创建过程是MS给孵化进程发送的创建进程的请求fork
+	AMS：
+	startProcessLocked：
+		//获取要创建的进程的用户uid
+		int uid = app.uid;
+		//对gid创建和赋值
+		if (ArrayUtils.isEmpty(permGids)) {
+			gids = new int[3];
+		} else {
+			gids = new int[permGids.length + 3];
+			System.arraycopy(permGids, 0, gids, 3, permGids.length);
+		}
+		gids[0] = UserHandle.getSharedAppGid(UserHandle.getAppId(uid));
+		gids[1] = UserHandle.getCacheAppGid(UserHandle.getAppId(uid));
+		gids[2] = UserHandle.getUserGid(UserHandle.getUserId(uid));
+		//设置待启动的类名
+		if (entryPoint == null) entryPoint = "android.app.ActivityThread";
+		//启动进程
+		startResult = Process.start(entryPoint,...)
+			zygoteProcess.start(processClass...)
+				startViaZygote(processClass...)
+					zygoteSendArgsAndGetResult(openZygoteSocketIfNeeded(abi), argsForZygote);
+						分析1：openZygoteSocketIfNeeded：//如果没有打开孵化进程的socket通讯，那就尝试打开，如果已经打开，那就什么都不做，可能会阻塞并多次尝试连接
+									primaryZygoteState = ZygoteState.connect(mSocket);//与孵化进程建立连接
+										zygoteSocket.connect(new LocalSocketAddress(socketAddress,LocalSocketAddress.Namespace.RESERVED));//连接
+											zygoteInputStream = new DataInputStream(zygoteSocket.getInputStream());//获取InputStream
+											zygoteWriter = new BufferedWriter(new OutputStreamWriter(zygoteSocket.getOutputStream()), 256);//获取OutPutStream
+											return new ZygoteState(zygoteSocket, zygoteInputStream, zygoteWriter..)//返回一个ZygoteState里面包含了输入和输出流
+						分析2：zygoteSendArgsAndGetResult(new ZygoteState(zygoteSocket, zygoteInputStream, zygoteWriter..),args)
+									writer.write(Integer.toString(args.size()));//给socket写数据
+									result.pid = inputStream.readInt();//从socket中读数据
+									result.usingWrapper = inputStream.readBoolean();
+									return result; result = Process.ProcessStartResult();//此处已经表明应用进程启动成功
+									//之后会从fork处启动应用程序进程：进程类为："android.app.ActivityThread" 方法为main，这个时候就正式进入应用程序的main方法中
+									
+		
+2.android.app.ActivityThread   main方法	
+	ActivityThread.main{
+		ActivityThread thread = new ActivityThread();
+        thread.attach(false);
+			//调用AMS的attachApplication
+			mgr.attachApplication(mAppThread);
+				attachApplicationLocked(thread, callingPid);
+					//获取之前创建的ProcessRecord
+					app = mPidsSelfLocked.get(pid);
+					//回调到ActivityThread的ApplicationThread中
+					thread.bindApplication(processName, appInfo, providers...)
+					//1.包含创建Application，调用application的onCreate方法等
+					mStackSupervisor.attachApplicationLocked(app)
+						//内部又调用到了realStartActivityLocked方法，这个方法之前分析过就是启动Activity的方式
+						realStartActivityLocked(hr, app, true, true)
+	
+	}
+
+总结：根Activity是在调用realStartActivityLocked真正启动Activity之前，判断进程是否存在，如果存在，则直接调用realStartActivityLocked
+如果不存在则会调用startProcessLocked方法去创建应用进程，进程创建成功后，会启动ActivityThread的main方法
+这个方法内部调用了attach方法，这个方法调用到AMS的内部，获取内部的ProcessRecord，通过bindApplication通知应用进程发起应用的创建createApplication，创建后回到AMS，AMS
+调用realStartActivityLocked这里才是真正的根Activity启动的地方
+
+根Activity创建的过程中涉及的进程
+	Launcher进程桌面点击icon
+	---->AMS启动Activity前发现应用进程未启动
+	--->调用zygote进程创建进程socket通讯
+	--->创建成功后，应用进程启动
+	--->应用启动成功后,调用AMS的启动Activity方法
+	--->最后通知应用进程回调Activity的创建和生命周期方法
+
+
+### 普通Activity启动过程
+
+startActivity();
+	startActivityForResult(intent, -1);
+		startActivityForResult(intent, requestCode, null);
+			mInstrumentation.execStartActivity(this, mMainThread.getApplicationThread(), mToken, this,intent, requestCode, options);
+				ActivityManager.getService().startActivity(whoThread, who.getBasePackageName(), intent,intent.resolveTypeIfNeeded(who.getContentResolver()),token, target, requestCode, 0, null, options);
+						ActivityManagerService.startActivity
+						//这里进入AMS
+							startActivityAsUser(caller..);
+								mActivityStarter.startActivityMayWait(caller,..)
+									//在ActivityStackSupervisor中记录startActivity开始时间
+									mSupervisor.mActivityMetricsLogger.notifyActivityLaunching();
+									// Save a copy in case ephemeral needs it
+									//记录一个临时变量，防止intent改变后需要使用原intent的情况。
+									final Intent ephemeralIntent = new Intent(intent);
+									// Don't modify the client's object!
+									//新建一个intent防止改变原传入的intent
+									intent = new Intent(intent);
+									//将intent解析成ResolveInfo
+									ResolveInfo rInfo = mSupervisor.resolveIntent(intent, resolvedType, userId);
+									// Collect information about the target of the Intent.
+									//将intent和rInfo中的数据解析出ActivityInfo
+									ActivityInfo aInfo = mSupervisor.resolveActivity(intent, rInfo, startFlags, profilerInfo);
+									//将mSupervisor中的非Launcher任务栈取出来
+									stack = mSupervisor.mFocusedStack;
+									startActivityLocked(caller,...);
+										startActivity(caller, intent, ...);
+											//去缓存里面获取ProcessRecord
+											ProcessRecord callerApp = mService.getRecordForAppLocked(caller);
+											//获取intent的flag标签
+											final int launchFlags = intent.getFlags();
+											//获取ActivityStack
+											final ActivityStack resultStack = resultRecord == null ? null : resultRecord.getStack();
+											//检查启动Activity权限
+											boolean abort = !mSupervisor.checkStartAnyActivityPermission(intent..)
+											//创建ActivityRecord
+											ActivityRecord r = new ActivityRecord(mService, callerApp, callingPid, callingUid,..)
+											startActivity(r, sourceRecord,...);
+												result = startActivityUnchecked(r, sourceRecord,...);
+													
+													if (mStartActivity.resultTo == null && mInTask == null && !mAddingToTask
+													&& (mLaunchFlags & FLAG_ACTIVITY_NEW_TASK) != 0) {
+														newTask = true;
+														//在这里面会调用创建新的taskRecord;	
+														result = setTaskFromReuseOrCreateNewTask();													
+													} 
+													mTargetStack.startActivityLocked(mStartActivity...)
+													mSupervisor.resumeFocusedStackTopActivityLocked();
+														 result = resumeTopActivityInnerLocked(prev, options);
+															//暂停栈顶上的Activity，将要启动的Activity进行resume确保在栈顶上
+															boolean pausing = mStackSupervisor.pauseBackStacks(userLeaving, next, false);
+															mStackSupervisor.scheduleResumeTopActivities();
+															//调用启动activity的resume操作
+															next.app.thread.scheduleResumeActivity(...);
+															//（参考系统启动--->应用根Activity的启动过程）
+															mStackSupervisor.startSpecificActivityLocked(next, true, true);
+																//如果进程已经创建，则直接调用realStartActivityLocked
+																realStartActivityLocked(r, app, andResume, checkConfig);
+																	if(app != null && app.thread != null) {
+																		//开始真正进入start
+																		realStartActivityLocked(r, app, andResume, checkConfig);
+																			//调用ApplicationThread启动Activity:根据进程创建的时候调用mgr.attachApplication(mAppThread)提供的mAppThread进程binder回调
+																			app.thread.scheduleLaunchActivity(new Intent(r.intent), r.appToken,...)														
+																	}
+																//如果进程没有启动则会调用startProcessLocked去创建应用进程，前面有对这块的分析
+																mService.startProcessLocked(r.processName, r.info.applicationInfo, true, 0,"activity", r.intent.getComponent(), false, false, true);
+ActivityThread.java
+	 class ApplicationThread extends IApplicationThread.Stub{
+		void scheduleLaunchActivity(Intent intent,...){
+			ActivityClientRecord r = new ActivityClientRecord();
+			sendMessage(H.LAUNCH_ACTIVITY, r);
+		}
+	 }'
+	 case LAUNCH_ACTIVITY: {                
+            handleLaunchActivity(r, null, "LAUNCH_ACTIVITY");
+				Activity a = performLaunchActivity(r, customIntent);
+					ContextImpl appContext = createBaseContextForActivity(r);
+						ContextImpl appContext = ContextImpl.createActivityContext()
+							ContextImpl context = new ContextImpl(null, mainThread, packageInfo...)创建context
+								context.setResources(resourcesManager.createBaseActivityResources(activityToken,
+									packageInfo.getResDir(),
+									splitDirs,
+									packageInfo.getOverlayDirs(),
+									packageInfo.getApplicationInfo().sharedLibraryFiles,
+									displayId,
+									overrideConfiguration,
+									compatInfo,
+									classLoader));设置resource所以在其他地方可以使用Activity获取resource信息
+					activity = mInstrumentation.newActivity(cl, component.getClassName(), r.intent);通过反射获取activity对象实例				
+					Application app = r.packageInfo.makeApplication(false, mInstrumentation);创建application
+						ContextImpl appContext = ContextImpl.createAppContext(mActivityThread, this);创建application的context
+						app = mActivityThread.mInstrumentation.newApplication(cl, appClass, appContext);
+							newApplication(cl.loadClass(className), context);
+								Application app = (Application)clazz.newInstance();通过反射获取application实例
+								app.attach(context);调用app的attach方法
+									attachBaseContext(context);设置application的context
+									mLoadedApk = ContextImpl.getImpl(context).mPackageInfo;设置apk信息
+						appContext.setOuterContext(app);设置application的context
+						instrumentation.callApplicationOnCreate(app);调用app的onCreate方法
+					appContext.setOuterContext(activity);设置Activity的context
+					activity.attach(appContext, this...)调用Activity的attach方法
+						attachBaseContext(context);设置context
+						mWindow = new PhoneWindow(this, window, activityConfigCallback);设置phoneWindow
+						mWindow.setWindowManager( );因此可以在Activity中获取window取出windowManager
+					mInstrumentation.callActivityOnCreate(activity, r.state);	
+						activity.performCreate(icicle);
+							onCreate(icicle);调用Activity的onCreate方法
+					mActivities.put(r.token, r);将Activity放入列表中
+				
+		
+				
+					
+			handleResumeActivity(r.token, false, r.isForward,
+				r = performResumeActivity(token, clearHide, reason);
+					r.activity.performResume();
+						performRestart();
+						mInstrumentation.callActivityOnResume(this);
+							activity.onResume();此次调用Activity的onResume方法
+到这里整个Activity的Start流程就完成了。	
+
+总结：普通Activity启动过程省略了创建应用进程的过程，所以启动快，而创建根Activity则需要创建应用进程所以会有很多初始化工作，启动速度慢
+					
+								
+ 
+	 
+		
+			
+ 
+									
+									

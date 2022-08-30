@@ -1,0 +1,534 @@
+前言
+作为Android开发者，日常写java，是否想过，玩玩class文件，直接对class文件的字节码下手，我们可以使用class字节码做很多有趣的事情：
+比如：
+如全局class插桩，对UI，网络，内存等方面的性能监控
+在不想使用第三方源码的情况下，对第三方依赖库的jar包进行修改，其实也是对jar中的class进行修改
+给关键方法自动加入log等等
+上面的想法，我们第一反应：APT，或者反射或者动态代理来实现，但是这些方法都无法满足上面的需求，因为前面这些需求都或多或少的和Class文件有关系，
+于是我们不得不近距离来接触下字节码概念：
+今天这篇文章笔者就来讲解下关于字节码相关知识点
+
+Class文件结构
+1.初识Class文件
+平台无关性
+早期由于编程语言和操作系统系统的多样性，很多程序语言选择了与操作系统和机器指令集无关的平台中立的格式作为编译后的格式。
+Class文件规范就是在这样一个环境下冉冉升起。
+而字节码（ByteCode）则成为了构建平台无关性的基石。
+java语言中的各种语法，关键字，常量遍历和运算符号最终都会由多条字节码指令组合表达，你可以理解为是一种映射关系。
+只要符合Class文件规范，其他语言一样可以编译为Class文件。
+
+2.Class类文件结构
+Class文件是一组以8个字节为基础单位的二进制流，各个数据项目严格按照顺序紧凑排列，中间没有任何分隔符。当遇到需要8个字节以上的数据项时，则会按高位在前的方式分割为若干个8个字节进行存储
+
+CLass文件格式采用一种类C结构体的伪结构来存储数据。这种结构只有两种数据类型：
+无符号数和表
+
+无符号数：属于基本的数据类型，以u1，u2，u4和u8来分别代表1，2,4,8个字节的无符号数，无符号数可以用来描述数字，索引引用，数量值或者按照UTF-8编码构成字符串值
+表：有多个无符号数或者其他表作为数据项构成的符合数据类型，所以表以“_info”结尾。
+表用来描述有层次关系的符合结构的数据，整个Class文件本质上可以视作一张表。
+ClassFile { 
+    u4 magic;  // 魔法数字，表明当前文件是.class文件，固定0xCAFEBABE
+    u2 minor_version; // 分别为Class文件的副版本和主版本
+    u2 major_version; 
+    u2 constant_pool_count; // 常量池计数
+    cp_info constant_pool[constant_pool_count-1];  // 常量池内容
+    u2 access_flags; // 类访问标识
+    u2 this_class; // 当前类
+    u2 super_class; // 父类
+    u2 interfaces_count; // 实现的接口数
+    u2 interfaces[interfaces_count]; // 实现接口信息
+    u2 fields_count; // 字段数量
+    field_info fields[fields_count]; // 包含的字段信息 
+    u2 methods_count; // 方法数量
+    method_info methods[methods_count]; // 包含的方法信息
+    u2 attributes_count;  // 属性数量
+    attribute_info attributes[attributes_count]; // 各种属性
+}
+
+Class文件不像XML等，由于没有任何分隔符，无论是顺序还是数量，升值数据存储的字节序，都是被严格限定的。哪个字节代表什么含义，长度是多少，先后顺序，全部都不允许改变。
+
+2.1：魔数
+这个和exe，jpg，gif的格式是一个道理，都是用来标识当前文件的格式，这里不使用外部的.class识别。是防止其他文件伪装成.class文件。
+
+2.2：minor_version和major_version
+这个是class文件的最低和最高版本，使用不同的jdk版本，得到的class文件的major_version版本是不一样的
+
+2.3：constant_pool_count
+常量池计数器，主要表示当前class文件中有多少个常量，
+
+2.4：cp_info constant_pool[constant_pool_count-1]
+这也是一个表：表中包含了constant_pool_count-1个常量项，为什么要-1，因为设计中将0号索引空出来，如果不引用任何常量池项目，可以将索引置为0，统一管理
+常量池中量大类常量：
+字面量和符合引用
+字面量(Literal)：你可以理解为java的常量，如String常量，被声明为final的常量值等
+符合引用：属于编译原理方面的概念，主要包括以下几种常量
+1.类和接口的权限定名
+2.字段的名称和描述符
+3.方法的名称和面舒服
+...
+
+java文件编译后，需要在虚拟机加载Class文件的时候进行动态连接？什么是动态连接，这里涉及到Class文件加载，
+Class文件不会保存各个方法，字段在内存中的布局信息，当虚拟机在做类加载的时候，从常量池获取对应的符号引用，再在类创建时或者运行时解析，翻译到具体的内存之中
+
+常量池中每一项都是一个表。
+每个表互不干扰，数据结构完全独立，所以说常量池也是最繁琐的部分
+
+我们先来看CONSTANT_Utf8_info和CONSTANT_String_info
+
+CONSTANT_Utf8_info：真正存储字符串的地方，其结构中有一个字节数组就是用来存储字符串的地方
+结构： 
+CONSTANT_Utf8_info {
+    u1 tag; //值为1：表示当前表中存储的是一个utf-8字段
+    u2 length; //utf-8字段的长度
+    u1 bytes[length]; //utf-8字段的真实值
+}
+
+
+CONSTANT_String_info：本身不包含字符，但是其有个指针指向CONSTANT_Utf8_info中的字符串
+CONSTANT_String_info {
+	u1 tag;//值为8
+	u2 index;//指向字符串字面量的索引，即上面CONSTANT_Utf8_info的索引
+}
+这两者区别就是CONSTANT_Utf8_info存储的是真实的字符串而CONSTANT_String_info存储的是字符串的索引。通过索引的方式大大减少了编译后文件的体积
+除了上面标志性的字符串常量项
+
+还有类中常量项：Class ,Fieldref,Methodref,InterfaceMethodref,nameAndType
+CONSTANT_Class_info {
+	u1 tag;//值为7
+	u2 name_index;//指向权限定名常量项的索引
+}
+CONSTANT_Fieldref_info {
+	u1 tag;//值为9
+	u2 index;//指向声明字段的类或者接口的描述符CONSTANT_Class_info
+	u2 index;//指向字段描述符CONSTANT_NameAndType的索引项
+}
+
+CONSTANT_Methodref_info {
+	u1 tag;//值为10
+	u2 index;//指向声明字段的类或者接口的描述符CONSTANT_Class_info
+	u2 index;//指向方法的描述符CONSTANT_NameAndType的索引项
+}
+
+CONSTANT_InterfaceMethodref_info {
+	u1 tag;//值为11
+	u2 index;//指向声明方法的类或者接口的描述符CONSTANT_Class_info
+	u2 index;//指向名称及类型描述符CONSTANT_NameAndType的索引项
+}
+
+CONSTANT_NameAndType {
+	u1 tag;//值为12
+	u2 index;//指向字段或者方法名称的常量项
+	u2 index;//指向名称及类型描述符CONSTANT_NameAndType的索引项
+}
+
+CONSTANT_MethodHandle_info {
+	u1 tag;//值为15
+	u2 reference_kind;//方法句柄的类型：表示方法句柄的字节码行为，值1~9
+	u2 reference_index;//常量池的有效索引
+}
+
+CONSTANT_MethodType_info {
+	u1 tag;//值为16
+	u2 description_index;//常量池的有效索引，指向一个CONSTANT_Utf8_info表
+}
+
+CONSTANT_Dynamic_info {
+	u1 tag;//17
+	u2 bootstrap_method_attr_index;//值必须是对当前Class文件中引导方法表的bootstrap_method[] 数组的有效索引
+	u2 name_and_type_index;//指向CONSTANT_NameAndType_info结构，表示方法名和方法描述符
+}
+
+CONSTANT_InvokeDynamic_info {
+	u1 tag;//18
+	u2 bootstrap_method_attr_index;//值必须是对当前Class文件中引导方法表的bootstrap_method[] 数组的有效索引
+	u2 name_and_type_index;//指向CONSTANT_NameAndType_info结构，表示方法名和方法描述符
+}
+
+CONSTANT_Module_info {
+	u1 tag;//值为19
+	u2 name_index;//常量池的有效索引，指向一个CONSTANT_Utf8_info表,表示模块名称
+}
+CONSTANT_Package_info {
+	u1 tag;//值为20
+	u2 name_index;//常量池的有效索引，指向一个CONSTANT_Utf8_info表，表示包名称
+}
+
+可以看到常量池中只有CONSTANT_Utf8_info表是存储字符串的地方，其他表都或多或少有个指针指向CONSTANT_Utf8_info中的字符串
+设计者通过使用指针索引的方式获取常量项：实现一次声明，到处可用的。大大减少我们的class文件的体积
+
+2.5：access_flags
+
+常量池之后，紧接着的2个字节代表访问标志（access_flags），这个标志用于识别类和接口的访问信息：
+包括：权限属性，public，抽象属性：abstract，final属性等等
+
+标志名称                   标志位     含义
+ACC_PUBLIC				   0x0001    	是否为public类型	
+ACC_FINAL				   0x0010     是否为final，只有类可设置	
+ACC_SUPER				   0x0020     是否允许使用invokespecial字节码指令的新语义，
+ACC_INTERFACE              0x0200     标识这是一个接口
+ACC_ABSTRACT			   0x0400     是否为abstract类型，对于接口和抽象类型来说，此标志位true，其他位false
+ACC_SYNTHETIC			   0x1000     标识这个类并非用户代码产生的
+ACC_ANNOTATION			   0x2000     标识这是一个注解
+ACC_ENUM				   0x4000     标识这是一个枚举			
+ACC_MODULE				   0x8000     标识这是一个模块
+
+access_flags一共有16个标志位，当前之定义了其中9种。
+
+
+2.6：this_class和super_class和interfaces[interfaces_count]
+this_class:类索引，指向当前类的权限定名
+super_class：父类索引，指向当前父类的权限定名
+interfaces[interfaces_count]：接口索引，指向当前类实现的接口的权限定名
+
+
+这三个数据类型每项都指向一个CONSTANT_Class_info。
+指向关系如下：
+
+jvm信息描述规则：
+jvm采用了字符串的形式来描述数据类型、成员变量及成员函数 这三类
+在讲解接下来的Class表项的时候，我们先来介绍下这三种描述规则
+
+1.数据类型
+1.1：原始数据类型
+Java 类型的 byte、char、double、float、int、long、short、boolean => "B"、"C"、"D"、"F"、"I"、"J"、"S"、"Z"。
+
+1.2：引用数据类型
+ClassName => L + 全路径类名（其中的 "." 替换为 "/"，最后加分号），例如 String => Ljava/lang/String;。
+
+1.3：数组(引用类型)
+不同类型的数组 => "[该类型对应的描述名"，例如 int 数组 => "[I"，String 数组 => "[Ljava/lang/Sting;"，二维 int 数组 => "[[I"。
+
+2.成员变量
+jvm中，成员变量即Field Description的描述规则如下
+
+2.1：FiledDescriptor：仅包含 FieldType 一种信息
+2.2:FiledType:FiledType 的可选类型
+ BaseType | ObjectType | ArrayType
+    BaseType：
+    B | C | D | F | I | J | S | Z
+    ObjectType：
+    L + 全路径ClassName；
+    ArrayType：
+    [ComponentType：
+2.3:ComponentType:与 FiledType 的可选类型一样
+
+3.成员函数
+在 JVM 规范之中，成员函数即 Method Descriptor 的描述规则如下所示
+MethodDescriptor:
+    # 1、括号内的是参数的数据类型描述，* 表示有 0 至多个 ParameterDescriptor，最后是返回值类型描述
+    ( ParameterDescriptor* ) ReturnDescriptor
+    ParameterDescriptor:
+    FieldType
+    ReturnDescriptor:
+    FieldType | VoidDescriptor
+    VoidDescriptor:
+    // 2、void 的描述规则为 "V"
+    V
+例如： void helloword(String str) 的函数 => （Ljava/lang/String;)V。
+
+2.7：field_info，method_info
+field_info:字段表，用于描述接口或者类中声明的变量
+字段表包括：
+字段的作用域（public ,private,protected）,是实例变量还是类变量（static修饰符）
+可变性（final修饰符），并发可见性（volatile），是否可序列化（transient修饰符），
+字段数据类型（基本类型，对象，数组）字段名称。
+field_info {
+	u2 access_flags;
+	u2 name_index;
+	u2 description_index;
+	u2 attributes_count;
+	attribute_info attributes;
+}
+access_flags：包括ACC_PUBLIC，ACC_PRIVATE，ACC_PROTECTED，ACC_STATIC，ACC_FINAL
+name_index：指向常量池中的数据指针，表示字段的简单名称
+description_index：指向常量池中的字符串指针，表示字段的描述符
+attributes;字段的属性表，例如：public static int m = 123;在属性表中会有一项“ConstantValue”的属性，其值指向常量123，关于属性其他内容，后面再讲解
+
+method_info：方法表，用于描述接口或者方法中声明的方法
+方法表结构：
+method_info {
+	u2 access_flags;
+	u2 name_index;
+	u2 description_index;
+	u2 attributes_count;
+	attribute_info attributes;
+}
+方法表内部结构和字段表是类似的，但是变量类型比较多
+如access_flags：方法中还有ACC_ABSTRACT，ACC_NATIVE，ACC_SYNCHRONIZED等
+这里可能大家会有个疑问，方法的定义可以使用访问标志，名称索引和描述符来表达，那么其内部的代码去哪里了呢？
+其实java文件在编译成class文件后，存放在方法属性表中的“Code”的属性里面，后面会讲解到
+
+
+2.8：attribute_info：属性表
+属性表在前面讲解Class文件，字段表，方法表等都有提到过，这里我们具体来讲解下。
+属性表主要用来描述xx表在某些场景下的专有信息
+《java虚拟机规范》允许只要不是与已有属性名重复，任何人实现的编译器都可以向属性表中写入自己定义的属性信息，java虚拟机会忽略掉他不认识的属性
+虚拟机规范预定义的属性
+属性名称     使用位置      含义
+Code          方法表       java代码编译成的字节码指令
+ConstantValue  字段表       由final关键字定义的常量
+Deprecated     类，方法表，字段表   被声明为Deprecated的方法或者字段
+Exceptions     方法表        方法抛出的异常列表
+EnclosingMethod  类文件      仅当一个类为局部类或者匿名类时才能拥有这个属性，标识这个类所在的外围方法
+InnerClasses   类文件      内部类列表
+LineNumberTable Code属性    java源码的行号与字节码指令的对应关系
+LocalVariableTable  Code属性  方法的局部变量描述
+StackMapTable  Code属性     供新的类型检测验证器检查和处理目标方法的局部变量和操作数栈所需要的类型是否匹配
+Signature    类，方法表，字段表  用于支持泛型情况下的方法签名
+SourceFUke   类文件         记录源文件名称
+Synthetic    类，方法表，字段表  表示方法或者字段为编译器自动生成的
+...
+...
+
+这里只列出几个比较常用的，后面还有很多属性可以自行查阅java虚拟机规范
+Code属性
+java程序方法体里面的代码讲过javac编译后，最终变为字节码指令存储在Code属性内。
+
+Code属性表结构：
+Code {
+	u2 attribute_name_index;
+	u4 attribute_length;
+	u2 max_stack;
+	u2 max_localsl;
+	u4 code_length
+	u1 code;
+	u2 exception_table_length;
+	exception_info exception_table[exception_table_length];
+	u2 attributes_count;
+	attribute_info attributes[attributes_count];
+}
+attribute_name_index:指向一项CONSTANT_Utf8_info常量，固定为“Code”
+attribute_length：长度为整个Code属性表的长度-6，这个6 = attribute_name_index2字节+attribute_length4字节
+max_stack：代表操作数栈最大的深度，在方法执行的时候，操作数栈都不会超过这个深度
+max_locals：代表局部变量所需要的存储空间，单位是槽（Slot），槽是虚拟机为局部变量分配内存所使用的最小单位
+对于byte,char,float,int,short,boolean 和returnAddress等长度不超过32位的数据类型，每个局部变量占用一个变量槽。
+对于double和long等64位的数据类型，则需要两个槽来存储
+
+code_length和code用来存储java源程序编译后生成的字节码指令
+code_length代表字节码长度，code用来存储字节码指令的一系列字节流，因为是u1长度，所以存储的是0~255，一起256条指令
+exception_table：代表当前Code属性标识的代码中异常的信息
+exception_table {
+	u2 start_pc;
+	u2 end_pc;
+	u2 handle_pc;
+	u2 catch_type;
+}
+这个表可以这么解释：
+如果方法中存储异常，则start_pc到end_pc之间，出现了catch_type异常类型或者子类型，则跳转到handle_pc行继续处理，当catch_type为0时，表示所以异常都需要转到handle_pc行处理
+异常的finally就是catch_type为0的情况。后面在讲解字节码指令执行过程的时候，会具体来讲解这块
+
+Code属性是Class文件中最重要的一个属性，如果把java程序中的信息分为代码（Code，方法体里面的java代码）和元数据（Metadata，包括类，字段，方法定义以及其他信息）
+两部分，那么整个Class文件里，Code属性用于描述代码，所有的其他数据项目都用来描述元数据。学好Code属性，对后期学习字节码指令执行过程至关重要。
+
+Exceptions属性
+这个属性是方法表method_info中和Code属性平级的一项属性。不要与前面讲解的Code内部异常表搞混淆了。
+这个属性主要描述方法可能抛出的异常，也就是java方法中的throw关键字列举的异常
+
+LineNumberTable属性
+这个属性用来默哀书java源码型号和字节码行号之间的对应关系。不是必须，
+可以使用-g:none来取消生成这个属性，但是如果取消，会影响我们代码调试debug过程。
+
+LocalVariableTable以及LocalVariableTypeTable
+LocalVariableTable用来描述局部变量表中的变量和java源码中定义的变量之间的关系，这个也不是必须的
+大家在编写代码的时候，引用第三方的包，是不是会出现方法参数中不显示参数的原参数名，而是显示arg0，arg1等情况呢，
+这就是因为第三方包在编译的时候，默认将LocalVariableTable取消了导致，一般情况不会做取消操作
+
+LocalVariableTable {
+	u2 attribute_name_index;
+	u4 attribute_length;
+	u2 local_variable_table_length;
+	local_variable_info local_variable_table[local_variable_table_length];
+}
+我们主要来看LocalVariableTable中的local_variable_info
+代表了一个栈帧和源码中局部建立之间的关系
+local_variable_info {
+	u2 start_pc;
+	u2 length;
+	u2 name_index;
+	u2 description_index;
+	u2 index;
+}
+start_pc和length指定了局部变量在字节码中的作用域范围
+name_index和description_index分别代表局部变量名称和描述符，都是指向常量池中CONSTANT_Utf8_info的索引
+index：表示局部变量在栈帧的局部变量表中的槽位置，如果是64位的会是两个槽
+
+LocalVariableTypeTable是JDK5后增加的LocalVariableTable的一个姐妹属性。
+仅仅是把记录的字段描述符description_index换成了字段的特征签名（Signature），
+由于泛型的引入，描述符中泛型的参数化类型被擦除后，描述符就不能准确的描述泛型类型了。
+
+使用LocalVariableTypeTable的字段特征签名主要是完成泛型的描述
+
+ConstantValue
+仅出现在 filed_info 中，描述常量成员域的值，通知虚拟机自动为静态变量赋值。
+对于非 static 类型的变量（也就是实例变量）的赋值是在实例构造器方法中进行的;
+而对于类变量，则有两种方式可以选择：在类构造器方法中或者使用 ConstantValue 属性。
+如果变量没有被 final 修饰，或者并非基本类型及字 符串，则将会选择在方法中进行初始化。
+
+
+jvm字节码指令
+前面我们讲解了class类组成：常量池，属性，Field_info，Method_info等等。
+这些只是一些静态内容，并不能驱使jvm去执行我们的函数代码
+前面在讲解Code属性的时候，了解过，内部 code 数组存储了一个函数源码经过编译后得到的 JVM 字节码，
+其中包含如下 两种 类型的信息：
+1.JVM 指令码：用于指示 JVM 执行的动作，例如加操作/减操作/new 对象。其长度为 1 个字节，所以 JVM 指令码的个数不会超过 255 个（0xFF）。
+2.JVM 指令码后的零至多个操作数：操作数可以存储在 code 数组中，也可以存储在操作数栈（Operand stack）中。
+
+code 数组 {
+	code#1 {
+		u1 指令码
+		un 操作数
+	}
+	code#2 {
+		u1 指令码
+		un 操作数
+	}
+	code#3 {
+		u1 指令码
+	}
+	code#4 {
+		u1 指令码
+	}
+}
+Java 虚拟机的指令由一个字节长度的、代表着某种特定操作含义的数字（称为操作 码，Opcode）
+以及跟随其后的零至多个代表此操作所需参数（称为操作数，Operands）而构成。
+此外，大多数的指令都不包含操作数，只有一个操作码。
+
+因为只是有一个字节来存储指令码，所以字节码中指令个数最大不超过256个
+如果不考虑异常的话，那么java虚拟机的解释器可以使用下面这段伪代码作为做基本的执行模型来理解：
+do {
+    自动计算PC寄存器的值加1; 
+    根据PC寄存器的指示位置，从字节码流中取出操作码; 
+    if(字节码存在操作数)从字节码流中取出操作数; 
+    执行操作码所定义的操作;
+} while (字节码流长度>0);
+
+在讲解指令集之前，我们先来介绍下栈帧
+栈帧（Stack Frame）是用于支持虚拟机进行方法调用和方法执行的数据结构，它是虚拟 机运行时数据区中的虚拟机栈（Virtual Machine Stack）的栈元素。
+栈帧中存储了方法的 局部变量表、操作数栈、动态连接和方法返回地址、帧数据区 等信息。每一个方法从调用开始至执行完成的过程，都对应着一个栈帧在虚拟机栈里面从入栈到出栈的过程。
+一个线程中的方法调用链可能会很长，很多方法都同时处于执行状态。对于 JVM 的执行引擎来 说，在活动线程中，只有位于栈顶的栈帧才是有效的，称为当前栈帧（Current Stack Frame），与这个栈帧相关联的方法称为当前方法（Current Method）。执行引擎运行的所有 字节码指令都只针对当前栈帧进行操作，而 栈帧的结构 如下图所示
+Java 中当一个方法被调用时会产生一个栈帧（Stack Frame）,而此方法便位于栈帧之内。而Java方法栈帧 主要包括三个部分，如下所示：
+1）、局部变量区
+2）、操作数栈区
+3）、帧数据区（常量池引用）
+
+帧数据区，即常量池引用在前面我们已经深入地了解过了，但是还有两个重要部分我们需要了解，一个是操作数栈，另一个则是局部变量区。通常来说，程序需要将局部变量区的元素加载到操作数栈中，计算完成之后，然后再存储回局部变量区。
+
+jvm指令集
+
+1.加载和存储指令
+加载和存储指令用于将数据在栈帧中的局部变量和操作数之间来回传输
+1.将一个局部变量加载到操作数栈
+iload、iload_<n>、lload、lload_<n>、fload、fload_ <n>、dload、dload_<n>、aload、aload_<n>
+
+2.将一个数值从操作数栈存储到局部变量表
+istore、istore_<n>、lstore、lstore_<n>、 fstore、fstore_<n>、dstore、dstore_<n>、astore、astore_<n>
+
+3.将一个常量加载到操作数栈
+bipush、sipush、ldc、ldc_w、ldc2_w、aconst_null、 iconst_m1、iconst_<i>、lconst_<l>、fconst_<f>、dconst_<d>
+
+扩充局部变量表的访问索引的指令
+wide
+
+2.运算指令
+运算或算术指令用于 对两个操作数栈上的值进行某种特定运算，并把结果重新存入到操 作栈顶。大体上算术指令可以分为 两种：对整型数据进行运算的指令与对浮点型数据进行运算的指令。其指令如下所示：
+
+1）、加法指令：iadd、ladd、fadd、dadd。
+2）、减法指令：isub、lsub、fsub、dsub。
+3）、乘法指令：imul、lmul、fmul、dmul。
+4）、除法指令：idiv、ldiv、fdiv、ddiv。
+5）、求余指令：irem、lrem、frem、drem。
+6）、取反指令：ineg、lneg、fneg、dneg。
+7）、位移指令：ishl、ishr、iushr、lshl、lshr、lushr。
+8）、按位或指令：ior、lor。
+9）、按位与指令：iand、land。
+10）、按位异或指令：ixor、lxor。
+11）、局部变量自增指令：iinc。
+12）、比较指令：dcmpg、dcmpl、fcmpg、fcmpl、lcmp。
+
+3.类型转换指令
+类型转换指令可以 将两种不同的数值类型进行相互转换，这些操作一般用于实现用户代码中的显示类型转换操作，
+例如我们可以将小范围类型向大范围类型的安全转换，其指令如下所示：
+
+-1）、i2b、i2c、i2s -2）、l2i -3）、f2i、f2l -4）、d2i、d2l、d2f
+
+4.对象创建与访问指令
+1）、创建类实例的指令：new。
+2）、创建数组的指令：newarray、anewarray、multianewarray。
+3）、访问类字段（static字段，或者称为类变量）和实例字段（非 static 字段，或者称为实例变量）的指令：getfield、putfield、getstatic、putstatic。
+4）、把一个数组元素加载到操作数栈的指令：baload、caload、saload、iaload、laload、 faload、daload、aaload。
+5）、将一个操作数栈的值存储到数组元素中的指令：bastore、castore、sastore、iastore、 fastore、dastore、aastore。
+6）、取数组长度的指令：arraylength。
+7）、检查类实例类型的指令：instanceof、checkcast。
+
+5.操作数栈管理指令
+用于 直接操作操作数栈 的指令，如下所示：
+1）、将操作数栈的栈顶一个或两个元素出栈：pop、pop2（用于操作 Long、Double）。
+2）、复制栈顶一个或两个数值并将复制值或双份的复制值重新压入栈顶：dup、dup2、dup_x1、dup2_x1、dup_x2、dup2_x2。
+3）、将栈最顶端的两个数值互换：swap。
+
+6.控制转移指令
+控制转移指令就是 在有条件或无条件地修改 PC 寄存器的值。其指令如下所示：
+1）、条件分支：ifeq、iflt、ifle、ifne、ifgt、ifge、ifnull、ifnonnull、if_icmpeq、if_icmpne、 if_icmplt、if_icmpgt、if_icmple、if_icmpge、if_acmpeq 和 if_acmpne。
+2）、复合条件分支：tableswitch、lookupswitch。
+3）、无条件分支：goto、goto_w、jsr、jsr_w、ret。
+
+7.方法调用指令
+常用的有 5条 用于方法调用的指令。 如下所示：
+1）、invokevirtual：用于调用对象的实例方法，根据对象的实际类型进行分派（虚方法分派），这也是 Java 语言中最常见的方法分派方式。
+2）、invokeinterface：用于调用接口方法，它会在运行时搜索一个实现了这个接口方法的对象，找出适合的方法进行调用。
+3）、invokespecial：用于调用一些需要特殊处理的实例方法，包括实例初始化方法、私有方法和父类方法。
+4）、invokestatic：用于调用类方法（static方法）。
+5）、invokedynamic：用于在运行时动态解析出调用点限定符所引用的方法，并执行该方法，前面 4 条调用指令的分派逻辑都固化在 Java 虚拟机内部，而 invokedynamic 指令的分派逻辑是由用户所设定的引导方法决定的。
+
+这里我们需要着重注意 invokespecial 指令，它用于 调用构造器与方法，当调用方法时，会将返回值仍然压入操作数栈中，如果当前方法没有返回值则需要使用 pop 指令弹出。
+除了 invokespecial 之外，其它方法调用指令所消耗的操作数栈元素是根据调用类型以及目标方法描述符来确定的。
+8.方法返回指令
+返回指令是区分类型的，如下所示，为不同返回类型对应的返回指令：
+void：return
+int（boolean、byte、char、short）：ireturn
+long：lreturn
+float：freturn
+double：dreturn
+reference：areturn
+方法调用指令与数据类型无关，而 方法返回指令是根据返回值的类型区分的，包括 ireturn（当返回值是 boolean、byte、char、short 和 int 类型时使用）、lreturn、freturn、dreturn 和 areturn，另外还有一条 return 指令供声明为 void 的方法、实例初始化方法以及类和接口的类初始化方法使用。
+
+9.异常处理指令
+在 Java 程序中显式抛出异常的操作（throw语句）都由 athrow 指令来实现，在 Java 虚拟机中，处理异常是采用异常表来完成的。
+
+10.同步指令
+Java 虚拟机可以 支持方法级的同步和方法内部一段指令序列的同步，这两种同步结构都是使用管程（Monitor）来支持的。
+
+方法级的同步是隐式的，即无须通过字节码指令来控制，它实现在方法调用和返回操作 之中。虚拟机可以从方法常量池的方法表结构中的 ACC_SYNCHRONIZED 访问标志得知一个方法是否声明为同步方法。
+当方法调用时，调用指令将会检查方法的 ACC_SYNCHRONIZED 访问标志是否被设置，如果设置了，执行线程就要求先成功持有管程，然后才能执行方法，最后当方法完成（无论是正常完成还是非正常完成）时会释放管程。
+
+同步一段指令集序列 通常是由 Java 语言中的 synchronized 语句块 来表示的，Java 虚拟机的指令集中有 monitorenter 和 monitorexit 两条指令来支持 synchronized 关键字的语义，而正确实现 synchronized 关键字需要 Javac 编译器与 Java 虚拟机两者共同协作支持。
+
+编译器必须确保无论方法通过何种方式完成，方法中调用过的每条 monitorenter 指令都必须执行其对应的 monitorexit 指令，而无论这个方法是正常结束还是异常结束。并且，它会自动产生一个异常处理器，这个异常处理器被声明可处理所有的异常，它的目的就是用来执行 monitorexit 指令。
+
+总结
+深入学习 JVM 字节码无疑会对我们的整体实力有 质的提升，如果对 JVM 字节码了解较深，那么，我们在学习 Groovy、Kotlin 等这些基于 JVM 的语言时就能够 在较短的学习时间内进阶到语言的高级层面。此外，深入了解 JVM 字节码，能够赋予我们通过表象透析本质的能力，而这，也正是极客们真正所追求的一通百通的灵魂之力。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

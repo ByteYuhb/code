@@ -1,5 +1,5 @@
 Fragment回退栈管理：
-1.不添加回退栈调用replace：每次都会替换所以的Fragment层级，按回退键不显示之前被替换的Fragment
+1.不添加回退栈调用replace：每次都会替换所有的Fragment层级，按回退键不显示之前被替换的Fragment
 
 2.添加回退栈调用replace，也会替换Fragment层级，但是不会清除实例，添加到回退栈中，每次按回退键可以显示之前被替换的Fragment
 	2.1：addBackStack；
