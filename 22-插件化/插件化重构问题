@@ -1,0 +1,55 @@
+插件化重构问题  
+1.Fragment强转出错
+	ClassCastException
+	这种情况一般是由于加载的是插件中的Fragment，强转的是宿主中的类，导致强转出错
+	解决方法：
+	1.在build.gradle中，排除group: 'androidx.fragment', module: 'fragment'
+	configurations.all {
+		exclude group: 'androidx.fragment', module: 'fragment'
+	}
+	2.使用占位编译引入宿主中的fragment.jar
+	compileOnly files('libs/fragment.jar') //这个jar就是从Support-fragment中提取出来的并非特制包目的是为了骗过编译期
+
+	以上方式可以让插件加载的时候统一使用的是宿主中的fragment。
+	
+	注意需要在宿主的Application中重写下面方法：
+	 @Override protected RePluginConfig createConfig() {
+        RePluginConfig config = super.createConfig();
+        //使插件可以使用主工程中的类
+        config.setUseHostClassIfNotFound(true);
+        return config;
+    }
+	这样插件中找不到类的时候才会去加载宿主中的类。
+2.编译期依赖重复问题
+	使用gradlew :ft_login:dependencies查看依赖关系
+3.使用Glide加载图片，出现找不到资源Resource xxx Not Found Exception ,id 0x7f0c0013
+	1.首先查看当前插件中的资源是否存在。如果存在，看2.
+	2.找到当前资源 Resources的Context，查看Context的插件名，然后使用as查看当前插件apk的资源状态：
+	如果当前资源id的资源确实存在，则看3。
+	3.Glide第一次加载后会缓存Glide的Context，比如前面一次Glide加载的是插件1中的资源，第二次去加载插件2中的资源时，还是使用插件1的Context去加载，
+	这就会出现资源找不到的情况。这是由Glide内存缓存引起的问题。
+	只要在使用Glide加载图片的时候，判断当前Glide的Context是否和前面缓存一致，不一致则将glide置为空，加载资源时会重新创建一个glide实例。
+	Glide中提供了：tearDown方法可以清空glide实例、但是这个方法会有一定性能损耗
+	
+	使用tearDown后发现，其他使用Glide的模块报了个线程池执行错误
+	原因是Glide在tearDown方法中强行关闭了线程池执行，导致线程无法正常工作。所以tearDown方法行不通。
+	想着，这还是由于插件Context引起的问题，keyi9使用反射替换Glide中的Context。
+	
+
+4.如何对外暴露View？BottomMusicView
+ 1.使用Fragment包装一下
+ BottomMusicView使用Fragment包装后没显示出来，是因为层级关系被覆盖了
+ 2.尝试直接使用View类
+尝试后证明不可行
+5.插件间无法直接对外暴露View
+
+6.RePlugin 2.3.3版本不支持前台Service启动,后台Service正常，未来可能会提供
+
+选择的框架不支持特性，如果无法降级，则不能把特性放到插件中
+
+
+音乐播放组件优化点：
+1.MusicPlayerActivity
+2.BottomMusicView
+
+

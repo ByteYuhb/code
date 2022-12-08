@@ -1,0 +1,634 @@
+图形渲染流程
+
+浅谈
+手机开发中最重要的两个点：
+1.用户点击的流畅性
+2.界面效果的展示
+
+早期的Android系统这两个事件都是在主线程上执行，导致用户点击的时候，界面绘制停滞或者界面绘制的时候，用户点击半天不响应，体验性很差。
+于是在4.0以后，以 “run fast, smooth, and responsively” 为核心目标对 UI 进行了优化，应用开启了硬件加速对UI进行绘制。
+
+1.硬件加速
+在之前文章中我们分析过，Android 屏幕的绘制流程分为两部分：
+第一步：buffer生产者:app侧将View渲染到一个buffer中，供SurfaceFlinger消费
+第二步：buffer消费者:SurfaceFlinger测将多个buffer合并后放入buffer中，供屏幕显示
+
+其中 第二步一直都是在GPU中实现的，而我们所说的硬件加速就是第一步中的view渲染流程。
+早期view的渲染是在主线程中进行的，而硬件加速则使用一个新的线程RenderThread以及硬件GPU进行渲染，
+
+2.CPU / GPU结构对比
+
+CPU （Central Processing Unit） ， 中央处理器，计算机设备核心器件，适用于一些复杂的计算。
+GPU （Graphic Processing Unit） ， 图形处理器，通常所说“显卡”的核心部件就是GPU，主要用于处理图形运算。
+
+CPU和GPU结构对比：
+1.黄色代表控制器（Control）：用于协调控制整个CPU的运行，包括取指令等操作。
+2.绿色的ALU（Arithmetic Logic Unit）：算数逻辑单元，主要用于进行数学，逻辑计算。
+3.橙色的Cache和DRAM分别为缓存和RAM，用于存储信息。
+
+1.结构上看：CPU的ALU较少，而了解过OpenGl的同学应该知道View的渲染过程中是有大量的浮点数计算的，而浮点数转换为整数计算，可能会消耗大量的ALU单元，这对于CPU是比较难接受的。
+2.CPU是串行的，一个CPU同一时间只能做一件事情，（多线程其实也是将CPU时间片分割而已），而GPU内部使用的是几千个小的GPU内核，每个GPU内核处理单元都是并行的，
+这就非常符合图形的渲染过程。
+
+GPU是显卡的核心部分，在破解密码方面也非常出色，再知道为啥哪些挖矿的使用的是显卡而不是CPU了吧，一个道理。
+
+硬件加速底层原理：通过将计算机不擅长的图形计算指令使用特殊的api转换为GPU的专用指令，由GPU完成。这里可能是传统的OpenGL或其他开放语言。
+
+3.OpenGL
+Android端一般使用OpenGL ES来实现硬件加速。
+这里简单介绍下OpenGL和OpenGL ES。
+OpenGL（Open Graphics Library）：开放式图形库，是用于渲染2D、3D矢量图形的跨语言、跨平台的应用程序编程接口（API）。这个接口由近350个不同的函数调用组成，
+用来绘制从简单的图形比特到复杂的三维景象。
+OpenGL ES(OpenGL for Embedded Systems):是 OpenGL 三维图形 API 的子集，针对手机、PDA和游戏主机等嵌入式设备而设计
+
+如果一个设备支持GPU硬件加速渲染（有可能不支持，看GPU厂商是不是适配了OpenGL 等接口），
+那么当Android应用程序调用Open GL接口来绘制UI时，Android应用程序的 UI 就是通过GPU进行渲染的。
+4.Android图形系统整体架构
+	在介绍Android图像系统架构前，我们先来了解几个概念：如果把UI的绘制过程当成一幅画的制作过程：
+	那么：
+	1.画笔：
+	Skia：CPU用来绘制2D图形
+	Open GL /ES:GPU绘制2D和3D图形。
+	
+	2.画纸：
+	Surface：所有的绘制和渲染都是在这张画纸上进行，每个窗口都是一个DecorView的容器，同时每个窗口都关联一个Surface
+	
+	3.画板：
+	Graphic Buffer ：Graphic Buffer是谷歌在4.1以后针对双缓冲的jank问题提出的第三个缓冲，CPU/GPU渲染的内容都将写到这个buffer上。
+	
+	4.合成
+	SurfaceFlinger：将所有的Surface合并叠加后显示到一个buffer里面。
+	
+	简单理解过程：我们使用画笔（Skia、Open GL ES）将内容画到画纸（Surface）中，这个过程可能使用OpenGl ES也可能使用Skia，
+	使用OpenGl ES表示使用了硬件加速绘制，使用Skia，表示使用的是纯软件绘制。
+	
+	下面是Android 图形系统的整体架构：
+	 Image Stream Producers：图像数据流生产者，图像或视频数据最终绘制到Surface中。
+	 WindowManager ：前面一篇文章《WindowManager体系（上）》笔者说过,每个Surface都有一个Window和他一一对应，而WindowManager则用来管理窗口的各个方面：
+		动画，位置，旋转，层序，生命周期等。
+	 SurfaceFlinger：用来对渲染后的Surface进行合并，并传递给硬件抽象层处理。
+	 
+	
+	 HWC ： Hardware Composer，SurfaceFlinger 会委派一些合成的工作给 Hardware Composer 以此减轻 GPU 的负载。这样会比单纯通过 GPU 来合成消耗更少的电量。
+	 Gralloc（Graphics memory allocator）：前面讲解的Graphic Buffer分配的内存。
+	 
+	 图SurfaceFlinger
+	 
+	
+	
+	
+
+5.软硬件绘制过程源码解析
+前面讲解了那么多理论知识，下面从源码角度来分析下硬件加速和软件绘制过程。
+“read the fking source”
+
+在前面文章《》中分析过。View最终是在ViewRootImpl的performDraw方法最新渲染的，
+而performDraw内部调用的是draw方法。
+定位到draw方法：
+
+private void draw(boolean fullRedrawNeeded) {
+	...
+	if (!dirty.isEmpty() || mIsAnimating || accessibilityFocusDirty) {
+		if (mAttachInfo.mThreadedRenderer != null && mAttachInfo.mThreadedRenderer.isEnabled()) {//1
+			...
+			mAttachInfo.mThreadedRenderer.draw(mView, mAttachInfo, this);//2
+		}else {
+			if (!drawSoftware(surface, mAttachInfo, xOffset, yOffset, scalingRequired, dirty)) {//3
+				return;
+			}
+		}
+	}
+	
+}
+
+注释1：如果mThreadedRenderer不为null且isEnabled为true，则调用注释2处的mThreadedRenderer.draw，这个就是硬件绘制的入口
+如果其他情况，则调用注释3处的drawSoftware，这里就是软件绘制的入口，再正式对软硬件绘制进行深入之前我们看下mAttachInfo.mThreadedRenderer
+是在哪里赋值的。
+源码全局搜索下：我们发现ViewRootImpl的enableHardwareAcceleration方法中有创建mThreadedRenderer的操作。
+private void enableHardwareAcceleration(WindowManager.LayoutParams attrs) {
+	        // Try to enable hardware acceleration if requested
+	...
+	final boolean hardwareAccelerated =
+			(attrs.flags & WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED) != 0;
+	//这里如果attrs.flags设置了WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED，则表示该Window支持硬件加速绘制
+	if (hardwareAccelerated) {
+		
+		// Persistent processes (including the system) should not do
+		// accelerated rendering on low-end devices.  In that case,
+		// sRendererDisabled will be set.  In addition, the system process
+		// itself should never do accelerated rendering.  In that case, both
+		// sRendererDisabled and sSystemRendererDisabled are set.  When
+		// sSystemRendererDisabled is set, PRIVATE_FLAG_FORCE_HARDWARE_ACCELERATED
+		// can be used by code on the system process to escape that and enable
+		// HW accelerated drawing.  (This is basically for the lock screen.)
+		
+		//Persistent的应用进程以及系统进程不能使用硬件加速
+		final boolean fakeHwAccelerated = (attrs.privateFlags &
+				WindowManager.LayoutParams.PRIVATE_FLAG_FAKE_HARDWARE_ACCELERATED) != 0;
+		final boolean forceHwAccelerated = (attrs.privateFlags &
+				WindowManager.LayoutParams.PRIVATE_FLAG_FORCE_HARDWARE_ACCELERATED) != 0;
+
+		if (fakeHwAccelerated) {
+			
+			mAttachInfo.mHardwareAccelerationRequested = true;
+		} else if (!ThreadedRenderer.sRendererDisabled
+				|| (ThreadedRenderer.sSystemRendererDisabled && forceHwAccelerated)) {
+			if (mAttachInfo.mThreadedRenderer != null) {
+				mAttachInfo.mThreadedRenderer.destroy();
+			}
+			...
+			//这里创建了mAttachInfo.mThreadedRenderer
+			mAttachInfo.mThreadedRenderer = ThreadedRenderer.create(mContext, translucent,
+					attrs.getTitle().toString());
+			if (mAttachInfo.mThreadedRenderer != null) {
+				mAttachInfo.mHardwareAccelerated =
+						mAttachInfo.mHardwareAccelerationRequested = true;
+			}
+		}
+	}
+}
+这里源码告诉我们：
+1.硬件加速是通过attrs.flags 设置WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED标识来启动的、
+2、因为硬件加速是一个耗内存的操作，只是硬件加速渲染环境初始化这一操作，就要花掉8M的内存，
+所以一般永久性的进程或者系统进程不要使用硬件加速标志，防止出现内存泄露。
+
+再看哪里调用enableHardwareAcceleration方法。
+通过源码查找我们注意到ViewRootImpl的setView方法中：
+public void setView(View view, WindowManager.LayoutParams attrs, View panelParentView) {
+	//注释1
+	if (view instanceof RootViewSurfaceTaker) {
+		mSurfaceHolderCallback =
+				((RootViewSurfaceTaker)view).willYouTakeTheSurface();
+		if (mSurfaceHolderCallback != null) {
+			mSurfaceHolder = new TakenSurfaceHolder();
+			mSurfaceHolder.setFormat(PixelFormat.UNKNOWN);
+			mSurfaceHolder.addCallback(mSurfaceHolderCallback);
+		}
+	}
+
+	...
+
+	// If the application owns the surface, don't enable hardware acceleration
+	if (mSurfaceHolder == null) {//注释2
+		enableHardwareAcceleration(attrs);
+	}
+
+}
+
+注释1处：表示当前view实现了RootViewSurfaceTaker接口，且view的willYouTakeTheSurface返回的mSurfaceHolderCallback不为null，
+则表示应用想自己接管所有的渲染操作，这样创建出来的Activity窗口就类似于一个SurfaceView一样，完全由应用程序自己来控制它的渲染
+
+基本上我们是不会将一个Activity窗口当作一个SurfaceView来使用的，
+因此在ViewRootImpl类的成员变量mSurfaceHolder将保持为null值，
+这样就会导致ViewRootImpl类的成员函数enableHardwareAcceleration被调用为判断是否需要为当前创建的Activity窗口启用硬件加速渲染。
+
+好了我们回到ViewRootImpl的draw方法：
+
+1.先来看软件绘制
+软件绘制调用的是drawSoftware方法。
+进入
+private boolean drawSoftware(Surface surface, AttachInfo attachInfo, int xoff, int yoff,
+            boolean scalingRequired, Rect dirty) {
+	...
+	canvas = mSurface.lockCanvas(dirty);//1
+	
+	mView.draw(canvas);//2
+	
+	surface.unlockCanvasAndPost(canvas);//3
+
+}
+软件绘制基本就分三步走：
+步骤1：lockCanvas：每个Window都关联了一个Surface，当有需要绘制UI时，就调用lockCanvas获取一个Canvas对象，这个Canvas封装了Skia提供的2D图形绘制api、
+
+并且向SurfaceFlinger Dequeue了一块Graphic buffer，绘制的内容都会输出到这个buffer中，供SurfaceFlinger合成使用。
+
+步骤2：draw：调用了View的draw方法，这个就会调用到我们自定义组件中View的onDraw方法，传入1中创建的Canvas对象，使用Skia api对图像进行绘制。
+
+步骤3：unlockCanvasAndPost：绘制完成后，通知SurfaceFlinger绘制完成，可以进行buffer的交换，显示到屏幕上了，本质是给SurfaceFlinger queue 一个Graphic buffer、
+关于什么是Queue和Dequeue看下图：
+
+2.硬件加速分析：
+硬件加速分为两个步骤：
+1.构建阶段：
+2.绘制阶段
+
+构建阶段：
+这个阶段用于遍历所有的视图，将需要绘制的Canvas API调用及其参数记录下来，保存在一个Display List，这个阶段发生在CPU主线程上。
+
+Android应用程序窗口的Display List构建示意图：
+
+Display List本质上是一个缓存区，它里面记录了即将要执行的绘制命令序列，这些命令最终会在绘制阶段被OpenGL转换为GPU渲染指令。
+视图构建阶段会将每个View抽象为一个RenderNode，每个View的绘制操作抽象为一系列的DrawOp，
+比如：
+View的drawLine操作会被抽象为一个DrawLineOp，drawBitmap操作会被抽象成DrawBitmapOp，每个子View的绘制被抽象成DrawRenderNodeOp
+
+每个DrawOp都有对应的OpenGL绘制指令，同时内部也握有需要绘制的数据元。
+
+
+使用Display List的好处：
+1、在绘制窗口的下一帧时，如果某个视图UI没有发生变化，则不需要执行与他相关的Canvas API操作，即不用重复执行View的onDraw操作，
+而是直接使用上一帧的Display List即可
+2.如果绘制窗口下一帧时，视图发生了变化，但是只是一些简单属性变化，如位置和透明度等，则只需要修改上次构建的Display List的相关属性即可，也不必重复构建
+
+
+接下来我们从源码角度来看下：
+前面我们分析了硬件加速入口是在ThreadedRenderer的draw方法：
+mAttachInfo.mThreadedRenderer.draw(mView, mAttachInfo, this)
+
+进入这个方法看看：
+ThreadedRenderer.java
+void draw(View view, AttachInfo attachInfo, DrawCallbacks callbacks) {
+	...
+	updateRootDisplayList(view, callbacks);//1
+	...
+	int syncResult = nSyncAndDrawFrame(mNativeProxy, frameInfo, frameInfo.length);//2通知RenderThread线程绘制
+}
+ThreadedRenderer主要作用就是在主线程CPU中视图的构建，然后通知RenderThread使用OpenGL进行视图的渲染（注释2处）。
+注释1处：updateRootDisplayList看名称应该就是用于视图构建，进去看看
+
+private void updateRootDisplayList(View view, HardwareDrawCallbacks callbacks) {
+	//1.构建参数view(DecorView)视图的Display List
+	updateViewTreeDisplayList(view);
+	
+	//2
+	//mRootNodeNeedsUpdate true表示需要更新视图
+	//mRootNode.isValid()  表示已经构建了Display List
+	if (mRootNodeNeedsUpdate || !mRootNode.isValid()) {
+		//获取DisplayListCanvas
+		DisplayListCanvas canvas = mRootNode.start(mSurfaceWidth, mSurfaceHeight);//3
+		try {
+			//ReorderBarrie表示会按照Z轴坐标值重新排列子View的渲染顺序
+			canvas.insertReorderBarrier();
+			//构建并缓存所有的DrawOp
+			canvas.drawRenderNode(view.updateDisplayListIfDirty());
+			canvas.insertInorderBarrier();
+
+			canvas.restoreToCount(saveCount);
+		} finally {
+			//将所有的DrawOp填充到根RootNode中，作为新的Display List
+			mRootNode.end(canvas);
+		}
+	}
+}
+
+注释1：updateViewTreeDisplayList对View树Display List进行构建
+
+
+private void updateViewTreeDisplayList(View view) {
+	view.mPrivateFlags |= View.PFLAG_DRAWN;
+	view.mRecreateDisplayList = (view.mPrivateFlags & View.PFLAG_INVALIDATED)
+			== View.PFLAG_INVALIDATED;
+	view.mPrivateFlags &= ~View.PFLAG_INVALIDATED;
+	view.updateDisplayListIfDirty();
+	view.mRecreateDisplayList = false;
+}
+
+看View的updateDisplayListIfDirty方法。
+
+
+/**
+ * Gets the RenderNode for the view, and updates its DisplayList (if needed and supported)
+ * @hide
+ */
+@NonNull
+public RenderNode updateDisplayListIfDirty() {
+	//获取当前mRenderNode
+	final RenderNode renderNode = mRenderNode;
+	//2.判断是否需要进行重新构建
+	if ((mPrivateFlags & PFLAG_DRAWING_CACHE_VALID) == 0
+                || !renderNode.isValid()
+                || (mRecreateDisplayList)) {
+				
+		if (renderNode.isValid()
+                    && !mRecreateDisplayList) {
+			mPrivateFlags |= PFLAG_DRAWN | PFLAG_DRAWING_CACHE_VALID;
+			mPrivateFlags &= ~PFLAG_DIRTY_MASK;
+			//这里用于当前View是ViewGroup，且自身不需要重构，对其子View的DisplayList进行构建
+			dispatchGetDisplayList();
+
+			return renderNode; // no work needed
+        }
+		...
+		final DisplayListCanvas canvas = renderNode.start(width, height);
+		try {
+			if (layerType == LAYER_TYPE_SOFTWARE) {
+				//软件绘制
+				buildDrawingCache(true);
+				Bitmap cache = getDrawingCache(true);
+				if (cache != null) {
+					canvas.drawBitmap(cache, 0, 0, mLayerPaint);
+				}
+			} else {
+				...
+				if ((mPrivateFlags & PFLAG_SKIP_DRAW) == PFLAG_SKIP_DRAW) {
+					//View是ViewGroup，需要绘制子View
+					dispatchDraw(canvas);
+					...
+				} else {
+					draw(canvas);
+				}
+			}
+		} finally {
+			//将绘制好后的数据填充到renderNode中去
+			renderNode.end(canvas);
+			setDisplayListProperties(renderNode);
+		}
+	}
+}
+
+
+updateDisplayListIfDirty主要作用：
+1.获取当前View的RenderNode。
+2.如果需要或者支持则更新当前DisplayList
+
+判断是否需要进行重新构建的条件如下：
+1.mPrivateFlags 设置了 PFLAG_DRAWING_CACHE_VALID，表明当前缓存已经失效，需要重新构建
+2.!renderNode.isValid()：表明当前Display List的数据不合法，需要重新构建
+3.mRecreateDisplayList的值等于true，一些其他原因需要重新构建
+
+mRenderNode在View的构造方法中初始化：
+public View(Context context) {
+	...
+	mRenderNode = RenderNode.create(getClass().getName(), this);
+}
+
+构建过程如下：
+1.使用renderNode.start获得一个与当前View关联的DisplayListCanvas。
+2.使用draw(canvas)，将当前View以及子View绘制到当前DisplayListCanvas
+3.使用renderNode.end(canvas)，将已经绘制在 DisplayListCanvas 的 Display List Data 填充到当前 View 关联的 Render Node 中
+
+通过上面几个步骤就将View树对应的DisplayList构建好了。而且这个构建过程会递归构建子View的Display List
+
+我们从绘制流程火焰图中也可以看到大概流程：
+
+红色框中部分：是绘制的DecorView的时候，一直递归updateDisplayListIfDirty方法进行Display List的构建
+另外另个部分是子View Display List的构建
+
+
+绘制阶段
+这个阶段会调用OpenGL接口将构建好视图进行绘制渲染，将渲染好的内容保存到Graphic buffer中，并提交给SurfaceFlinger。
+
+回到ThreadedRenderer的draw方法：
+ThreadedRenderer.java
+void draw(View view, AttachInfo attachInfo, DrawCallbacks callbacks) {
+	...
+	updateRootDisplayList(view, callbacks);//1
+	...
+	int syncResult = nSyncAndDrawFrame(mNativeProxy, frameInfo, frameInfo.length);//2
+}
+
+在注释1中创建好视图对应的Display List后，在注释2处调用nSyncAndDrawFrame方法通知RenderThread线程进行绘制
+
+nSyncAndDrawFrame是一个native方法，在讲解nSyncAndDrawFrame方法前我们先来看ThreadedRenderer构造函数中做了哪些事。
+ThreadedRenderer(Context context, boolean translucent, String name) {
+	//这个方法在native层创建RootRenderNode对象并返回对象的地址
+	long rootNodePtr = nCreateRootRenderNode();
+	mRootNode = RenderNode.adopt(rootNodePtr);
+	mRootNode.setClipToBounds(false);
+	//这个方法在native层创建一个RenderProxy
+	mNativeProxy = nCreateProxy(translucent, rootNodePtr);
+}
+nCreateRootRenderNode和nCreateProxy方法在android_view_ThreadedRenderer.cpp中实现：
+static jlong android_view_ThreadedRenderer_createRootRenderNode(JNIEnv* env, jobject clazz) {
+    RootRenderNode* node = new RootRenderNode(env);
+    node->incStrong(0);
+    node->setName("RootRenderNode");
+    return reinterpret_cast<jlong>(node);
+}
+static jlong android_view_ThreadedRenderer_createProxy(JNIEnv* env, jobject clazz,
+        jboolean translucent, jlong rootRenderNodePtr) {
+    RootRenderNode* rootRenderNode = reinterpret_cast<RootRenderNode*>(rootRenderNodePtr);
+    ContextFactoryImpl factory(rootRenderNode);
+    return (jlong) new RenderProxy(translucent, rootRenderNode, &factory);
+}
+RenderProxy构造方法：
+RenderProxy::RenderProxy(bool translucent, RenderNode* rootRenderNode, IContextFactory* contextFactory)
+        : mRenderThread(RenderThread::getInstance())//1
+        , mContext(nullptr) {
+    ...
+}
+注意到mRenderThread使用的是RenderThread::getInstance()单例线程，也就说整个绘制过程只有一个RenderThread绘制线程。
+
+接着看RenderThread::getInstance()创建线程的方法：
+RenderThread::RenderThread() : Thread(true)
+	...
+	Properties::load();
+    mFrameCallbackTask = new DispatchFrameCallbacks(this);
+    mLooper = new Looper(false);
+    run("RenderThread");
+}
+居然也是使用的Looper，是不是和我们的主线程的消息机制一样呢？哈哈
+调用run方法会执行RenderThread的threadLoop方法。
+bool RenderThread::threadLoop() {
+	...
+    int timeoutMillis = -1;
+    for (;;) {
+        int result = mLooper->pollOnce(timeoutMillis);
+		...
+        nsecs_t nextWakeup;
+        {
+            ...
+            while (RenderTask* task = nextTask(&nextWakeup)) {
+                workQueue.push_back(task);
+            }
+            for (auto task : workQueue) {
+                task->run();
+                // task may have deleted itself, do not reference it again
+            }
+        }
+        if (nextWakeup == LLONG_MAX) {
+            timeoutMillis = -1;
+        } else {
+            nsecs_t timeoutNanos = nextWakeup - systemTime(SYSTEM_TIME_MONOTONIC);
+            timeoutMillis = nanoseconds_to_milliseconds(timeoutNanos);
+            if (timeoutMillis < 0) {
+                timeoutMillis = 0;
+            }
+        }
+
+        if (mPendingRegistrationFrameCallbacks.size() && !mFrameCallbackTaskPending) {
+			...
+            requestVsync();
+        }
+
+        if (!mFrameCallbackTaskPending && !mVsyncRequested && mFrameCallbacks.size()) {
+            ...
+            requestVsync();
+        }
+    }
+
+    return false;
+}
+
+石锤了就是应用程序主线程的消息机制，
+1. 空闲的时候，Render Thread就睡眠在成员变量mLooper指向的一个Looper对象的成员函数pollOnce中。
+2. 当其它线程需要调度Render Thread，就会向它的任务队列增加一个任务，然后唤醒Render Thread进行处理。Render Thread通过成员函数nextTask获得需要处理的任务，并且调用它的成员函数run进行处理。
+3. 任务执行完后调用requestVsync,提醒GPU任务执行完毕，可以刷新buffer了。
+
+
+这里小结下ThreadedRenderer构造方法中
+1.初始化mRootNode指向native层的一个RootRenderNode
+2.初始化mNativeProxy指向native层的RenderProxy
+3.在native层创建RenderProxy时，同时也会创建RenderThread线程，这个线程机制和我们主线程消息机制一直，轮询等待获取绘制任务。
+
+
+
+
+好了回头看nSyncAndDrawFrame的native方法
+nSyncAndDrawFrame同样也在android_view_ThreadedRenderer.cpp中实现：
+static int android_view_ThreadedRenderer_syncAndDrawFrame(JNIEnv* env, jobject clazz,
+        jlong proxyPtr, jlongArray frameInfo, jint frameInfoSize) {
+    LOG_ALWAYS_FATAL_IF(frameInfoSize != UI_THREAD_FRAME_INFO_SIZE,
+            "Mismatched size expectations, given %d expected %d",
+            frameInfoSize, UI_THREAD_FRAME_INFO_SIZE);
+    RenderProxy* proxy = reinterpret_cast<RenderProxy*>(proxyPtr);
+    env->GetLongArrayRegion(frameInfo, 0, frameInfoSize, proxy->frameInfo());
+    return proxy->syncAndDrawFrame();
+}
+
+这个方法返回值是proxy->syncAndDrawFrame()
+进入RenderProxy的syncAndDrawFrame方法：
+int RenderProxy::syncAndDrawFrame() {
+    return mDrawFrameTask.drawFrame();
+}
+
+这里的 mDrawFrameTask.drawFrame其实就是向RenderThread的TaskQueue添加一个drawFrame渲染任务，
+通知RenderThread渲染UI视图。
+
+如下图：
+
+mDrawFrameTask是DrawFrameTask中的函数
+int DrawFrameTask::drawFrame() {
+	...
+    postAndWait();
+
+    return mSyncResult;
+}
+
+void DrawFrameTask::postAndWait() {
+    AutoMutex _lock(mLock);
+    mRenderThread->queue(this);
+    mSignal.wait(mLock);//锁住等待锁释放
+}
+void RenderThread::queue(RenderTask* task) {
+    AutoMutex _lock(mLock);
+    mQueue.queue(task);
+    if (mNextWakeup && task->mRunAt < mNextWakeup) {
+        mNextWakeup = 0;
+        mLooper->wake();
+    }
+}
+看到这就知道了drawFrame其实就是往RenderThread线程的任务队列mQueue中按时间顺序加入一个绘制task，并调用mLooper->wake()唤醒RenderThread线程处理。
+
+
+
+说到底还是主线程消息机制那套东西。
+经过上面的分析，整个硬件绘制流程就闭环了。
+
+注意DrawFrameTask在postAndWait的mRenderThread->queue(this)中是将this传入任务队列，所以此任务就是this自己。
+后面执行绘制任务就使用到了OpenGL对构建好的DisplayList进行渲染。
+
+点到为止，后面代码大家可以自行找到源码阅读。
+
+绘制阶段这块可能比较复杂些，因为基本上都是native层的东西，得好好消化消化下。
+
+
+
+硬件加速和纯软件绘制对比
+
+渲染场景	纯软件绘制	硬件加速	加速效果分析
+页面初始化	绘制所有View	创建所有DisplayList	GPU分担了复杂计算任务
+在一个复杂页面调用背景透明TextView的setText()，且调用后其尺寸位置不变	重绘脏区所有View	TextView及每一级父View重建DisplayList	重叠的兄弟节点不需CPU重绘，GPU会自行处理
+TextView逐帧播放Alpha / Translation / Scale动画	每帧都要重绘脏区所有View	除第一帧同场景2，之后每帧只更新TextView对应RenderNode的属性	刷新一帧性能极大提高，动画流畅度提高
+修改TextView透明度	重绘脏区所有View	直接调用RenderNode.setAlpha()更新	只触发DecorView.updateDisplayListIfDirty，不再往下遍历，CPU执行时间可忽略不计
+
+
+
+GPU 呈现模式分析工具
+在Android 4.1（API 级别 16）或更高版本的设备上，执行以下步骤开启工具：
+1.启动开发者选项；
+2.在“监控”部分，找到“GPU呈现模式分析”（不同厂商命名有所区别）；
+3.点击“GPU呈现模式分析”，弹出页面中，选择“在屏幕上显示为条形图”即可。
+这时，GPU 呈现模式工具已经开启了，接下来，我们可以打开我们要测试的APP来进行观察测试了。
+
+视觉呈现
+GPU 渲染模式分析工具以图表（以颜色编码的直方图）的形式显示各个阶段及其相对时间。
+
+Android 10 上显示的彩色部分：
+
+
+注意点:
+1.一个应用对应一个图形
+2.沿水平轴的每个竖条代表一个帧，每个竖条的高度表示渲染该帧所花的时间（以毫秒为单位）。
+3.中间绿色的线是16.6ms的分割线，高于绿色线表示出现了掉帧
+4.通过加宽竖条降低透明度来反应比较耗时的帧
+5.每个竖条都有与渲染管道中某个阶段对应的彩色区段。区段数因设备的 API 级别不同而异。
+
+颜色块含义
+Android 6.0 及更高版本的设备时分析器输出中某个竖条的每个区段含义：
+
+
+4.0（API 级别 14）和 5.0（API 级别 21）之间的 Android 版本具有蓝色、紫色、红色和橙色区段。低于 4.0 的 Android 版本只有蓝色、红色和橙色区段。下表显示的是 Android 4.0 和 5.0 中的竖条区段。
+
+GPU 呈现模式工具，很直观的为我们展示了 APP 运行时每一帧的耗时详情。我们只需要关注代表每一帧的柱状图的颜色详情，就可以分析出卡顿的原因了。
+
+
+好了 关于软硬件加速就讲到这里
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6.GPU呈现模式
+
+
+7.TextureView
+
+Display List
+

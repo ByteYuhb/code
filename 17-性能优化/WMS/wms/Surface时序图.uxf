@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="14.3.0">
+  <zoom_level>7</zoom_level>
+  <element>
+    <id>UMLSequenceAllInOne</id>
+    <coordinates>
+      <x>0</x>
+      <y>0</y>
+      <w>4298</w>
+      <h>1127</h>
+    </coordinates>
+    <panel_attributes>autoTick=true
+obj=WindowSurfacePlacer~a 
+obj=RootWindowContainer~b 
+obj=DisplayContent~c
+obj=PhoneManagerPolicy~d
+obj=WindowStateAnimator~e
+obj=WindowState~f
+obj=WindowManagerService~g
+obj=WindowAnimator~h
+obj=Choreographer~i
+obj=FrameCallback~j
+obj=WindowSurfaceController~k
+
+
+
+tick= 
+a-&gt;a+ :performSurfacePlacement
+tick= 
+a-&gt;a+ :performSurfacePlacementLoop
+tick=
+a-&gt;b :performSurfacePlacement
+tick=
+b-&gt;b + :applySurfaceChangesTransaction
+tick=
+b-&gt;c :applySurfaceChangesTransaction
+tick=
+c-&gt;c+ :performLayout
+tick=
+c-&gt;c+ :mPerformLayout
+tick=
+c-&gt;d :layoutWindowLw
+tick=
+d-&gt;c :finishLayoutLw
+tick=
+c-&gt;c+ :mApplySurfaceChangesTransaction
+tick=
+c-&gt;e :commitFinishDrawingLocked
+tick=
+e-&gt;f :performShowLocked
+tick=
+f-&gt;g :scheduleAnimationLocked
+tick=
+g-&gt;h :scheduleAnimation
+tick=
+h-&gt;i :postFrameCallback
+tick=
+i-&gt;j :doFrame
+tick=
+j-&gt;h :animate
+tick=
+h-&gt;c :prepareWindowSurfaces
+tick=
+c-&gt;c+ :mPrepareWindowSurfaces
+tick=
+c-&gt;e :prepareSurfaceLocked
+tick=
+e-&gt;e+ :setSurfaceBoundariesLocked
+tick=
+e-&gt;k :prepareToShowInTransaction
+tick=
+e-&gt;k :setLayer
+tick=
+e-&gt;e+ :showSurfaceRobustlyLocked
+tick=
+e-&gt;k :showRobustlyInTransaction
+
+
+
+
+
+
+
+
+
+
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>

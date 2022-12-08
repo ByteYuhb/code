@@ -1,0 +1,474 @@
+---
+theme: smartblue
+highlight: a11y-light
+---
+## 前言
+`热修复`到现在2022年已经不是一个新名词，但是作为**Android开发核心技术栈的一部分**，我这里还得来一次冷饭热炒。
+
+随着移动端业务复杂程度的增加，传统的版本更新流程显然无法满足业务和开发者的需求，
+热修复技术的推出在很大程度上改善了这一局面。国内大部分成熟的主流 App都拥有自己的热更新技术，像手淘、支付宝、微信、QQ、饿了么、美团等。
+
+可以说，**一个好的热修复技术，将为你的 App助力百倍。对于每一个想在 Android 开发领域有所造诣的开发者，掌握热修复技术更是必备的素质**。
+
+`热修复`是 Android 大厂面试中**高频面试知识点**，也是我们必须要掌握的知识点。热修复技术，可以看作 Android平台发展成熟至一定阶段的必然产物。
+**Android热修复了解吗？修复哪些东西？
+常见热修复框架对比以及各原理分析？**
+
+
+
+## 1.什么是热修复
+热修复说白了就是不再使用传统的应用商店更新或者自更新方式，**使用补丁包推送的方式在用户无感知的情况下，修复应用bug或者推送新的需求**
+
+`传统更新`和`热更新`过程对比如下：
+
+![热修复过程图.jpg](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4c69e58b625546a5b0f6207c5ed85fab~tplv-k3u1fbpfcp-watermark.image?)
+
+
+
+热修复`优缺点`:
+
+- **优点:**
+    - 1.只需要打补丁包，不需要重新发版本。
+    - 2.用户无感知，不需要重新下载最新应用
+    - 3.修复成功率高
+- **缺点**：
+    - 补丁包滥用，容易导致应用版本不可控，需要开发一套完整的补丁包更新机制，会增加一定的成本
+
+
+
+## 2.热修复方案
+
+首先我们得知道热修复**修复哪些东西**？
+- 1.**代码修复**
+- 2.**资源修复**
+- 3.**动态库修复**
+
+### 2.1:代码修复方案
+
+从技术角度来说，我们的目的是非常明确的：把错误的代码替换成正确的代码。
+注意这里的替换，并不是直接擦写dx文件，而是提供一份新的正确代码，让应用运行时绕过错误代码，执行新的正确代码。
+
+![热修复方法过程.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7c41e2bbe7c54a3e900236f1ffb43459~tplv-k3u1fbpfcp-watermark.image?)
+
+想法简单直接，但实现起来并不容易。目前主要有三类技术方案：
+
+#### 2.1.1.**类加载方案**
+之前分析类加载机制有说过:
+**加载流程先是遵循双亲委派原则，如果委派原则没有找到此前加载过此类，
+则会调用CLassLoader的findClass方法，再去BaseDexClassLoader下面的dexElements数组中查找，如果没有找到，最终调用defineClassNative方法加载**
+
+代码修复就是基于这点：
+**将新的做了修复的dex文件，通过反射注入到BaseDexClassLoader的dexElements数组的第一个位置上dexElements[0]，下次重新启动应用加载类的时候，会优先加载做了修复的dex文件，这样就达到了修复代码的目的**。原理很简单
+
+代码如下：
+
+```java
+public class Hotfix {
+
+    public static void patch(Context context, String patchDexFile, String patchClassName)
+                    throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+        //获取系统PathClassLoader的"dexElements"属性值
+        PathClassLoader pathClassLoader = (PathClassLoader) context.getClassLoader();
+        Object origDexElements = getDexElements(pathClassLoader);
+
+        //新建DexClassLoader并获取“dexElements”属性值
+        String otpDir = context.getDir("dex", 0).getAbsolutePath();
+        Log.i("hotfix", "otpdir=" + otpDir);
+        DexClassLoader nDexClassLoader = new DexClassLoader(patchDexFile, otpDir, patchDexFile, context.getClassLoader());
+        Object patchDexElements = getDexElements(nDexClassLoader);
+
+        //将patchDexElements插入原origDexElements前面
+        Object allDexElements = combineArray(origDexElements, patchDexElements);
+
+        //将新的allDexElements重新设置回pathClassLoader
+        setDexElements(pathClassLoader, allDexElements);
+
+        //重新加载类
+        pathClassLoader.loadClass(patchClassName);
+}
+private static Object getDexElements(ClassLoader classLoader) throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
+        //首先获取ClassLoader的“pathList”实例
+        Field pathListField = Class.forName("dalvik.system.BaseDexClassLoader").getDeclaredField("pathList");
+        pathListField.setAccessible(true);//设置为可访问
+        Object pathList = pathListField.get(classLoader);
+
+        //然后获取“pathList”实例的“dexElements”属性
+        Field dexElementField = pathList.getClass().getDeclaredField("dexElements");
+        dexElementField.setAccessible(true);
+
+        //读取"dexElements"的值
+        Object elements = dexElementField.get(pathList);
+        return elements;
+    }
+    //合拼dexElements
+    private static Object combineArray(Object obj, Object obj2) {
+        Class componentType = obj2.getClass().getComponentType();
+        //读取obj长度
+        int length = Array.getLength(obj);
+        //读取obj2长度
+        int length2 = Array.getLength(obj2);
+        Log.i("hotfix", "length=" + length + ",length2=" + length2);
+        //创建一个新Array实例，长度为ojb和obj2之和
+        Object newInstance = Array.newInstance(componentType, length + length2);
+        for (int i = 0; i < length + length2; i++) {
+                //把obj2元素插入前面
+                if (i < length2) {
+                        Array.set(newInstance, i, Array.get(obj2, i));
+                } else {
+                        //把obj元素依次放在后面
+                        Array.set(newInstance, i, Array.get(obj, i - length2));
+                }
+        }
+        //返回新的Array实例
+        return newInstance;
+    }
+    private static void setDexElements(ClassLoader classLoader, Object dexElements) throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
+        //首先获取ClassLoader的“pathList”实例
+        Field pathListField = Class.forName("dalvik.system.BaseDexClassLoader").getDeclaredField("pathList");
+        pathListField.setAccessible(true);//设置为可访问
+        Object pathList = pathListField.get(classLoader);
+
+        //然后获取“pathList”实例的“dexElements”属性
+        Field declaredField = pathList.getClass().getDeclaredField("dexElements");
+        declaredField.setAccessible(true);
+
+        //设置"dexElements"的值
+        declaredField.set(pathList, dexElements);
+    }
+}
+
+```
+
+类加载过程如下：
+
+![findclass.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0acc2a77f1bc40448ef4aeda54176ab3~tplv-k3u1fbpfcp-watermark.image?)
+微信`Tinker`，QQ 空间的`超级补丁`、手 QQ 的`QFix` 、饿了 么的 `Amigo` 和  `Nuwa` 等都是使用这个方式
+
+**缺点**：因为类加载后无法卸载，所以类加载方案**必须重启App**，让bug类重新加载后才能生效。
+
+#### 2.1.2:底层替换方案
+底层替换方案不会再次加载新类，而是直接**在 Native 层 修改原有类**，
+这里我们需要提到Art虚拟机中`ArtMethod`：
+每一个Java方法在Art虚拟机中都对应着一个` ArtMethod`，**ArtMethod记录了这个Java方法的所有信息，包括所属类、访问权限、代码执行地址等**。
+
+结构如下：
+
+```java
+// art/runtime/art_method.h
+class ArtMethod FINAL {
+...
+ protected:
+  GcRoot<mirror::Class> declaring_class_;
+  GcRoot<mirror::PointerArray> dex_cache_resolved_methods_;
+  GcRoot<mirror::ObjectArray<mirror::Class>> dex_cache_resolved_types_;
+  uint32_t access_flags_;
+  uint32_t dex_code_item_offset_;
+  uint32_t dex_method_index_;
+  uint32_t method_index_;
+
+  struct PACKED(4) PtrSizedFields {
+        void* entry_point_from_interpreter_;      // 1
+        void* entry_point_from_jni_;
+        void* entry_point_from_quick_compiled_code_;  //2
+  } ptr_sized_fields_;
+  ...
+}
+```
+在 ArtMethod结构体中，最重要的就是 **注释1和注释2标注的内容**，从名字可以看出来，他们就是方法的执行入口。
+我们知道，Java代码在Android中会被编译为 **Dex Code**。	
+
+Art虚拟机中可以采用**解释模式**或者 **AOT机器码模**式执行 **Dex Code**
+
+- **解释模式:**
+    就是去除Dex Code，逐条解释执行。
+    如果方法的调用者是以解释模式运行的，在调用这个方法时，就会获取这个方法的 entry_point_from_interpreter_，然后跳转执行。
+- **AOT模式:**
+    就会预先编译好 Dex Code对应的机器码，然后在运行期直接执行机器码，不需要逐条解释执行Dex Code。
+    如果方法的调用者是以AOT机器码方式执行的，在调用这个方法时，就是跳转到 entry_point_from_quick_compiled_code_中执行。
+
+> 那是不是只需要替换这个几个 entry_point_* 入口地址就能够实现方法替换了呢？
+**并没有那么简单，因为不论是解释模式还是AOT模式，在运行期间还会需要调用ArtMethod中的其他成员字段**
+
+**AndFix采用的是改变指针指向**：
+```java
+// AndFix/jni/art/art_method_replace_6_0.cpp
+void replace_6_0(JNIEnv* env, jobject src, jobject dest) {
+    art::mirror::ArtMethod* smeth =
+                    (art::mirror::ArtMethod*) env->FromReflectedMethod(src);  // 1
+
+    art::mirror::ArtMethod* dmeth =
+                    (art::mirror::ArtMethod*) env->FromReflectedMethod(dest);  // 2
+    ...
+    // 3
+    smeth->declaring_class_ = dmeth->declaring_class_;
+    smeth->dex_cache_resolved_methods_ = dmeth->dex_cache_resolved_methods_;
+    smeth->dex_cache_resolved_types_ = dmeth->dex_cache_resolved_types_;
+    smeth->access_flags_ = dmeth->access_flags_ | 0x0001;
+    smeth->dex_code_item_offset_ = dmeth->dex_code_item_offset_;
+    smeth->dex_method_index_ = dmeth->dex_method_index_;
+    smeth->method_index_ = dmeth->method_index_;
+
+    smeth->ptr_sized_fields_.entry_point_from_interpreter_ =
+    dmeth->ptr_sized_fields_.entry_point_from_interpreter_;
+
+    smeth->ptr_sized_fields_.entry_point_from_jni_ =
+    dmeth->ptr_sized_fields_.entry_point_from_jni_;
+    smeth->ptr_sized_fields_.entry_point_from_quick_compiled_code_ =
+    dmeth->ptr_sized_fields_.entry_point_from_quick_compiled_code_;
+
+    LOGD("replace_6_0: %d , %d",
+             smeth->ptr_sized_fields_.entry_point_from_quick_compiled_code_,
+             dmeth->ptr_sized_fields_.entry_point_from_quick_compiled_code_);
+}
+```
+
+**缺点**：存在一些兼容性问题，由于ArtMethod结构体是Android开源的一部分，所以每个手机厂商都可能会去更改这部分的内容，这就可能导致ArtMethod替换方案在某些机型上面出现未知错误。
+
+**Sophix为了规避上面的AndFix的风险，采用直接`替换整个结构体`。这样不管手机厂商如何更改系统，我们都可以正确定位到方法地址**
+
+#### 2.4.3:`install run`方案
+Instant Run 方案的核心思想是——**插桩**，**在编译时通过插桩在每一个方法中插入代码，修改代码逻辑，在需要时绕过错误方法，调用patch类的正确方法。**
+
+首先，在编译时Instant Run为每个类插入IncrementalChange变量
+
+```java
+IncrementalChange  $change;
+```
+为每一个方法添加类似如下代码：
+
+```java
+public void onCreate(Bundle savedInstanceState) {
+    IncrementalChange var2 = $change;
+    //$change不为null，表示该类有修改，需要重定向
+    if(var2 != null) {
+        //通过access$dispatch方法跳转到patch类的正确方法
+        var2.access$dispatch("onCreate.(Landroid/os/Bundle;)V", new Object[]{this, savedInstanceState});
+    } else {
+        super.onCreate(savedInstanceState);
+        this.setContentView(2130968601);
+        this.tv = (TextView)this.findViewById(2131492944);
+    }
+}
+```
+
+如上代码，当一个类被修改后，Instant Run会为这个类新建一个类，命名为xxx&override，且实现IncrementalChange接口，并且赋值给原类的$change变量。
+
+```java
+public class MainActivity$override implements IncrementalChange {
+｝
+```
+此时，在运行时原类中每个方法的var2 != null，通过accessdispatch（参数是方法名和原参数）定位到patch类MainActivitydispatch（参数是方法名和原参数）定位到patch类MainActivityoverride中修改后的方法。
+
+**Instant Run是google在AS2.0时用来实现“热部署”的，同时也为“热修复”提供了一个绝佳的思路。美团的Robust就是基于此**。
+
+### 2.2：资源修复方案
+这里我们来看看install run的原理即可，市面上的常见修复方案大部分都是基于此方法。
+
+```java
+public static void monkeyPatchExistingResources(Context context,
+            String externalResourceFile, Collection<Activity> activities) {
+    if (externalResourceFile == null) {
+            return;
+    }
+    try {
+// 创建一个新的AssetManager
+        AssetManager newAssetManager = (AssetManager) AssetManager.class
+                        .getConstructor(new Class[0]).newInstance(new Object[0]); // ... 1
+        Method mAddAssetPath = AssetManager.class.getDeclaredMethod(
+                        "addAssetPath", new Class[] { String.class }); // ... 2
+        mAddAssetPath.setAccessible(true);
+// 通过反射调用addAssetPath方法加载外部的资源（SD卡资源）
+        if (((Integer) mAddAssetPath.invoke(newAssetManager,
+                        new Object[] { externalResourceFile })).intValue() == 0) { // ... 3
+                throw new IllegalStateException(
+                                "Could not create new AssetManager");
+        }
+        Method mEnsureStringBlocks = AssetManager.class.getDeclaredMethod(
+                        "ensureStringBlocks", new Class[0]);
+        mEnsureStringBlocks.setAccessible(true);
+        mEnsureStringBlocks.invoke(newAssetManager, new Object[0]);
+        if (activities != null) {
+            for (Activity activity : activities) {
+                Resources resources = activity.getResources(); // ... 4
+                try { 
+// 反射得到Resources的AssetManager类型的mAssets字段
+                    Field mAssets = Resources.class
+                                    .getDeclaredField("mAssets"); // ... 5
+                    mAssets.setAccessible(true);
+// 将mAssets字段的引用替换为新创建的newAssetManager
+                    mAssets.set(resources, newAssetManager); // ... 6
+                } catch (Throwable ignore) {
+                    ...
+                }
+
+// 得到Activity的Resources.Theme
+                Resources.Theme theme = activity.getTheme();
+                try {
+                    try {
+// 反射得到Resources.Theme的mAssets字段
+                        Field ma = Resources.Theme.class
+                                        .getDeclaredField("mAssets");
+                        ma.setAccessible(true);
+// 将Resources.Theme的mAssets字段的引用替换为新创建的newAssetManager
+                        ma.set(theme, newAssetManager); // ... 7
+                    } catch (NoSuchFieldException ignore) {
+                            ...
+                    }
+                        ...
+                } catch (Throwable e) {
+                    Log.e("InstantRun",
+                                    "Failed to update existing theme for activity "
+                                                    + activity, e);
+                }
+                pruneResourceCaches(resources);
+        }
+        }
+/**
+*  根据SDK版本的不同，用不同的方式得到Resources 的弱引用集合
+*/ 
+        Collection<WeakReference<Resources>> references;
+        if (Build.VERSION.SDK_INT >= 19) {
+            Class<?> resourcesManagerClass = Class
+                            .forName("android.app.ResourcesManager");
+            Method mGetInstance = resourcesManagerClass.getDeclaredMethod(
+                            "getInstance", new Class[0]);
+            mGetInstance.setAccessible(true);
+            Object resourcesManager = mGetInstance.invoke(null,
+                            new Object[0]);
+            try {
+                Field fMActiveResources = resourcesManagerClass
+                                .getDeclaredField("mActiveResources");
+                fMActiveResources.setAccessible(true);
+
+                ArrayMap<?, WeakReference<Resources>> arrayMap = (ArrayMap) fMActiveResources
+                                .get(resourcesManager);
+                references = arrayMap.values();
+            } catch (NoSuchFieldException ignore) {
+                Field mResourceReferences = resourcesManagerClass
+                                .getDeclaredField("mResourceReferences");
+                mResourceReferences.setAccessible(true);
+
+                references = (Collection) mResourceReferences
+                                .get(resourcesManager);
+            }
+        } else {
+            Class<?> activityThread = Class
+                            .forName("android.app.ActivityThread");
+            Field fMActiveResources = activityThread
+                            .getDeclaredField("mActiveResources");
+            fMActiveResources.setAccessible(true);
+            Object thread = getActivityThread(context, activityThread);
+
+            HashMap<?, WeakReference<Resources>> map = (HashMap) fMActiveResources
+                            .get(thread);
+
+            references = map.values();
+        }
+//遍历并得到弱引用集合中的 Resources ，将 Resources mAssets 字段引用替换成新的 AssetManager
+            for (WeakReference<Resources> wr : references) {
+                Resources resources = (Resources) wr.get();
+                if (resources != null) {
+                    try {
+                        Field mAssets = Resources.class
+                                        .getDeclaredField("mAssets");
+                        mAssets.setAccessible(true);
+                        mAssets.set(resources, newAssetManager);
+                    } catch (Throwable ignore) {
+                        ...
+                    }
+                    resources.updateConfiguration(resources.getConfiguration(),
+                                    resources.getDisplayMetrics());
+                }
+            }
+    } catch (Throwable e) {
+            throw new IllegalStateException(e);
+    }
+}
+```
+    
+
+- 在**注释1**处创建一个新的 AssetManager ，
+- 在**注释2** 和**注释3** 处通过反射调用 addAssetPath 方法加载外部（ SD 卡）的资源。
+- 在**注释4** 处遍历 Activity  列表，得到每个 Activity 的 Resources ，
+- 在**注释5** 处通过反射得到 Resources 的  AssetManager 类型的 rnAssets 字段 ，
+- **注释6**处改写 mAssets 字段的引用为新的 AssetManager 。
+
+**采用同样的方式**，
+- 在**注释7**处将 Resources. Theme 的 m Assets 字段 的引用替换为新创建的 AssetManager 。 
+- 紧接着 根据 SDK 版本的不同，用不同的方式得到 Resources 的弱引用集合，
+- 再遍历这个弱引用集合， 将弱引用集合中的 Resources 的 mAssets 字段引用都替换成新创建的 AssetManager 。
+
+`资源修复原理`：
+> - 1.创建新的AssetManager，通过反射调用addAssetPath方法，加载外部资源，这样新创建的AssetManager就含有了外部资源
+> - 2.将AssetManager类型的mAsset字段全部用新创建的AssetManager对象替换。这样下次加载资源文件的时候就可以找到包含外部资源文件的AssetManager。
+
+### 2.3：动态链接库so的修复
+
+#### 1.接口调用替换方案：
+sdk提供接口替换System默认加载so库接口
+
+```java
+SOPatchManager.loadLibrary(String libName) -> System.loadLibrary(String libName)
+```
+SOPatchManager.loadLibrary接口加载 so库的时候**优先尝试去加载sdk 指定目录下的补丁so**，
+
+`加载策略`如下：
+
+**如果存在则加载补丁 so库而不会去加载安装apk安装目录下的so库
+如果不存在补丁so，那么调用System.loadLibrary去加载安装apk目录下的 so库。**
+
+![加载so库.jpg](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e4c5714c45fb48a68f18d85ef3075484~tplv-k3u1fbpfcp-watermark.image?)
+我们可以很清楚的看到这个方案的优缺点:
+优点：不需要对不同 sdk 版本进行兼容，因为所有的 sdk 版本都有 System.loadLibrary 这个接口。
+缺点：调用方需要替换掉 System 默认加载 so 库接口为 sdk提供的接口， 如果是已经编译混淆好的三方库的so 库需要 patch，那么是很难做到接口的替换
+
+虽然这种方案实现简单，同时不需要对不同 sdk版本区分处理，但是有一定的局限性没法修复三方包的so库同时需要强制侵入接入方接口调用，接着我们来看下反射注入方案。
+
+#### 2、反射注入方案
+**前面介绍过 System. loadLibrary ( "native-lib"); 加载 so库的原理，其实native-lib 这个 so 库最终传给 native 方法执行的参数是 so库在磁盘中的完整路径，比如：/data/app-lib/com.taobao.jni-2/libnative-lib.so, so库会在 DexPathList.nativeLibraryDirectories/nativeLibraryPathElements 变量所表示的目录下去遍历搜索**
+
+**sdk<23** DexPathList.findLibrary 实现如下
+
+![小余23.jpg](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/51cc98dd82934d5590ac59b514eb43ed~tplv-k3u1fbpfcp-watermark.image?)
+
+可以发现会遍历 nativeLibraryDirectories数组，如果找到了 loUtils.canOpenReadOnly (path)返回为 true, 那么就直接返回该 path, loUtils.canOpenReadOnly (path)返回为 true 的前提肯定是需要 path 表示的 so文件存 在的。那么我们可以采取类似类修复反射注入方式，只要把我们的补丁so库的路径插入到nativeLibraryDirectories数组的最前面就能够达到加载so库的时候是补丁 库而不是原来so库的目录，从而达到修复的目的。
+
+**sdk>=23** DexPathList.findLibrary 实现如下
+
+![大于23.jpg](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/67f7f7f2484b465c8df5125c98053a7f~tplv-k3u1fbpfcp-watermark.image?)
+sdk23 以上 findLibrary 实现已经发生了变化，如上所示，那么我们只需要把补丁so库的完整路径作为参数构建一个Element对象，然后再插入到nativeLibraryPathElements 数组的最前面就好了。
+
+- **优点**：可以修复三方库的so库。同时接入方不需要像方案1 —样强制侵入用 户接口调用
+- **缺点**：需要不断的对 sdk 进行适配，如上 sdk23 为分界线，findLibrary接口实现已经发生了变化。
+
+对于 so库的修复方案目前更多采取的是接口调用替换方式，需要强制侵入用户 接口调用。
+目前我们的so文件修复方案采取的是反射注入的方案，重启生效。具有更好的普遍性。
+如果有so文件修复实时生效的需求，也是可以做到的，只是有些限制情况。
+
+## 常见热修复框架？
+
+| 特性 | Dexposed |AndFix |Tinker/Amigo|QQ Zone|Robust/Aceso|Sophix|
+| --- | --- | --- | --- | --- | --- | --- |
+| 技术原理 | native底层替换 | native底层替换 | 类加载 | 类加载 |Instant Run|混合|
+|所属|阿里|阿里|微信/饿了么|QQ空间|美团/蘑菇街|阿里|
+|即时生效|	YES| 	 YES|	 NO|	NO|	 YES	|混合|
+|方法替换|	YES |	 YES|	YES |	YES |	  YES |	YES|
+|类替换|	NO|	 NO|	YES|	YES |	  YES |	 YES |
+|类结构修改|	NO |	 NO|	YES |	NO |	 NO|	YES |
+|资源替换|	NO|	 NO|	YES |	YES |	NO |	YES |
+|so替换|	NO |	NO |	YES |	NO |	NO |	YES |
+|支持gradle|	NO |	NO |	YES |	YES |	YES|	YES |
+|支持ART|	NO |	YES |	YES |	YES |	YES |	YES |
+
+**可以看出，阿里系多采用native底层方案，腾讯系多采用类加载机制。其中，Sophix是商业化方案；Tinker/Amigo支持特性较多，同时也更复杂，如果需要修复资源和so，可以选择；如果仅需要方法替换，且需要即时生效，Robust是不错的选择。**
+
+## 总结：
+尽管热修复（或热更新）相对于迭代更新有诸多优势，市面上也有很多开源方案可供选择，但目前热修复依然无法替代迭代更新模式。有如下原因：
+热修复框架多多少少会增加性能开销，或增加APK大小
+热修复技术本身存在局限，比如有些方案无法替换so或资源文件
+热修复方案的兼容性，有些方案无法同时兼顾Dalvik和ART，有些深度定制系统也无法正常工作
+监管风险，比如苹果系统严格限制热修复
+
+所以，**对于功能迭代和常规bug修复，版本迭代更新依然是主流。一般的代码修复，使用Robust可以解决，如果还需要修复资源或so库，可以考虑Tinker**。
+
+
