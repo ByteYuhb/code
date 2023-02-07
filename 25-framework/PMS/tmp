@@ -1,0 +1,14 @@
+pms启动流程
+
+pms应用安装流程
+
+3、添加当前用户到vboxsf组
+此时点击共享文件夹可以看到，“您没有查看sf_shared内容所需的权限”，这是因为当前用户还没有被添加到vboxsf组中，使用命令：
+
+sudo adduser 用户名 vboxsf
+
+sudo adduser lxh vboxsf
+
+添加完成后在此重启Ubuntu即可（必须重启）。
+
+

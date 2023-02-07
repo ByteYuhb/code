@@ -1,0 +1,533 @@
+
+C++基础语法
+
+编程语言的层级和类型
+1.脚本语言：如bash等
+2.解释型语言，如Basic，Python等
+3.编译和解释型语言，如Java等
+4.编译型语言，如C++，C等
+5.机器语言，如汇编等
+
+
+Java语言是鉴于编译型和解释型语言中间态的一种语言。
+
+从上到下语言因为层次的封装，也更加接近人类使用，但是运行效率也更低。
+
+C++作为编译型语言，需要经过编译和链接两个过程，才能得到真正的可执行文件
+
+源程序->编译器->目标程序->链接器->可执行程序
+
+编译和链接大致过程如下：
+
+C++基本数据类型
+名称 	字节数 描述  范围
+char	1 		字符(character)或整数(integer)，8位  有符号（signed)：-128到127  无符号（unsigned）：0~255（2^8-1）
+short int(short) 2 短整形，16位	 有符号（signed）：-32768~32767 无符号（unsigned）：0~65535(2^16-1)
+long int（long） 4 长整，32位  有符号（signed）：-2147483648~2147483647 无符号（unsigned）：0~4294967295(2^32-1)
+int 4 整数，32位  有符号（signed）：-2147483648~2147483647 无符号（unsigned）：0~4294967295(2^32-1)
+float 4 浮点数 3.4e+/-38（7 digits）
+double 8 双精度浮点数 1.7e+/-308(15digits)
+long double 8 长精度浮点数 1.7e+/-308(15digits)
+bool 1	布尔值 true/false
+wchar_t 2 宽字符 为了存储两个字节长的国际字符而设计的类型  一个宽字符
+
+标识符与关键字
+标识符
+C++中标识符用来标识变量，函数，或者模块名。
+
+标识符命名规则或者建议：
+1.不要试图发明规则，应该制定一个让大部分成员满意的规则，在项目组中贯彻执行
+2.标识符应该直观，可以望文生义，尽量使用英文单词组合，不要使用汉语拼音
+3.变量的名词可以使用名词或者“形容词加名词”，如value，newValue，函数名可以使用“动词+名词”如drawGraph
+4.可以参考以下几种命名规则，选取一种即可，一般推荐匈牙利或者驼峰式。
+  匈牙利命名法：如int iMyAge
+  驼峰式：int myAge
+  Pascal命名：int MyAge
+ 
+标识符命名注意点
+1.不允许使用数字开头：如1btn
+2.区分大小写：如hello和Hello是不一样的
+3.不允许使用关键字。
+
+关键字集合
+https://en.cppreference.com/w/cpp/keyword
+
+常量与变量
+常量的定义方式
+C++中两种定义常量的方法：
+1.使用#define 如：#define PI 3.1415；
+2.使用const，如const double PI=3.1415；
+
+尽量使用第二种方式，#define不会出现在编译器。
+#define ROW 1.62 //在编译器出错，很难排查
+const double ROW = 1.62 //编译器报错，可以排查
+
+整数常量
+1.前缀：使用0x或者0X表示十六进制整数，使用0表示8进制证书，不带前缀默认十进制整数
+2.后缀：使用U表示无符号整数，使用L表示长整数，U和L大小写无关，且可以一起组合为后缀。
+如：
+112：合法
+115u：合法的
+0X21fL：合法的
+078：非法，8进制最大是7
+032LL：非法，后缀不能重复
+
+字符常量
+字符常量是括在单引号中的，如果以L开头（L‘x’）则表示其是一个宽字符。
+
+字符常量可以是一个普通字符（‘x’）也可以是一个转义字符（‘\t’）或者通用的字符(\u02C0)。
+转义字符表：
+字符	描述
+\\ 		\
+\` 	`字符
+\" 	"
+\?	?
+\a  警报铃声
+\b 	退格键
+\f	换页符
+\n	换行符
+\r	回车
+\t 	水平制表符
+\v	垂直制表符
+\ooo 1~3位的8进制数
+\xhh 1个或者多个数字的十六进制数
+
+
+注释
+
+注释的一点原则和建议：
+1.对重要代码或者复杂代码先写注释再写代码，这样思路更清晰，同时保证代码和注释的一致性
+2.注释不是越多越好，它是对代码的一种提示，如果更新了代码，注释也要相应的更新。
+3.好的命名和代码本身就是最好的注释，如果代码本身很清楚，不需要额外注释。
+
+运算符表达式：
+
+算术运算符
++(加) -（减） *（乘） /（取整） %（取余） ++（自增） --（自减）
+
+注意点：
+15/10和15.0/10两个值是不一样的。
+
+关系运算符
+==（相等）!=(不等) > < >= <=
+
+逻辑运算符
+&&（与） ||（或） ！（非）
+
+赋值运算符
+<<=(左移并赋值) >>=(右移并赋值) &=(按位与并赋值) ^=(按位异或并赋值) |=(按位或并赋值)
+
+位运算符
+&（与） |（或） ^(非)
+
+杂项运算符
+sizeof（sizeof）：返回每个变量占用的字节大小，如int a; sizeof(a) = 4;
+Condition？X：Y（条件运算符）;
+，（逗号运算符）：，表示一个并列关系
+.和->（成员运算符）:，引用类，结构体和共用体的成员
+Cast（强转运算符）：
+&：指针运算符，返回变量地址
+*：指针运算符，返回变量。
+
+运算符优先级：
+只需要记住两点：
+1.一元优先级一般高于二元优先级
+2.记不住优先级就直接加括号
+
+C到C++的陷阱
+
+1.char类型以及char*类型的变量初始化问题
+案例：
+void charBug() 
+{
+	char c1 = 'yes';//截断，取最后一个字符:'s'
+	char c2 = "yes";//报错：const char*类型的值不能用于初始化char类型的实体
+	char c3 = &c1;//报错： char*类型的值不能用于初始化char类型的实体
+	
+	const char* cs1 = '/'; //报错：char 类型的值不能用于初始化const char*类型的实体
+	const char* cs2 = "/";//正确取值为：'/''\0'
+	const char* cs3 = &c1;//正确取到c1的地址值
+}
+上面代码显示了：
+1.字符串作为等号右边数值，则给左边变量赋值的是该字符串常量的地址。
+2.const char*类型或者char*类型的值（如一个字符串或者字符的地址），不能赋值给一个char类型的变量。
+3.char类型的值作为左值不能直接赋值给一个char*或者const char*类型的变量。
+
+那在C++中怎么去规避这些操作呢？使用string
+string s1(1, 'yes');//s
+string s2(3, 'yes');//sss
+
+string s3("yes");//yes
+string s4("/");// /
+string s5(1,'/');// /
+
+C++中使用string规避了这些因为char*和char赋值一起的编译器错误。
+
+2.C语言数组作为参数退化问题
+案例：
+double average(int arr[]) {
+	double result = 0.0;
+	int len = sizeof(arr) / sizeof(arr[0]);
+	for (int i = 0; i < len; i++) {
+		result += arr[i];
+	}
+	return result/len;
+}
+int main()
+{
+   cout << "Hello World!\n";
+   //charBug();
+   int arr[] = { 1,2,3,4,5,6,7,8,9,10 };
+   cout<<average(arr)<<endl;
+
+}
+打印结果为：1 
+说明在函数内部的是arr其实是一个指针了，更好命名应为p_arr，一个指针的sizeof为4个字节，而arr[0]也是指针所以len=1。
+C语言设计者考虑的是不能将一个大的容器传递到一个函数内部，而只传递容器的地址，用于节省空间
+
+下面来看C++是如何优化这个问题的。
+使用STL中的容器来计算：
+
+double average2(vector<int>& vec) {
+	double result = 0.0;
+
+	vector<int>::iterator it = vec.begin();
+	for (; it != vec.end(); ++it) {
+		result += *it;
+	}
+	return result / vec.size();
+}
+vector<int> vec{ 1,2,3,4,5,6,7,8,9,10 };
+cout << average2(vec) << endl;
+
+打印结果：5.5
+输出了正确的平均结果
+
+3.C语言移位问题
+案例1：
+void bitMove() {
+	char c1 = 0x63;//0110 0011
+	c1 = c1 << 4;//右移4位
+	printf("0x%02x\n",c1); //推算：0011 0000 ->0x30
+
+	c1 = 0x63;
+	c1 = c1 >> 4;//左移4位
+	printf("0x%02x\n", c1);//推算：0000 0110 ->0x06
+
+	char c2 = 0x93;//1001 0011
+	c2 = c2 << 4;//右移4位
+	printf("0x%02x\n", c2); //推算：0011 0000 ->0x30
+
+	c2 = 0x93;
+	c2 = c2 >> 4;//左移4位
+	printf("0x%02x\n", c2);//推算：0000 0110 ->0x09?
+}
+
+结果：
+0x30 0x06 0x30 0xfffffff9
+
+看到最后一个值为0xfffffff9，推算因为0x06.
+这是由于算术位移和逻辑位移的区别导致的。
+逻辑位移
+对于无符号数，左移时对低位补0，右移对高位也是补0.
+
+算术位移
+对于无符号数的正数因为三码一致，则和逻辑位移的补齐方式一致，对于有符号数的负数，则左移时对低位补0，右移时则对高位补1.
+
+所以就发生前面的0x93在左移的过程中使用的是高位补1，得到的就是0xfffffff9形式，因为负数使用的是算术位移。
+
+那C语言中如何规避这种问题的发生了？考虑将无符号数转为有符号数即可：char -> unsigned char
+
+这里还有个点为什么是0xfffffff9而不是0xf9，题中明明是使用的char类型啊，为啥会有4个字节啊，
+原因就是%x要求的是无符号整形变量，如果传入的是char类型，则会有一个整数提升的过程，由于0xf9是一个负数char，
+提升的时候会对高位使用1填充，所以得到的就是0xfffffff9，而不是0xf9。
+
+修复方式也是将无符号数转为有符号数：char -> unsigned char，这样高位会使用0来填充。
+
+案例2：
+void bitMove1() {
+	unsigned char x = 0xFF;
+	const unsigned char BACK_UP = (1 << 7);
+	const unsigned char ADMIN = (1 << 8);
+	//printf("0x%x\n", BACK_UP);
+	//printf("0x%x\n", ADMIN);
+
+	if (x & BACK_UP) {
+		cout << "BACK_UP" << endl;
+	}
+	if (x & ADMIN) {
+		cout << "ADMIN" << endl;
+	}
+}  
+结果只打印除了BACK_UP，这是为啥呢？
+我们把两个printf打开看看：
+结果：一个0x80 一个0x00
+
+原因位移数不能大于位数，如果移动超过位数就是全部移出，导致归0.
+
+以上两个案例都是因无符号数位移引起的异常情况。
+
+那么在C++中如何规避的呢？使用bitset
+
+void bitMove2() {
+	bitset<10> x = 0xFF;
+	const bitset<10> BACK_UP = (1 << 7);
+	const bitset<10> ADMIN = (1 << 8);
+	printf("BACK_UP:0x%x\n", BACK_UP);
+	cout<<"BACK_UP:binary:" << BACK_UP << endl;
+	printf("ADMIN:0x%x\n", ADMIN);
+	cout << "ADMIN:binary:" << ADMIN << endl;
+
+	if ((x & BACK_UP) == BACK_UP) {
+		cout << "BACK_UP" << endl;
+	}
+	if ((x & ADMIN) == ADMIN) {
+		cout << "ADMIN" << endl;
+	}
+}
+结果：
+BACK_UP:0x80
+BACK_UP:binary:0010000000
+ADMIN:0x100
+ADMIN:binary:0100000000
+BACK_UP
+
+可以看到bitset指定了一个位长度10的无符号数，所以在移动8位后，得到的是0x100，而非0.
+
+3.C语言中的强制转换问题
+案例1：
+void cast1() {
+	int arr[] = { 1,2,3,4 };
+	cout <<"arr size:" << sizeof(arr) / sizeof(arr[0]) << endl;
+	int thresholp = -1;
+	if (sizeof(arr) / sizeof(arr[0]) > thresholp) {
+		cout << "arr len is big than thresholp" << endl;
+	}
+	else
+	{
+		cout << "thresholp is big than arr len" << endl;
+	}
+	cout << (unsigned int)(-1) << endl;
+}
+结果：
+arr size:4
+thresholp is big than arr len
+4294967295
+结果-1居然比4大，对一些不了解底层细节的同学会比较懵逼。
+
+重点在sizeof(arr) / sizeof(arr[0]) > thresholp这个判断，涉及了一个强转转换的问题
+1.sizeof(arr) / sizeof(arr[0])返回的是一个unsigned int类型的值，thresholp是一个int类型的值。
+
+在计算机的比较中，如果无符号类型和有符号类型值进行比较，则会将有符号类型的一边转换为无符号类型，然后再进行比较，这是一个隐式 的强转操作。
+
+int类型的-1转换为无符号后的值为：4294967295，所以得到的结果是thresholp is big than arr len
+
+2.在这个案例中，只需要使用一个int类型的值去存储sizeof(arr) / sizeof(arr[0])即可
+void cast1() {
+	int arr[] = { 1,2,3,4 };
+	cout <<"arr size:" << sizeof(arr) / sizeof(arr[0]) << endl;
+	int thresholp = -1;
+	int len = sizeof(arr) / sizeof(arr[0]);
+	if (len > thresholp) {
+		cout << "arr len is big than thresholp" << endl;
+	}
+	else
+	{
+		cout << "thresholp is big than arr len" << endl;
+	}
+}
+两个都是有符号类型，不会进行强转，所以可以得到正确的结果。
+
+案例2：
+void cast2() {
+	double result = 0.0;
+	int arr[] = { 10,20,30,40 };
+	unsigned int len  = sizeof(arr) / sizeof(arr[0]);
+	for (unsigned int i = 0; i < len; i++) {
+		result += (1 / arr[i]);
+	}
+	cout << result << endl;
+	return;
+}
+结果为0，
+其实问题在于“1 / arr[i]”,分子和分母都为int类型的情况下，则得到的也会是一个int型的结果，也就说会丢失进度。
+对于分子为1的情况，则得到的结果都会为0.
+如何改正呢？只需要将(1 / arr[i])改为(1.0 / arr[i]),由于1.0 / arr[i]不会丢失精度，所以最后得到的是一个正确的浮点数。
+
+通过上面的两个案例可以看出，C语言中的一些隐式转换会变为一些隐藏的bug和陷阱，且不容器排查。
+
+C++中也哪些解决方案？
+C++中可以使用显示的转换方式：static_cast,const_cast,dynamic_cast,reinterpret_cast
+static_cast；等价于隐式转换的一种运算符，用来表示显示的转换。
+const_cast：用来去除复合类型中的const和volatile属性
+dynamic_cast：父子类指针之间转换
+reinterpret_cast：指针类型之间转换，有一些风险
+
+对案例2：
+void cast2() {
+	double result = 0.0;
+	int arr[] = { 10,20,30,40 };
+	unsigned int len  = sizeof(arr) / sizeof(arr[0]);
+	for (unsigned int i = 0; i < len; i++) {
+		result += (static_cast<double>(1))/ arr[i];
+	}
+	cout << result << endl;
+	return;
+}
+结果：0.208333
+正确结果
+
+4.C语言整数溢出问题
+案例1：
+void intOverflow() {
+	int i = 0x7ffffff0;//2147483632
+	for (; i > 0; i++) {
+		cout << "adding" << endl;
+	}
+	cout << "end ??" << endl;
+}
+第一眼觉得，i用于大于0，for循环不会结束。
+实际结果：
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+adding
+end ??-2147483648
+
+在执行了16次adding还是退出了，这是因为i是int类型的变量，有符号类型的整数：范围会在-2147483648~2147483647之间，数值添加到2147483647之间后，再加1会变为-2147483648
+就好多时钟走了一圈后，又从0点开始一样。
+
+案例2：
+void intOverflow2() {
+	int a = 200, b = 300, c = 400, d = 500;
+	cout << a * b * c * d << endl;
+}
+结果：-884901888
+这里也是发生了整数溢出导致结果变为负数。
+
+C++中如何解决这种大数溢出的问题？使用扩展库，如boost库https://www.boost.org。
+
+#include <boost/multiprecision/cpp_int.hpp>
+using namespace boost::multiprecision;
+
+void intOverflow2() {
+	cpp_int a = 200, b = 300, c = 400, d = 500;
+	cout << a * b * c * d << endl;
+}
+结果：12000000000
+
+5.C语言字符串缺陷。
+案例1：
+void strTest() {
+	char str1[] = "abcdef";
+	cout << "str1_strlen:" << strlen(str1) << endl;
+	cout <<"str1_sizeof:" << sizeof(str1) / sizeof(str1[0]) << endl;
+
+	char str2[] = "abc\0def";
+	cout << "str2_strlen:" << strlen(str2) << endl;
+	cout << "str2_sizeof:" << sizeof(str2) / sizeof(str2[0]) << endl;
+}
+结果：
+str1_strlen:6
+str1_sizeof:7
+str2_strlen:3
+str2_sizeof:8
+从上面的结果可以看出C语言中的字符串其实是以\0结束的，这就会限制很多应用场景，且运行效率低。
+
+C++中的解决方案
+使用C++中的string类或者一些开源库解决方案如redis库的实现：https://redis.com https://github.com/redis
+
+Redis 是一种开源（BSD 许可）内存数据结构存储，用作数据库、缓存、消息代理和流引擎。Redis 提供数据结构，
+例如 字符串、散列、列表、集合、带范围查询的排序集合、位图、hyperloglogs、地理空间索引和流。
+
+关于更多Redis的信息，可以自行查阅Redis官网。
+
+
+小结
+1.C语言是一种高级语言的的低级语言，小巧，高效，接近底层，但是细节和陷阱较多
+2.C++完全继承了C语言的特性，但是提出了一系列更现代化和工程化的特性，包容性强，但是语言自身比较复杂。
+3.本章针对的字符，字符串，指针，数组，整数等表示，类型转化和移位等操作的说明，讲解了C的设计和C++中响应的解决方案，帮助大家搭好C/C++基础。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

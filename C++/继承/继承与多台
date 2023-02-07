@@ -1,0 +1,750 @@
+前言
+C++作为一门在C和Java之间的语言，其既可以使用C语言中的高效指针，又继承了Java中的面向对象编程思想，在去年编程语言排行榜上更是首次超过Java，进入前三、
+前面已经使用一篇文章讲解了C++中的指针，今天这篇文章就来讲解下C++中的面向对象编程思想。
+说到面向对象编程，就要讲到对象的三大特性：封装，继承和多态。
+本篇文章就以这三个特性展开。
+
+封装
+封装是面向对象编程三大特性之一。
+核心思想1：将属性和行为作为一个整体来表现生活中的事物。
+
+class People {
+public:
+	string name;
+	void eat();
+private：
+	string sex;
+};
+类中的属性和行为统称为成员
+属性成员称为成员变量，行为成员称为成员函数。
+
+核心思想2：对属性和行为使用权限控制
+面向对象编程中的权限包括：
+1.public 公共权限，所有类中都可以访问
+2.protected 受保护权限，只有当前类和子类可以访问
+3.private 私有权限，只有当前类可以访问。
+
+一般原则：
+对所有成员变量使用private权限，并使用public成员函数set和get对成员变量进行读写操作，可以防止成员变量对外暴露。
+
+继承
+继承是面向对象编程过程中一个很重要的特性，它允许开发者保存原有类的特性基础上进程扩展，增加功能等。
+新继承的类称为派生类（java中习惯叫子类），而被继承的类称为基类（java中习惯叫父类）。
+对于有java基础的同学来说再熟悉不过了，所以对于Android开发者来说，对C++上手会比其他程序员更快些，虽然字面意思类似，
+但是C++的继承和java还是有很多区别的，下面小余会一一道来。
+
+继承的格式
+class 派生类名：继承方式 基类的名称
+class A ：public B
+继承基础代码：
+class Father {
+public:
+	string name = "father";
+	int age = 45;
+};
+class Son :public Father {
+public:
+	string sex = "male";
+	void print() {
+		cout << "name:" << name << " age:" << age << " sex:" << sex << endl;
+	}
+};
+
+void extendsTest::mainTest()
+{
+	Son son;
+	son.print();
+};
+打印结果：
+name:father age:45 sex:male
+
+基类中的name和age是子类和父类共有的成员变量，每个人都有名字和年龄，虽然子类中没有定义，但是可以从父类中继承过来，
+这就是继承的意义。而sex属性是子类Son中独有的成员变量。
+父类独有的元素可以使用private修饰，表示这个元素属于当前父类持有，子类也不可获取，这个大家都理解。
+
+这里要说下在子类定义继承过程中对父类的继承方式是有说法的：如下的public
+class Son :public Father
+
+类成员/继承方式   public继承     protected继承    private继承
+父类的public成员	子类的public成员  子类的protected成员  子类private成员
+父类的protected成员 子类的protected成员 子类的protected成员 子类private成员
+父类的private成员 子类不可见  子类不可见   子类不可见
+
+权限记住规则：子类的权限受限于父类的权限以及子类继承的方式，子类对父类的继承方式只是对父类的成员进行再封装，大部分情况下使用public继承方式即可。
+除非不想让其他类引用该类的父类元素。
+
+
+子类与父类有同名属性或者方法
+假设子类有父类同名元素，则优先使用子类的元素
+class Father {
+public:
+	string name = "father";
+	int age = 45;
+};
+class Son :public Father {
+public:
+	string sex = "male";
+	string name = "son";
+	void print() {
+		cout << "name:" << name << " age:" << age << " sex:" << sex << endl;
+	}
+};
+
+void extendsTest::mainTest()
+{
+	Son son;
+	son.print();
+};
+
+打印结果：
+name:son age:45 sex:male
+
+如果此时一定需要访问父类的元素呢？加上父类修饰符即可。
+void print() {
+	cout << "name:" << Father::name << " age:" << age << " sex:" << sex << endl;
+}
+
+同名方法呢？这里就涉及到了面向对象编程中的函数重载多态问题了，后面再讲解
+
+单继承和多继承
+C++中的继承不像java中那样，只能继承一个父类，C++中可以继承多个父类
+所以就有单继承和多继承的区别：
+单继承
+只有一个父类
+class A：public B{
+	
+}
+
+多继承
+有多个父类
+class A:public B,public C {
+
+}
+
+菱形继承
+
+菱形继承会有啥问题呢？
+class A {
+public:
+	string name;
+};
+class B :public A {
+public:
+	int age;
+};
+class C :public A {
+public:
+	string sex;
+};
+class D :public B, public C {
+public:
+	int id;
+};
+int main()
+{
+	D student;
+	student.name = "小明";
+	student.age = 18;
+	student.sex = "男";
+	student.id = 666;
+	return 0;
+}
+问题出来了：
+
+原因是B和C同时继承了A，所以B和C同时都拥有name属性，直接使用student.name，编译器无法确定name是属于哪个类，
+此时有以下解决方法：
+方式1：明确指明当前name属于哪个类
+student.B::name = "小明";
+方式2：虚继承：在继承方式前加上virtual。
+class B :virtual  public A {
+public:
+	int age;
+};
+class C :virtual public A {
+public:
+	string sex;
+};
+
+多继承是C++复杂的一个体现。有了多继承，就存在菱形继承，为了解决菱形继承，又出现了菱形虚拟继承，其底层实现又很复杂。
+所以一般不建议设计出多继承，一定不要设计出菱形继承。
+
+C++中的几种特殊成员函数
+构造函数
+C++在编译器会给我们默认创建一个缺省的构造方法：
+如下代码：
+class Father {
+public:
+	string name = "father";
+	int age = 45;
+	void print() {
+		cout << "name:" << name << " age:" << age << endl;
+	}
+};
+class Son :public Father {
+public:
+	string sex = "male";
+};
+
+void extendsTest::mainTest()
+{
+	Son son;
+	son.print();
+};
+运行结果：name:father age:45
+可以看到虽然我们没有明确声明构造方法，但是依然可以调用无参构造方法。这就是因为编译器自动给我们创建了一个无参构造方法、
+
+如果类定义了自己的构造方法后（包括无参和有残），编译器就不会给我们创建了，看下面代码：
+class Father {
+public:
+	Father() {
+		cout << "Father:" << name << endl;
+	}
+	string name = "father";
+	int age = 45;
+	void print() {
+		cout << "name:" << name << " age:" << age << endl;
+	}
+};
+class Son :public Father {
+public:
+	Son(){
+		cout << "Son:" << name << endl;
+	}
+	string sex = "male";	
+};
+
+void extendsTest::mainTest()
+{
+	Son son;
+	son.print();
+};
+打印结果：
+Father:father
+Son:father
+name:father age:45
+
+从上面代码也可以看出C++编译器会默认优先调用父类的构造方法，再调用子类的构造方法，
+
+这点和java中是有区别的，java会从子类开始依次调用父类的构造方法，然后回溯子类的构造方法
+
+所以为了保证对象的顺利创建，需要保证父类的构造方法是有效的。
+如下代码：
+
+class Father {
+public:
+	Father(string _name):name(_name){
+		cout << "Father:" << name << endl;
+	}
+	string name = "father";
+	int age = 45;
+};
+此时父类中创建了一个有参构造方法，前面说过，此时编译器不会创建默认的无参构造方法，则需要保证在其子类中有初始化父类的操作：
+即调用父类有参构造方法。
+如下代码：
+class Son :public Father {
+public:
+	Son(string name):Father(name) {
+		cout << "Son:" << name << endl;
+	}
+	string sex = "male";
+};
+
+void extendsTest::mainTest()
+{
+	Son son1("myName");
+};
+结果：
+Father:myName
+Son:myName
+
+析构函数
+析构函数用来释放当前对象使用到的内存空间，当对象跳出其作用域范围后就会执行析构函数（除非是有智能指针出现循环引用的情况，无法释放，导致泄露）。
+C++中析构函数和构造函数相反，会优先调用子类的析构函数再调用父类的析构函数
+如下代码：
+class Father {
+public:
+	~Father() {
+		cout << "~Father"<< endl;
+	}
+	string name = "father";
+	int age = 45;
+	
+};
+class Son :public Father {
+public:
+	~Son() {
+		cout << "~Son" << endl;
+	}	
+	string sex = "male";	
+};
+
+void extendsTest::mainTest()
+{
+	Son son;
+};
+运行结果：
+~Son
+~Father
+
+拷贝构造
+C++中拷贝构造函数格式：
+格式1：带const参数
+Complex(const Complex& c) {
+	...
+}
+表示以常量对象作为参数
+格式2：不带const参数
+Complex(Complex& c) {
+	...
+}
+表示以非常量作为参数进行拷贝
+如下代码：
+class Complex {
+public:
+	double real, imag;
+	Complex(double _real, double _imag):
+		real(_real),imag(_imag)
+	{
+		cout << "real:" << real << " imag:" << imag << endl;
+	}
+	void print() {
+		cout << "real:" << real << " imag:" << imag << endl;
+	}
+	Complex(Complex& c) {
+		real = c.real+1; imag = c.imag+1;
+	}
+};
+
+void extendsTest::mainTest()
+{
+	Complex c1(1.0, 2.0);
+	Complex c2(c1);
+	c2.print();
+};
+打印结果：
+real:1 imag:2
+real:2 imag:3
+
+拷贝构造函数和构造方法类似，C++编译器会给我们提供默认的拷贝构造函数。
+将上面代码的拷贝构造函数删除后：
+class Complex {
+public:
+	double real, imag;
+	Complex(double _real, double _imag):
+		real(_real),imag(_imag)
+	{
+		cout << "real:" << real << " imag:" << imag << endl;
+	}
+	void print() {
+		cout << "real:" << real << " imag:" << imag << endl;
+	}
+};
+
+void extendsTest::mainTest()
+{
+	Complex c1(1.0, 2.0);
+	Complex c2(c1);
+	c2.print();
+};
+依然可以执行拷贝构造，此时c2使用了默认拷贝构造函数进行赋值。
+
+拷贝构造的几种调用形式：
+1. 当用一个对象去初始化同类的另一个对象时
+Complex c2(c1);
+Complex c2 = c1;
+这两天语句是等价的。但是要注意此时Complex c2 = c1是一个初始化语句，并非一个赋值语句。赋值语句是一个已经初始化后的变量。
+如下：
+Complex c1, c2; c1 = c2 ;
+c1=c2;
+赋值语句不会触发拷贝构造。
+
+2.当对象作为一个函数形参时，此时也会触发对象的拷贝构造
+class Complex {
+public:
+	double real, imag;
+	Complex(double _real, double _imag):
+		real(_real),imag(_imag)
+	{
+		cout << "real:" << real << " imag:" << imag << endl;
+	}
+	Complex(Complex& c) {
+		real = c.real+1; imag = c.imag+1;
+		cout << "complex copy" << endl;
+	}
+};
+
+void func(Complex c) {
+	cout << "real:" << c.real << " imag:" << c.imag << endl;
+	
+}
+
+void extendsTest::mainTest()
+{	
+	Complex c(1.0,2.0);
+	func(c);
+};
+
+运行结果：
+real:1 imag:2
+complex copy
+real:2 imag:3
+
+可以看到运行结果触发了Complex的拷贝构造
+以对象作为函数的形参，在函数被调用时，生成的形参要用复制构造函数初始化，这会带来时间上的开销。
+如果用对象的引用而不是对象作为形参，就没有这个问题了。
+void func(Complex& c) {
+	cout << "real:" << c.real << " imag:" << c.imag << endl;
+}
+但是以引用作为形参有一定的风险，因为这种情况下如果形参的值发生改变，实参的值也会跟着改变。
+最好的方法就是将函数形参声明为const类型的引用。
+void func(const Complex& c) {
+	cout << "real:" << c.real << " imag:" << c.imag << endl;
+}
+
+3.对象作为函数返回值返回时，也会触发拷贝构造。
+Complex func() {
+	Complex c(1.0, 2.0);
+	return c;
+}
+void extendsTest::mainTest()
+{	
+	cout << func().real << endl;
+};
+
+结果：
+real:1 imag:2
+complex copy
+2
+可以看到此时func函数中的return c处会触发一次拷贝构造，并将拷贝后的对象返回。
+这点通过函数hack过程也可以看出来：
+
+
+运算符重载函数
+
+运算符重载，就是对已有的运算符重新进行定义，赋予其另一种功能，简化操作 让已有的运算符 适应不同的数据类型。
+格式：
+重载+=号运算 ==>operator+=
+重载+运算符 ==>operator+ 
+
+...
+
+下面举两个运算符重载例子：
+1.重载+号
+class Complex {
+public:
+	Complex() {
+
+	}
+	double real, imag;
+	Complex(double _real, double _imag):
+		real(_real),imag(_imag)
+	{
+		cout << "real:" << real << " imag:" << imag << endl;
+	}
+	void print() {
+		cout << "real:" << real << " imag:" << imag << endl;
+	}
+	Complex(const Complex& c) {
+		real = c.real; imag = c.imag;
+		cout << "complex copy" << endl;
+	}
+	//以全局函数的形式重载
+	friend Complex operator+(const Complex& c1, const Complex& c2);
+};
+Complex operator+(const Complex& c1, const Complex& c2) {
+	Complex _c;
+	_c.real = c1.real + c2.real;
+	_c.imag = c1.imag + c2.imag;
+	return _c;
+}
+Complex func() {
+	Complex c(1.0, 2.0);
+	Complex c1(2.0, 3.0);
+	Complex c2 = c + c1;
+	return c2;
+}
+
+void extendsTest::mainTest()
+{	
+	cout << func().real << endl;
+};
+运行结果：
+real:1 imag:2
+real:2 imag:3
+complex copy
+complex copy
+3
+
+2.重载+=号运算
+代码如下：
+class Complex {
+public:
+	...
+	//成员函数重载
+	Complex& operator+=(const Complex& c);
+};
+
+Complex & Complex::operator+=(const Complex& c1) {
+	this->real += c1.real;
+	this->imag += c1.imag;
+	return *this;
+}
+Complex func() {
+	Complex c(1.0, 2.0);
+	Complex c1(2.0, 3.0);
+	c += c1;
+	return c;
+}
+void extendsTest::mainTest()
+{	
+	cout << func().real << endl;
+};
+运行结果：
+real:1 imag:2
+real:2 imag:3
+complex copy
+3
+
+重载的限制
+多数C++运算符都可以重载，重载的运算符不必是成员函数，但必须至少有一个操作数是用户定义的类型。
+1.重载后的运算符必须至少有一个操作数是用户定义的类型，防止用户为标准类型重载运算符。如：不能将减法运算符(-)重载为计算两个 double 值的和，而不是它们的差。虽然这种限制将对创造性有所影响，但可以确保程序正常运行。
+2.使用运算符时不能违反运算符原来的句法规则。例如，不能将求模运算符(%)重载成使用一个操作数：int x;Time shiva;%x;%shiva;，且不能修改运算符的优先级。
+3.不能创建新运算符。例如，不能定义operator **()函数来表示求幂。
+4.不能重载下面的运算符。
+
+运算符重载涉及的知识点还是比较多的，后期文章会单独出一期讲解。
+
+多态
+多态是指：函数调用的多种形态，使用多态可以使得不同的对象去完成同一件事时，产生不同的动作和结果
+C++中多态分为静态多态和动态多态：
+静态多态的核心思想：对于相关的对象类型，直接实现他们各自的定义，不需要共有基类，甚至可以没任何关系，
+只需要各个具体类的实现中要求相同的接口声明，这里的接口称之为隐式接口。客户端把操作这些对象的函数定义为模板，当需要操作什么类型的对象时，直接对模板指定该类型实参即可（或通过实参演绎获得）。
+
+静态多态
+在模板编程及泛型编程中，是以隐式接口和编译器多态来实现静态多态。
+
+代码如下：
+class Circle {
+public:
+	void Draw() const{
+		cout << "Circle draw" << endl;
+	}
+	int z;
+};
+class Rectangle {
+public:
+	void Draw() const{
+		cout << "Rectangle draw" << endl;
+	}
+};
+template<typename T>
+void test(const T& t) {
+	t.Draw();
+}
+void extendsTest::mainTest()
+{	
+	//cout << func().real << endl;
+	Circle cir;
+	test(cir);
+	Rectangle rec;
+	test(rec);
+};
+
+打印结果：
+Circle draw
+Rectangle draw
+
+静态多态本质上就是模板的具现化，静态多态中的接口调用也叫做隐式接口，相对于显示接口由函数的签名式（也就是函数名称、参数类型、返回类型）构成，隐式接口通常由有效表达式组成
+
+动态多态
+动态多态核心思想：对于相关的对象类型，确定它们之间的一个共同功能集，然后在基类中，
+把这些共同的功能声明为多个公共的虚函数接口。各个子类重写这些虚函数，
+以完成具体的功能。客户端的代码（操作函数）通过指向基类的引用或指针来操作这些对象，
+对虚函数的调用会自动绑定到实际提供的子类对象上去。
+
+动态多态是在运行期完成的，这造就了动态多态机制在处理异质对象集合时的强大威力（当然，也有了一点点性能损失）。
+如下代码：
+class Geometry {
+public:
+	virtual void Draw() const=0;
+};
+class Circle :public Geometry{
+public:
+	void Draw() const{
+		cout << "Circle draw" << endl;
+	}
+	int z;
+};
+class Rectangle :public Geometry {
+public:
+	void Draw() const{
+		cout << "Rectangle draw" << endl;
+	}
+};
+void extendsTest::mainTest()
+{	
+	Circle cir;
+	const Geometry* e1 = &cir;
+	e1->Draw();
+	Rectangle rec;
+	const Geometry* e2 = &rec;
+	e2->Draw();
+	
+};
+打印结果：
+Circle draw
+Rectangle draw
+
+//动态多态最吸引人之处在于处理异质对象集合的能力
+void DrawVec(std::vector<DynamicPoly::Geometry*> vecGeo)
+    {
+        const size_t size = vecGeo.size();
+        for(size_t i = 0; i < size; ++i)
+            vecGeo[i]->Draw();
+    }
+}
+
+动态多态本质上就是面向对象设计中的继承、多态的概念。动态多态中的接口是显式接口（虚函数）
+
+动态多态构成条件：
+1.必须通过基类的指针或者引用调用虚函数。
+2.被调用的函数必须是虚函数，且子类必须对父类的虚函数进行重写。
+
+动态多态实现原理
+虚函数表
+class Geometry {
+public:
+	virtual void Draw() const=0;
+};
+class Circle :public Geometry{
+public:
+	void Draw() const{
+		cout << "Circle draw" << endl;
+	}
+	int z;
+};
+class Rectangle :public Geometry {
+public:
+	void Draw() const{
+		cout << "Rectangle draw" << endl;
+	}
+};
+void extendsTest::mainTest()
+{	
+	Circle cir;
+	const Geometry* e1 = &cir;
+	e1->Draw();
+	
+};
+Circle对象中除了z成员变量外，实际上还有一个指针_vfptr放在对象的前面（有些平台可能会放到对象的最后面，这个跟平台有关）
+对象中的这个指针叫做虚函数表指针，简称虚表指针，虚表指针指向一个虚函数表，简称虚表，每一个含有虚函数的类中都至少有一个虚表指针。
+#include <iostream>
+using namespace std;
+//父类
+class Base
+{
+public:
+	//虚函数
+	virtual void Func1()
+	{
+		cout << "Base::Func1()" << endl;
+	}
+	//虚函数
+	virtual void Func2()
+	{
+		cout << "Base::Func2()" << endl;
+	}
+	//普通成员函数
+	void Func3()
+	{
+		cout << "Base::Func3()" << endl;
+	}
+private:
+	int _b = 1;
+};
+//子类
+class Derive : public Base
+{
+public:
+	//重写虚函数Func1
+	virtual void Func1()
+	{
+		cout << "Derive::Func1()" << endl;
+	}
+private:
+	int _d = 2;
+};
+int main()
+{
+	Base b;
+	Derive d;
+	return 0;
+}
+虚表当中存储的就是虚函数的地址，因为父类当中的Func1和Func2都是虚函数，所以父类对象b的虚表当中存储的就是虚函数Func1和Func2的地址。
+而子类虽然继承了父类的虚函数Func1和Func2，但是子类对父类的虚函数Func1进行了重写，
+因此，子类对象d的虚表当中存储的是父类的虚函数Func2的地址和重写的Func1的地址。
+这就是为什么虚函数的重写也叫做覆盖，覆盖就是指虚表中虚函数地址的覆盖，重写是语法的叫法，覆盖是原理层的叫法。
+
+虚函数表本质是一个存虚函数指针的指针数组，一般情况下会在这个数组最后放一个nullptr。
+
+当满足多态条件以后，父类的指针或引用调用虚函数时，不是编译时确定的，而是运行时到指向的对象中的虚表中去找对应的虚函数调用，
+并且引用的底层也是由指针实现，父类在指向子类时会发生切片。
+所以指针指向父类的对象，调用的就是父类的虚函数，指向的是子类对象，调用的就是子类的虚函数。
+
+动态多态和静态多态的比较
+静态多态
+优点：
+静态多态是在编译期完成，因此效率高，编译器可以进行优化。
+有很强的是适配性和松耦合性。
+最重要一点通过模板编程为C++带来了泛型设计的概念，比如强大的STL库
+
+缺点：
+由于是模板来实现静态多态，因此模板的不足也就是静多态的劣势，比如调试困难、编译耗时、代码膨胀、编译器支持的兼容性，不能够处理异质对象集合。
+
+动态多态
+优点：
+OO设计，对是客观世界的直觉认识；
+
+实现与接口分离，可复用；
+
+处理同一继承体系下异质对象集合的强大威力；
+
+缺点：
+运行期绑定，导致一定程度的运行时开销；
+
+编译器无法对虚函数进行优化；
+
+笨重的类继承体系，对接口的修改影响整个类层次；
+
+不同点：
+本质不同，静态多态在编译期决定，由模板具现完成，而动态多态在运行期决定，由继承、虚函数实现；
+
+动态多态中接口是显式的，以函数签名为中心，多态通过虚函数在运行期实现，静态多台中接口是隐式的，以有效表达式为中心，多态通过模板具现在编译期完成。
+
+相同点：
+都能够实现多态性，静态多态/编译期多态、动态多态/运行期多态；
+
+都能够使接口和实现相分离，一个是模板定义接口，类型参数定义实现，一个是基类虚函数定义接口，继承类负责实现；
+
+总结
+本篇文章详解讲解了C++中的面向对象编程的三大特性：封装，继承以及多态
+以及对象编程中模板编程，虚函数，构造函数，析构函数，拷贝构造，操作符重载等知识，
+知识点还是比较多的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

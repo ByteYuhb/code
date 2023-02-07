@@ -1,0 +1,2393 @@
+前言
+PackageManagerService（简称PKMS）是Android系统核心服务之一，和AMS，WMS，IMS并列”Android四大金刚服务“，其管理着应用的安装更新和卸载等操作。
+
+PKMS在我们开发中经常会碰到，了解其底层原理对我们开发也是很有帮助的。
+
+小余今天会有下面两个角度来讲解PKMS在系统中的具体功能以及实现逻辑：
+1.PKMS的构造以及启动过程
+2.PKMS对第三方应用的安装过程。
+
+
+
+本文源码全部基于Android T
+目录
+
+0.Framework包管理框架
+Android包管理主要体现在以下几个部分：
+	1.系统启动过程中PKMS对系部分统配置文件进行读取，如package.xml文件,然后对外提供app信息查询接口（IPackageManager）.
+	2.提供apk/apex的安装，更新，卸载等操作api接口（IPackageInstaller）,apex是谷歌提供的类似apk的系统更新模块。
+	3.应用运行过程中对系统权限的检查
+
+Android Framework包管理框架如下:
+
+基于Android T的Android包管理机制主要分为以下三层：
+1.应用层
+应用层需要获取某个安装包信息或者安装应用时，需要获取PKMS的实例，PKMS是在系统启动的时候注册到ServiceManager中。
+应用通过调用ContextImpl的getPackageManager接口获取PKMS的实例，实际返回的是一个ApplicationPackageManager对象，
+这个对象实现了PackageManager抽象接口且内部有个IPackageManager对象是远程接口IPackageManager的代理对象，通过这个对象可以访问PKMS层的接口。
+
+IPackageManager对象有个方法getPackageInstaller可以返回远程接口IPackageInstaller的实例对象PackageInstallerService。
+PackageInstallerService对象可以用于应用的安装，卸载，更新等操作。
+
+2.PKMS服务层
+和AMS，WMS一样，也是在SystemServer进程启动过程中启动的，PKMS层可以被应用层调用，返回对应的app信息。
+其内部有三个文件目录保存相关包管理信息。
+1.data/system/package.list
+2./system/etc/permissions
+3.data/system/packages.xml
+
+ 1.data/system/package.list
+
+用于记录系统中所有的应用的一些基本信息，包括应用名称，uid，gid，数据存放路径等信息
+下面是8.0设备上的package.list文件结构：每个版本都大同小异，差别不是很大。
+com.google.android.youtube 10076 0 /data/user/0/com.google.android.youtube default:targetSdkVersion=26 3003
+每行格式如下：
+1.com.google.android.youtube //app的包名,也就是AndroidManifest.xml文件中的package=”xxx.xxx.xxx”设置的内容
+2.10076 //uid 如果没有在AndroidManifext.xml里使用android:sharedUserId属性指定UID, 在app安装的时候，系统会给这个app自动分配一uid，以后app运行时，就用这个UID运行
+3.0 //debugable app是否处于调试模式，由AndroidManifext.xml里android:debuggable指定
+4./data/user/0/com.google.android.youtube //app的数据存放路径，一般是”/data/data/${package_name}”这样的文件夹 /data/user/0指向/data/data/
+5.default:targetSdkVersion=26 //默认的targetSdkVersion
+6.3003 //app所属的user group
+
+ 2./system/etc/permissions
+该目录下的文件主要用于权限的管理，包含两件事：1.定义系统中包含了哪些feature，应用程序可以在AndroidManifest.xml中使用标签声明程序需要哪些feature。
+该目录还有一个还有一个platform.xml文件，该文件为一些特别uid和gid分配一些默认权限，给uid分配权限使用标签，给gid分配权限使用标签。
+
+ 3.data/system/packages.xml
+
+文件中记录了系统的所有权限信息，系统中所有安装应用的基本信息，系统中所有shared-user信息以及应用打包时的签名信息等。
+有点像类似注册表，比如包名称、路径、权限等等。
+
+下面是8.0设备上的package.xml文件结构：
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<packages>
+	//节点version 存储了当前设备的基本信息：包括sdk版本，database版本，以及指纹等信息。
+    <version sdkVersion="26" databaseVersion="3" fingerprint="google/sdk_gphone_x86/generic_x86:8.0.0/OSR1.180418.024/6450276:userdebug/dev-keys" />
+    <version volumeUuid="primary_physical" sdkVersion="26" databaseVersion="26" fingerprint="google/sdk_gphone_x86/generic_x86:8.0.0/OSR1.180418.024/6450276:userdebug/dev-keys" />
+    //节点permission-trees代表了一组权限信息 ：如有com.google.android.googleapps.permission.GOOGLE_AUTH：p1 或者com.google.android.googleapps.permission.GOOGLE_AUTH：p2等
+	<permission-trees>
+        <item name="com.google.android.googleapps.permission.GOOGLE_AUTH" package="com.google.android.gsf" />
+    </permission-trees>
+	//permissions:表示系统中所有的权限信息 package表示该权限归属于某个应用，没有package表示归属于系统，protection表示当前权限的级别，如normal或dangerous等。
+    <permissions>
+        <item name="com.google.android.apps.nexuslauncher.permission.READ_SETTINGS" package="com.google.android.apps.nexuslauncher" />
+        <item name="com.google.android.gms.auth.api.phone.permission.SEND" package="com.google.android.gms" protection="2" />
+        <item name="android.permission.REAL_GET_TASKS" package="android" protection="18" />
+        <item name="android.permission.ACCESS_CACHE_FILESYSTEM" package="android" protection="18" />
+        <item name="android.permission.REMOTE_AUDIO_PLAYBACK" package="android" protection="2" />
+        //省略一大串permission item。。。
+    </permissions>
+	//package：表示一个应用的信息 name：应用包名 codePath;代码放置的路径 nativeLibraryPath：表示apk的so库存放路径 。。。。 
+    <package name="com.google.android.youtube" codePath="/system/app/YouTube" nativeLibraryPath="/system/app/YouTube/lib" primaryCpuAbi="x86" publicFlags="945536581" privateFlags="0" ft="171cdd40748" it="171cdd40748" ut="171cdd40748" version="121741370" userId="10076" isOrphaned="true">
+        //签名信息
+		<sigs count="1">
+            <cert index="1" key="308204a830820390a003020102020900847e4ff2d6b5de8e300d06092a864886f70d0101050500308194310b3009060355040613025553311330110603550408130a43616c69666f726e6961311630140603550407130d4d6f756e7461696e20566965773110300e060355040a1307416e64726f69643110300e060355040b1307416e64726f69643110300e06035504031307416e64726f69643122302006092a864886f70d0109011613616e64726f696440616e64726f69642e636f6d301e170d3130303132303031303133355a170d3337303630373031303133355a308194310b3009060355040613025553311330110603550408130a43616c69666f726e6961311630140603550407130d4d6f756e7461696e20566965773110300e060355040a1307416e64726f69643110300e060355040b1307416e64726f69643110300e06035504031307416e64726f69643122302006092a864886f70d0109011613616e64726f696440616e64726f69642e636f6d30820120300d06092a864886f70d01010105000382010d00308201080282010100d828717c36d1170fd44d0a7b0f071126e85bbfdf33b03460005a94ccfb65a5dba0b243df60b191bf9d06df1d8a5c0a33e2d163f513df1d225341ea3c337922e85c02ec34ced94cb80723a623ff4baffbb4e5efe6773b3ea2beb8bcb20267cfe785511f832ef987ab7594fe1e29cfbc4d083a1f125200777396f2165b697b00a3a0c13acc308a93f22163c16e9c3d4ab2149f364c45c04314327039f1da096093f1b3fc18b6561095c6225fc7102b987c6f13a45d24e3e0c54e859d67e35b67082713d2d6f057dd3457d19fc4fe8dddec8c3a4f3f97230519a70a283634ac3581a34abda17d845a0a0985fbf8060b036a2778608163fa0c37b9e7f2a10e76bc77020103a381fc3081f9301d0603551d0e04160414b5c7f9126f780d3afbca6573733ff5226b9b17373081c90603551d230481c13081be8014b5c7f9126f780d3afbca6573733ff5226b9b1737a1819aa48197308194310b3009060355040613025553311330110603550408130a43616c69666f726e6961311630140603550407130d4d6f756e7461696e20566965773110300e060355040a1307416e64726f69643110300e060355040b1307416e64726f69643110300e06035504031307416e64726f69643122302006092a864886f70d0109011613616e64726f696440616e64726f69642e636f6d820900847e4ff2d6b5de8e300c0603551d13040530030101ff300d06092a864886f70d010105050003820101004c3ea7657d26e6bbd7110c8f19df1f8da1097d33860f69debfcadb46a37e87e5b30fbb347b1c7555bcbb3c9954148046965f9c792a02d0dbe5a64761b37947ab6bffb0bac6a2c1a0cdf862f877a9670dfd6f062e406ece18060c60498dfc369f27117198e56fcba152e6058dce94ce591fc4f4a9982b33bad8196d776f55b7d01acf31ddd70cecb7897876066510f949a5524a3131b3cb6541cf8b35420ebcc4522559963f426669057266624fb398cfdb5217881d111c6e034616f8512118d0a2a69d13d792f0cd11dbd58e23835a54a54ac251e7d22c446a3fee141210e944474b406307bb26842b4f6bd355821c739651ffa2605b05e22495d715d87a91f6" />
+        </sigs>
+		//权限信息
+        <perms>
+            <item name="com.google.android.c2dm.permission.RECEIVE" granted="true" flags="0" />
+            <item name="android.permission.USE_CREDENTIALS" granted="true" flags="0" />
+            <item name="com.google.android.providers.gsf.permission.READ_GSERVICES" granted="true" flags="0" />
+            <item name="com.google.android.youtube.permission.C2D_MESSAGE" granted="true" flags="0" />
+            //省略
+        </perms>
+		//app使用的公钥信息的id。对应下面的keysets节点中的公钥信息
+        <proper-signing-keyset identifier="15" />
+		//域名验证
+        <domain-verification packageName="com.google.android.youtube" status="0">
+            <domain name="youtu.be" />
+            <domain name="m.youtube.com" />
+            <domain name="youtube.com" />
+            <domain name="www.youtube.com" />
+        </domain-verification>
+    </package>
+	
+   //shared-user节点代表一个shareuser的属性信息。声明了shareuser的应用的userid是固定一样的、
+    <shared-user name="android.uid.system" userId="1000">
+        <sigs count="1">
+            <cert index="3" />
+        </sigs>
+        <perms>
+            <item name="android.permission.BIND_INCALL_SERVICE" granted="true" flags="0" />
+            <item name="android.permission.WRITE_SETTINGS" granted="true" flags="0" />
+            <item name="android.permission.CONFIGURE_WIFI_DISPLAY" granted="true" flags="0" />
+            <item name="android.permission.CONFIGURE_DISPLAY_COLOR_MODE" granted="true" flags="0" />
+            <item name="android.permission.ACCESS_WIMAX_STATE" granted="true" flags="0" />
+            <item name="android.permission.USE_CREDENTIALS" granted="true" flags="0" />
+            <item name="android.permission.MODIFY_AUDIO_SETTINGS" granted="true" flags="0" />
+            //省略
+        </perms>
+    </shared-user>
+    //keyset存储了所有的应用对应的公钥信息。
+    <keyset-settings version="1">
+        <keys>
+            <public-key identifier="1" value="MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKCAQEAzUIf+TuUpcraGuAoPQGqIP9ZKhRjFpJs0m3q4QQCT1pcdqutNQOtW9JY+qZCkRa7VYWlMcL2AgRIiL+M3UMeZxJsw0Ve35AKFI2cam3r5Ie8k9ISnPAoNWny24ktWhMKhdGJWe1syc+cXpnUZPuzFU0no+e/tBfLBSRMcuolDHdj9TvyOb6fLFhWuGCoPm2/IrnRmSwVUfzK2t4AJ+sBn9d9w4g3hC10vQSO+FSyV2eIOzOiXSquT7oo7eQKltPOui1kZE7WVy/yKjI7sQdax1R4bQ2CN7RtSEAOPkQoZQDx+1wuHBdOFqgxRjnWc/iZopMIG/0c2adB1OVp7K5e5QIBAw==" />
+            <public-key identifier="2" value="MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKCAQEAqwGAVHAq4BOZV+HGzo/Ml7AjhflNHt2GTi5FANrVDMFGMPH1LKC41CaN8u3TWOpSrvGHiKJUUNALSy/wmRnCfmdS8XRGasqL7oCh5XtGGkJ1wbCOh1QrX1Cr8aZWqFuPkbDnBHdZaFs/dV81xxoXhpLkjNshEXa18vecRyUZ/Exh65GPqL1Y3jEiewrO7dKc7nQWz4VgXqi2nK/nA6iXF48PRbNlqSzDZ/mE3NyA5IN4+wzJ0qLqGAJfVK2YnhrsurxUM1FyOPvx8edvepIKfOxG4fPk4TB2EvXJbza6rvg0pRDASkKyEy1bh9oM2HNPh+o+pD4ZOdYj1XBJ7ZtFXwIBAw==" />
+			//省略
+		</keys>
+        <keysets>
+            <keyset identifier="1">
+                <key-id identifier="1" />
+            </keyset>
+            <keyset identifier="2">
+                <key-id identifier="2" />
+            </keyset>
+            //省略。。。
+        </keysets>
+		//表示最近一次使用的公钥id
+        <lastIssuedKeyId value="29" />
+        <lastIssuedKeySetId value="29" />
+    </keyset-settings>
+</packages>
+
+从文件中可以看出每个节点会有多个相同节点，说明这些节点并不是唯一的。所以写入到内存中也是一个集合的形式存在
+packages文件中各节点分析如下：
+1.version：节点version 存储了当前设备的基本信息：包括sdk版本，database版本，以及指纹等信息。
+2.节点permission-trees代表了一组权限信息 ：如有com.google.android.googleapps.permission.GOOGLE_AUTH：p1 或者com.google.android.googleapps.permission.GOOGLE_AUTH：p2等
+而com.google.android.googleapps.permission.GOOGLE_AUTH代表了这两种权限的集合。
+3.permissions:表示系统中所有的权限信息 package表示该权限归属于某个应用，没有package表示归属于系统，protection表示当前权限的级别，如normal或dangerous等。
+4.package：表示一个应用的在系统中的信息 
+	name：应用包名 
+	codePath;代码放置的路径 ，即class文件存放的目录，如果是系统app，存放在system分区，如果是第三方app，存放在data分区
+	nativeLibraryPath：表示apk的so库存放路径。
+	primaryCpuAbi表示app以哪种abi架构运行是armabi还是armabi-v7a，x86等
+	ft表示apk文件上次被更改的时间，it表示app第一次安装的时间，ut表示app上次被更新时间，它的值好像一直和ft相同, ota或app重装之后，这里的ft和ut可能会改变。
+	version版本号：也就是versioncode信息。
+	userId是为app分配的user id, 如果有使用shareUserId, 这里出现的就是SharedUserId。
+	
+	sigs count：表示这个app有多少个签名信息，cert里的index表示这个app使用的证书的序号，key是app使用的证书内容的ascii码值
+	perms;表示当前apk申请的权限信息。
+	
+5.shared-user节点代表一个shareuser的属性信息。声明了同一个shareuser的应用的userid是同一个。
+	perms表示当前shared-user拥有的权限信息
+6.keyset-settings块里收集了所有app签名的公钥信息，和前面介绍的package信息有关
+	keysets块中包含了很多keyset, 每个keyset都有一个编号用identifier表示，keyset里包含的key-id里的identifier和上面keys中public-key的identifier的值相对应。
+	keys块中public-key里的value值就是从apk包里的签名文件里提取出来的的公钥的值。
+	lastIssuedKeyId和lastIssuedKeySetId表示的是最近一次取出来的公钥所属的set编号
+可以看到package.xml文件在系统启动过程中起着一个非常重要的作用，主要体现在对应用清单配置以及应用的权限把控方面。
+
+最后用一幅图来总结下：
+
+
+PKMS在启动的时候会从这三个目录中解析相关的XML文件，从而建立庞大的信息树，应用程序可以间接的从这个信息树种查询所需的程序包信息。
+
+PKMS中还初始化了一个PackageInstallerService服务，用于应用的安装卸载和更新等操作，最终是通过binder通讯和系统层的installd系统服务进行通讯。
+
+3.文件系统层
+
+除了上面说的几个的系统包配置文件。还有应用安装的文件系统，包括：第三方应用以及系统应用。
+所有的系统app保存在/system/app目录下，所有的第三方app保存在/data/app目录下。
+对于非系统应用，在安装前，apk文件会被复制到一个临时文件夹下面，安装成功后会被放到/data/app下面，且使用apk的包名为路径存储。
+
+data/dalvik-cache目录保存着着程序执行代码，
+当Android启动时，DalvikVM监视所有的程序(APK文件)和框架，并且为他们创建一个依存关系树。
+DalvikVM通过这个依存关系树来为每个程序优化代码并存储在Dalvik缓存中。这样，所有程序在运行时都会使用优化过的代码。
+
+data/data是应用的私有目录，其他应用对此是没有访问权限的，/sdcard/Android/data属于应用的外部存储目录。
+
+system/framework下存储了系统运行的各种jar包，framework-res.apk则存储了framework系统需要的各种资源文件。
+
+
+4.Installd系统服务层
+Installd系统服务主要用来运行apk的安装和卸载，dex优化等工作，而PKMS收到应用安装任务时，会把最终任务提交给Installd进行处理。
+
+Installd进程拥有root权限，而PKMS只拥有系统权限。
+
+Installd进程在6.0之前使用的是socket通讯，之后使用的是binder通讯。
+
+有了一个包管理的整体认知过程，下面我们再来具体分析过程
+PKMS
+1.PKMS的构造以及启动过程：
+ 1.1：启动过程
+	系统启动过程
+	SystemServer进程
+	PKMS.main方法
+ 1.2：构造方法解析
+	代码较长:按阶段区分
+	阶段1：扫描应用相关的文件如package.list以及package.xml	
+	阶段2：扫描系统中的apk并将解析到的Package信息写入到系统中。
+ 1.3：installd
+	类似产品经理和程序员的关系，PKMS负责应用的安装，更新，卸载等操作，而实际干活的都是installd，
+	PKMS执行权限是System，而installd 的执行权限为 root
+2.PKMS对第三方应用的安装过程。
+	2.1：普通安装方式
+	2.2：静默安装方式
+
+应用包管理主要包含下面几部分内容：
+
+
+1.PKMS的启动过程：
+
+1.1：启动过程：
+PKMS在系统启动过程中的SystemServer进程的startBootstrapServices中启动
+
+private void startBootstrapServices(@NonNull TimingsTraceAndSlog t) {
+	
+	//创建一个Installer服务，实际执行PKMS应用安装卸载等操作的服务。后面会详细介绍
+	Installer installer = mSystemServiceManager.startService(Installer.class);
+
+	Pair<PackageManagerService, IPackageManager> pmsPair = PackageManagerService.main(
+			mSystemContext, installer, domainVerificationService,
+			mFactoryTestMode != FactoryTest.FACTORY_TEST_OFF, mOnlyCore);
+	//省略
+	
+}
+看PackageManagerService的main方法：
+public static Pair<PackageManagerService, IPackageManager> main(Context context,
+		Installer installer, @NonNull DomainVerificationService domainVerificationService,
+		boolean factoryTest, boolean onlyCore) {
+	
+	/*
+	PackageManagerServiceInjector内存存储了PKMS运行的环境，可以理解为PKMS环境的包装类，
+	早期版本是都在PKMS中实现，新版本使用PackageManagerServiceInjector对关键类进行了一个包装。
+	其中初始化了很多关键类，如：
+	Settings：对apk的信息进行读取存储
+	PackageDexOptimizer：用于dex优化
+	PackageParser2：用于AndroidManifest中四大组件的解析操作
+	ApexManager：对APEX包的管理，apex和apk类似，只是其是谷歌发布的系统更新包。
+	...
+	*/
+	PackageManagerServiceInjector injector = new PackageManagerServiceInjector(
+			context, lock, installer, installLock, new PackageAbiHelperImpl(),
+			backgroundHandler,
+			SYSTEM_PARTITIONS,
+			(i, pm) -> new ComponentResolver(i.getUserManagerService(), pm.mUserNeedsBadging),
+			(i, pm) -> PermissionManagerService.create(context,
+					i.getSystemConfig().getAvailableFeatures()),
+			(i, pm) -> new UserManagerService(context, pm,
+					new UserDataPreparer(installer, installLock, context, onlyCore),
+					lock),
+			(i, pm) -> new Settings(Environment.getDataDirectory(),
+					RuntimePermissionsPersistence.createInstance(),
+					i.getPermissionManagerServiceInternal(),
+					domainVerificationService, backgroundHandler, lock),
+			(i, pm) -> AppsFilterImpl.create(i,
+					i.getLocalService(PackageManagerInternal.class)),
+			(i, pm) -> (PlatformCompat) ServiceManager.getService("platform_compat"),
+			(i, pm) -> SystemConfig.getInstance(),
+			(i, pm) -> new PackageDexOptimizer(i.getInstaller(), i.getInstallLock(),
+					i.getContext(), "*dexopt*"),
+			(i, pm) -> new DexManager(i.getContext(), i.getPackageDexOptimizer(),
+					i.getInstaller(), i.getInstallLock()),
+			(i, pm) -> new ArtManagerService(i.getContext(), i.getInstaller(),
+					i.getInstallLock()),
+			(i, pm) -> ApexManager.getInstance(),
+			(i, pm) -> new ViewCompiler(i.getInstallLock(), i.getInstaller()),
+			(i, pm) -> (IncrementalManager)
+					i.getContext().getSystemService(Context.INCREMENTAL_SERVICE),
+			(i, pm) -> new DefaultAppProvider(() -> context.getSystemService(RoleManager.class),
+					() -> LocalServices.getService(UserManagerInternal.class)),
+			(i, pm) -> new DisplayMetrics(),
+			(i, pm) -> new PackageParser2(pm.mSeparateProcesses, pm.mOnlyCore,
+					i.getDisplayMetrics(), pm.mCacheDir,
+					pm.mPackageParserCallback) /* scanningCachingPackageParserProducer */,
+			(i, pm) -> new PackageParser2(pm.mSeparateProcesses, pm.mOnlyCore,
+					i.getDisplayMetrics(), null,
+					pm.mPackageParserCallback) /* scanningPackageParserProducer */,
+			(i, pm) -> new PackageParser2(pm.mSeparateProcesses, false, i.getDisplayMetrics(),
+					null, pm.mPackageParserCallback) /* preparingPackageParserProducer */,
+			// Prepare a supplier of package parser for the staging manager to parse apex file
+			// during the staging installation.
+			(i, pm) -> new PackageInstallerService(
+					i.getContext(), pm, i::getScanningPackageParser),
+			(i, pm, cn) -> new InstantAppResolverConnection(
+					i.getContext(), cn, Intent.ACTION_RESOLVE_INSTANT_APP_PACKAGE),
+			(i, pm) -> new ModuleInfoProvider(i.getContext()),
+			(i, pm) -> LegacyPermissionManagerService.create(i.getContext()),
+			(i, pm) -> domainVerificationService,
+			(i, pm) -> {
+				HandlerThread thread = new ServiceThread(TAG,
+						Process.THREAD_PRIORITY_DEFAULT, true /*allowIo*/);
+				thread.start();
+				return new PackageHandler(thread.getLooper(), pm);
+			},
+			new DefaultSystemWrapper(),
+			LocalServices::getService,
+			context::getSystemService,
+			(i, pm) -> new BackgroundDexOptService(i.getContext(), i.getDexManager(), pm),
+			(i, pm) -> IBackupManager.Stub.asInterface(ServiceManager.getService(
+					Context.BACKUP_SERVICE)),
+			(i, pm) -> new SharedLibrariesImpl(pm, i));
+
+	//调用PackageManagerService的构造方法，构造方法是整个启动过程的核心
+	PackageManagerService m = new PackageManagerService(injector, onlyCore, factoryTest,
+			PackagePartitions.FINGERPRINT, Build.IS_ENG, Build.IS_USERDEBUG,
+			Build.VERSION.SDK_INT, Build.VERSION.INCREMENTAL);
+	//这里是用于第一次启动firstboot的时候需要安装系统白名单中的应用。
+	m.installAllowlistedSystemPackages();
+	//构造IPackageManagerImpl对象并将其add到ServiceManager中：name为package
+	IPackageManagerImpl iPackageManager = m.new IPackageManagerImpl();
+	ServiceManager.addService("package", iPackageManager);
+	//构造IPackageManagerImpl对象并将其add到ServiceManager中：name为package_native
+	final PackageManagerNative pmn = new PackageManagerNative(m);
+	ServiceManager.addService("package_native", pmn);
+	//构造一个PackageManagerLocalImpl对象并将其add到本地LocalManagerRegistry中。
+	LocalManagerRegistry.addManager(PackageManagerLocal.class, m.new PackageManagerLocalImpl());
+	return Pair.create(m, iPackageManager);
+}
+
+总结下PKMS的main方法：
+1.创建一个异步后台服务线程ServiceThread
+2.创建了一个PackageManagerServiceInjector对象用于PKMS的运行时环境
+3.调用了PKMS的构造方法构造一个PKMS对象，构造方法内部是整个PKMS启动过程的核心，下面会分析
+4.调用installAllowlistedSystemPackages将构造方法中获取的应用信息写入xml文件
+5.给ServiceManager添加一个name为package的IPackageManagerImpl对象，这个对象是应用层使用getSystemService方法获取到的PMS对象,后期讲解应用安装会用到，很关键的一个类，打码~！！
+6.在本地LocalManagerRegistry中注册了一个以PackageManagerLocal.class为key，以PackageManagerLocalImpl对象为值的键值对
+7.返回一个Pair：分别对应PackageManagerService对象和iPackageManager服务对象
+
+1.2：PKMS的构造过程
+在main方法中调用了PKMS的构造方法，PKMS构造方法中主要是对某些xml文件信息进行读取，然后写入到内存中。
+下面我们就来分析PKMS的构造方法,构造方法大致可以分为以下两个阶段
+
+阶段1：读取应用相关的文件如package.list以及package.xml等文件
+阶段2：扫描系统中的apk并写入到PKMS内存或者文件中。
+
+阶段1：读取应用相关的文件如package.list以及package.xml等文件
+注意这里只提取关键方法：
+public PackageManagerService(PackageManagerServiceInjector injector, boolean onlyCore..){
+	//前面省略一大堆初始化的工作
+	mSettings.addSharedUserLPw("android.uid.system", Process.SYSTEM_UID,
+			ApplicationInfo.FLAG_SYSTEM, ApplicationInfo.PRIVATE_FLAG_PRIVILEGED);
+	mSettings.addSharedUserLPw("android.uid.phone", RADIO_UID,
+			ApplicationInfo.FLAG_SYSTEM, ApplicationInfo.PRIVATE_FLAG_PRIVILEGED);
+	//...
+	mFirstBoot = !mSettings.readLPw(computer,
+                    mInjector.getUserManagerInternal().getUsers(
+                    /* excludePartial= */ true,
+                    /* excludeDying= */ false,
+                    /* excludePreCreated= */ false));
+	
+	
+}
+可以看到阶段1中使用了一个mSettings字段来处理。这个字段是干嘛的呢？进入内部看看
+/**
+ * Holds information about dynamic settings.
+ */
+public final class Settings implements Watchable, Snappable 
+
+源码中注释很清楚：这个类是用来保存动态设置的信息，在这里就是PKMS用来保存当前系统中的应用相关信息的。
+看Settings构造方法：
+Settings(File dataDir, RuntimePermissionsPersistence runtimePermissionsPersistence,...){
+	...
+	mSettingsFilename = new File(mSystemDir, "packages.xml");
+
+	mBackupSettingsFilename = new File(mSystemDir, "packages-backup.xml");
+	mPackageListFilename = new File(mSystemDir, "packages.list");
+	FileUtils.setPermissions(mPackageListFilename, 0640, SYSTEM_UID, PACKAGE_INFO_GID);
+
+	final File kernelDir = new File("/config/sdcardfs");
+	mKernelMappingFilename = kernelDir.exists() ? kernelDir : null;
+
+	// Deprecated: Needed for migration
+	mStoppedPackagesFilename = new File(mSystemDir, "packages-stopped.xml");
+	mBackupStoppedPackagesFilename = new File(mSystemDir, "packages-stopped-backup.xml");
+}
+
+在其构造方法中初始化了几个文件类:包括前面分析的两个关键文件packages.xml和packages.list。
+packages-backup.xml是packages.xml的备份文件，而packages-stopped在Android T中被注明已过期。
+packages-backup备份文件如果存在的情况，系统启动过程中会优先加载备份文件中的packages信息到PKMS中，
+这是因为packages.xml文件是存在被损坏的可能性的，所以backup的优先级更高。这在后面源代码处也可以看到
+
+好了，我们回到PKMS的构造方法第一阶段，调用了下面两个关键方法。
+
+关键方法1：mSettings.addSharedUserLPw
+
+SharedUserSetting addSharedUserLPw(String name, int uid, int pkgFlags, int pkgPrivateFlags) {
+	SharedUserSetting s = mSharedUsers.get(name);
+	if (s != null) {
+		if (s.mAppId == uid) {
+			return s;
+		}
+		PackageManagerService.reportSettingsProblem(Log.ERROR,
+				"Adding duplicate shared user, keeping first: " + name);
+		return null;
+	}
+	s = new SharedUserSetting(name, pkgFlags, pkgPrivateFlags);
+	s.mAppId = uid;
+	if (mAppIds.registerExistingAppId(uid, s, name)) {
+		mSharedUsers.put(name, s);
+		return s;
+	}
+	return null;
+}
+其实就是初始化一些SharedUser的name和SharedUserSetting的一一对应关系。
+如对于name为“android.uid.system”的SharedUser，其对应了SharedUserSetting
+pkgFlags：ApplicationInfo.FLAG_SYSTEM
+pkgPrivateFlags：ApplicationInfo.PRIVATE_FLAG_PRIVILEGED
+uid ：Process.SYSTEM_UID
+
+这个uid就对应了前面解析的packages.xml中的shared-user name="android.uid.system" userId="1000"。
+
+
+关键方法2：mSettings.readLPw
+boolean readLPw(@NonNull Computer computer, @NonNull List<UserInfo> users) {
+	FileInputStream str = null;
+	//mBackupSettingsFilename是前面分析的构造方法创建的package_backup.xml文件
+	if (mBackupSettingsFilename.exists()) {
+		try {
+			str = new FileInputStream(mBackupSettingsFilename);		
+			if (mSettingsFilename.exists()) {	
+				mSettingsFilename.delete();
+			}
+		} catch (java.io.IOException e) {
+			// We'll try for the normal settings file.
+		}
+	}
+
+	mPendingPackages.clear();
+	mPastSignatures.clear();
+	mKeySetRefs.clear();
+	mInstallerPackages.clear();
+
+	try {
+		if (str == null) {
+			if (!mSettingsFilename.exists()) {
+				
+				return false;
+			}
+			/在这之前的代码都是表示packages_backup的优先级高级packages文件
+			str = new FileInputStream(mSettingsFilename);
+		}
+		//使用PullParser对文件进行读取
+		final TypedXmlPullParser parser = Xml.resolvePullParser(str);
+		//循环读取packages_backup.xml或者packages.xml中的文件
+		while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
+				&& (type != XmlPullParser.END_TAG || parser.getDepth() > outerDepth)) {
+			if (type == XmlPullParser.END_TAG || type == XmlPullParser.TEXT) {
+				continue;
+			}
+
+			String tagName = parser.getName();
+			
+			if (tagName.equals("package")) {//读取package节点
+				readPackageLPw(parser, users, originalFirstInstallTimes);
+			} else if (tagName.equals("permissions")) {//读取permissions节点
+				mPermissions.readPermissions(parser);
+			} else if (tagName.equals("permission-trees")) {//读取permission-trees节点
+				mPermissions.readPermissionTrees(parser);
+			} else if (tagName.equals("shared-user")) {//读取shared-user节点
+				readSharedUserLPw(parser, users);
+			} else if (tagName.equals("database-version")) {
+				// Upgrade from older XML schema
+				final VersionInfo internal = findOrCreateVersion(
+						StorageManager.UUID_PRIVATE_INTERNAL);
+				final VersionInfo external = findOrCreateVersion(
+						StorageManager.UUID_PRIMARY_PHYSICAL);
+
+				internal.databaseVersion = parser.getAttributeInt(null, "internal", 0);
+				external.databaseVersion = parser.getAttributeInt(null, "external", 0);
+			} else if (tagName.equals("keyset-settings")) {
+				mKeySetManagerService.readKeySetsLPw(parser, mKeySetRefs.untrackedStorage());
+			} else if (TAG_VERSION.equals(tagName)) {
+				final String volumeUuid = XmlUtils.readStringAttribute(parser,
+						ATTR_VOLUME_UUID);
+				final VersionInfo ver = findOrCreateVersion(volumeUuid);
+				ver.sdkVersion = parser.getAttributeInt(null, ATTR_SDK_VERSION);
+				ver.databaseVersion = parser.getAttributeInt(null, ATTR_DATABASE_VERSION);
+				ver.fingerprint = XmlUtils.readStringAttribute(parser, ATTR_FINGERPRINT);
+			} else if (tagName.equals(DomainVerificationPersistence.TAG_DOMAIN_VERIFICATIONS)) {
+				mDomainVerificationManager.readSettings(computer, parser);
+			} else if (tagName.equals(
+					DomainVerificationLegacySettings.TAG_DOMAIN_VERIFICATIONS_LEGACY)) {
+				mDomainVerificationManager.readLegacySettings(parser);
+			} else {
+				Slog.w(PackageManagerService.TAG, "Unknown element under <packages>: "
+						+ parser.getName());
+				XmlUtils.skipCurrentTag(parser);
+			}
+		}
+
+		str.close();
+	} catch (IOException | XmlPullParserException e) {
+		...
+	}
+	return true;
+}
+readLPw方法使用PullParser方式读取package.xml或者package_backup中的文件。
+其中package节点的文件被初始化为PackageSetting对象放入到mPackages集合中。
+final WatchedArrayMap<String, PackageSetting> mPackages;
+
+permissions节点的文件被初始化为LegacyPermission对象放入到LegacyPermissionSettings的mPermissions集合中。
+private final ArrayMap<String, LegacyPermission> mPermissions = new ArrayMap<>();
+
+permission-trees节点的文件被初始化为LegacyPermission对象放入到LegacyPermissionSettings的mPermissionTrees集合中。
+private final ArrayMap<String, LegacyPermission> mPermissionTrees = new ArrayMap<>();
+
+而Setting类又持有LegacyPermissionSettings对象的引用，也就间接持有mPermissions和mPermissionTrees两个集合对象。
+
+shared-user节点的文件被初始化为SharedUserSetting对象放入到mSharedUsers集合中。
+final WatchedArrayMap<String, SharedUserSetting> mSharedUsers = new WatchedArrayMap<>();
+..
+还有其他节点这里不再描述，读者可以自行源码查看
+
+
+阶段1中通过读取系统配置文件信息，写入到mSettings对象中，PKMS持有mSettings对象引用，也就间接获取了所有系统安装包信息。
+这一步对后面package的安装至关重要。
+
+下面来看阶段2
+阶段2：扫描安装系统中的apk,PackageParser2类负责文件解析
+
+public PackageManagerService(PackageManagerServiceInjector injector, boolean onlyCore..){\
+	
+	mInitAppsHelper = new InitAppsHelper(this, mApexManager, mInstallPackageHelper,
+                mInjector.getSystemPartitions());
+	//初始化系统app
+	mOverlayConfig = mInitAppsHelper.initSystemApps(packageParser, packageSettings, userIds,
+                    startTime);
+	//初始化非系统app
+	mInitAppsHelper.initNonSystemApps(packageParser, userIds, startTime);	
+}
+第二阶段主要是扫码系统应用以及非系统应用并进行安装。
+1.初始化系统app
+InitAppsHelper.java
+
+public OverlayConfig initSystemApps(PackageParser2 packageParser,...){
+	...
+	//Apex是用于系统安装包的升级。关注点1
+	mApexManager.scanApexPackagesTraced(packageParser, mExecutorService);
+	//扫描System系统 关注点2
+	scanSystemDirs(packageParser, mExecutorService);
+	// Parse overlay configuration files to set default enable state, mutability, and
+	// priority of system overlays.
+	final ArrayMap<String, File> apkInApexPreInstalledPaths = new ArrayMap<>();
+	//查找APEX包中的apk，放入到apkInApexPreInstalledPaths集合中。这个集合元素存储需要在升级APEX前需要预安装的应用路径。
+	for (ApexManager.ActiveApexInfo apexInfo : mApexManager.getActiveApexInfos()) {
+		for (String packageName : mApexManager.getApksInApex(apexInfo.apexModuleName)) {
+			apkInApexPreInstalledPaths.put(packageName, apexInfo.preInstalledApexPath);
+		}
+	}
+	final OverlayConfig overlayConfig = OverlayConfig.initializeSystemInstance(
+			consumer -> mPm.forEachPackage(mPm.snapshotComputer(),
+					pkg -> consumer.accept(pkg, pkg.isSystem(),
+							apkInApexPreInstalledPaths.get(pkg.getPackageName()))));
+
+	if (!mIsOnlyCoreApps) {
+		// do this first before mucking with mPackages for the "expecting better" case
+		updateStubSystemAppsList(mStubSystemApps);
+	}
+
+	return overlayConfig;
+}
+
+关注点1处涉及到了“APEX”概念：
+
+Apex
+Apex是在Android10中谷歌为了解决系统升级而提出的一个概念。和APK类似，Apex把Framework层中那些关键的东西搞成一个个的模块，然后可以单独升级这些模块。
+这些模块和就和一个一个的APK类似，就是一个压缩包，后缀名叫.apex。来看官方文档中对.apex文件格式的描述：
+
+
+
+Apex和Apk的区别：
+apk是应用程序的载体，对应用开发者而言，可以apk方式对应用功能进行升级
+apex是系统功能的载体，对系统开发者（目前看主要是谷歌）而言，可以apex方式对系统功能进行升级。
+apex相当于对系统功能进行了更细粒度的划分，可以独立升级这些功能，这些apex包将来就发布在谷歌的playstore上供我们下载。
+
+关注点2处调用了scanSystemDirs扫描系统目录下的apk文件进行安装，下面我们重点来分析下这个方法。
+private void scanSystemDirs(PackageParser2 packageParser, ExecutorService executorService) {
+	File frameworkDir = new File(Environment.getRootDirectory(), "framework");
+
+	//扫描system/overlay目录下面的包信息。这个操作要在扫描其他安装包时优先操作。overlay是一种资源的动态替换机制。
+	for (int i = mDirsToScanAsSystem.size() - 1; i >= 0; i--) {
+		final ScanPartition partition = mDirsToScanAsSystem.get(i);
+		if (partition.getOverlayFolder() == null) {
+			continue;
+		}
+		scanDirTracedLI(partition.getOverlayFolder(), /* frameworkSplits= */ null,
+				mSystemParseFlags, mSystemScanFlags | partition.scanFlag,
+				packageParser, executorService);
+	}
+	//扫描system/framework目录下的apk文件信息
+	scanDirTracedLI(frameworkDir, null,
+			mSystemParseFlags,
+			mSystemScanFlags | SCAN_NO_DEX | SCAN_AS_PRIVILEGED,
+			packageParser, executorService);
+	
+	for (int i = 0, size = mDirsToScanAsSystem.size(); i < size; i++) {
+		
+		//扫描system/app目录下的apk文件信息
+		scanDirTracedLI(partition.getAppFolder(), /* frameworkSplits= */ null,
+				mSystemParseFlags, mSystemScanFlags | partition.scanFlag,
+				packageParser, executorService);
+	}
+}
+代码中可以看出scanSystemDirs主要扫描三个目录：
+
+system/overlay
+system/framework
+system/app
+
+其中overlay目录下需要优先扫描安装，overlay是一种资源的动态替换机制。可以实现一些静态或者动态换肤的操作。
+具体可以参考这篇文章
+
+来看使用的扫描方法scanDirTracedLI
+private void scanDirTracedLI(File scanDir, List<File> frameworkSplits,
+		int parseFlags, int scanFlags,
+		PackageParser2 packageParser, ExecutorService executorService) {
+	
+	
+	mInstallPackageHelper.installPackagesFromDir(scanDir, frameworkSplits, parseFlags,
+			scanFlags, packageParser, executorService);
+	
+}
+进入installPackagesFromDir
+public void installPackagesFromDir(File scanDir, List<File> frameworkSplits, int parseFlags,
+		int scanFlags, PackageParser2 packageParser,
+		ExecutorService executorService) {
+	final File[] files = scanDir.listFiles();
+	
+	//创建一个ParallelPackageParser用于解析操作，其内部会使用线程池进行处理
+	ParallelPackageParser parallelPackageParser =
+			new ParallelPackageParser(packageParser, executorService, frameworkSplits);
+
+	// Submit files for parsing in parallel
+	int fileCount = 0;
+	for (File file : files) {
+		final boolean isPackage = (isApkFile(file) || file.isDirectory())
+				&& !PackageInstallerService.isStageName(file.getName());
+		if (!isPackage) {
+			// Ignore entries which are not packages
+			continue;
+		}
+		//关注点1
+		parallelPackageParser.submit(file, parseFlags);
+		fileCount++;
+	}
+
+	// Process results one by one
+	for (; fileCount > 0; fileCount--) {
+		//关注点2
+		ParallelPackageParser.ParseResult parseResult = parallelPackageParser.take();
+		Throwable throwable = parseResult.throwable;
+		int errorCode = PackageManager.INSTALL_SUCCEEDED;
+		String errorMsg = null;
+		
+		if (throwable == null) {
+			
+			try {
+				addForInitLI(parseResult.parsedPackage, parseFlags, scanFlags,null);
+			} catch (PackageManagerException e) {
+			
+			}
+		} 
+	}
+}
+看关注点1：parallelPackageParser.submit(file, parseFlags);
+public void submit(File scanFile, int parseFlags) {
+	mExecutorService.submit(() -> {
+		ParseResult pr = new ParseResult();
+		
+		try {
+			pr.scanFile = scanFile;
+			pr.parsedPackage = parsePackage(scanFile, parseFlags);
+		} 
+		try {
+			mQueue.put(pr);
+		} catch (InterruptedException e) {
+		  
+		}
+	});
+}
+submit方法调用内部方法parsePackage，然后将返回的parsedPackage放入到mQueue中。
+在关注点2处会使用take方法从mQueue中取出解析出来的Package并调用addForInitLI进行apk的安装操作。
+
+我们重点来看parsePackage方法
+parsePackage内部又调用了mPackageParser的parsePackage，mPackageParser是一个PackageParser2对象。
+PackageParser2.java
+public ParsedPackage parsePackage(File packageFile, int flags, boolean useCaches,...){
+	if (useCaches && mCacher != null) {
+		ParsedPackage parsed = mCacher.getCachedResult(packageFile, flags);
+		if (parsed != null) {
+			return parsed;
+		}
+	}
+	
+	ParseResult<ParsingPackage> result = parsingUtils.parsePackage(input, packageFile, flags,
+                frameworkSplits);
+	return result。
+	
+}
+解析前先看缓存中是否有缘Package，如果没有，则调用parsingUtils.parsePackage读取
+frameworks/base/services/core/java/com/android/server/pm/pkg/parsing/ParsingPackageUtils.java
+public ParseResult<ParsingPackage> parsePackage(ParseInput input, File packageFile, int flags,
+		List<File> frameworkSplits) {
+	if (((flags & PARSE_FRAMEWORK_RES_SPLITS) != 0)
+			&& frameworkSplits.size() > 0
+			&& packageFile.getAbsolutePath().endsWith("/framework-res.apk")) {
+		return parseClusterPackage(input, packageFile, frameworkSplits, flags);
+	} else if (packageFile.isDirectory()) {
+		return parseClusterPackage(input, packageFile, /* frameworkSplits= */null, flags);
+	} else {
+		return parseMonolithicPackage(input, packageFile, flags);
+	}
+}
+如果需要解析的是framework-res.apk或者是文件夹，则调用parseClusterPackage。
+其他调用parseMonolithicPackage，这里我们假设是解析apk文件，则选择走parseMonolithicPackage分支。
+private ParseResult<ParsingPackage> parseMonolithicPackage(ParseInput input, File apkFile,
+	final ParseResult<ParsingPackage> result = parseBaseApk(input,
+			apkFile,
+			apkFile.getCanonicalPath(),
+			assetLoader, flags);
+	if (result.isError()) {
+		return input.error(result);
+	}
+
+	return input.success(result.getResult()
+			.setUse32BitAbi(lite.isUse32bitAbi()));
+}
+private ParseResult<ParsingPackage> parseBaseApk(ParseInput input, File apkFile,
+		String codePath, SplitAssetLoader assetLoader, int flags) {
+	final String apkPath = apkFile.getAbsolutePath();
+
+	
+	final AssetManager assets;
+	try {
+		//获取BaseAssetManager
+		assets = assetLoader.getBaseAssetManager();
+	} catch (IllegalArgumentException e) {
+		
+	}
+	//查找apk路径的是否在BaseAssetManager资源路径集合中
+	final int cookie = assets.findCookieForPath(apkPath);
+	if (cookie == 0) {
+		return input.error(INSTALL_PARSE_FAILED_BAD_MANIFEST,
+				"Failed adding asset path: " + apkPath);
+	}
+	//使用XmlResourceParser对apk进行解析ANDROID_MANIFEST_FILENAME为AndroidManifest.xml文件
+	try (XmlResourceParser parser = assets.openXmlResourceParser(cookie,
+			ANDROID_MANIFEST_FILENAME)) {
+		final Resources res = new Resources(assets, mDisplayMetrics, null);
+
+		ParseResult<ParsingPackage> result = parseBaseApk(input, apkPath, codePath, res,
+				parser, flags);
+		...
+		final ParsingPackage pkg = result.getResult();
+		...
+		return input.success(pkg);
+	} catch (Exception e) {
+		return input.error(INSTALL_PARSE_FAILED_UNEXPECTED_EXCEPTION,
+				"Failed to read manifest from " + apkPath, e);
+	}
+}
+
+进入同名parseBaseApk方法，parseBaseApk又调用了parseBaseApkTags方法。
+parseBaseApkTags中根据Manfest文件中的TAG为application调用了parseBaseApplication
+private ParseResult<ParsingPackage> parseBaseApplication(ParseInput input,
+		ParsingPackage pkg, Resources res, XmlResourceParser parser, int flags)
+		throws XmlPullParserException, IOException {
+	final String pkgName = pkg.getPackageName();
+	int targetSdk = pkg.getTargetSdkVersion();
+	...
+	while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
+			&& (type != XmlPullParser.END_TAG
+			|| parser.getDepth() > depth)) {
+		if (type != XmlPullParser.START_TAG) {
+			continue;
+		}
+
+		final ParseResult result;
+		String tagName = parser.getName();
+		boolean isActivity = false;
+		switch (tagName) {
+			//解析activity节点
+			case "activity":
+				isActivity = true;
+				// fall-through
+			//解析receiver节点
+			case "receiver":
+				ParseResult<ParsedActivity> activityResult =
+						ParsedActivityUtils.parseActivityOrReceiver(mSeparateProcesses, pkg,
+								res, parser, flags, sUseRoundIcon, null /*defaultSplitName*/,
+								input);
+
+				if (activityResult.isSuccess()) {
+					ParsedActivity activity = activityResult.getResult();
+					if (isActivity) {
+						hasActivityOrder |= (activity.getOrder() != 0);
+						pkg.addActivity(activity);
+					} else {
+						hasReceiverOrder |= (activity.getOrder() != 0);
+						pkg.addReceiver(activity);
+					}
+				}
+
+				result = activityResult;
+				break;
+			//解析service节点
+			case "service":
+				ParseResult<ParsedService> serviceResult =
+						ParsedServiceUtils.parseService(mSeparateProcesses, pkg, res, parser,
+								flags, sUseRoundIcon, null /*defaultSplitName*/,
+								input);
+				if (serviceResult.isSuccess()) {
+					ParsedService service = serviceResult.getResult();
+					hasServiceOrder |= (service.getOrder() != 0);
+					pkg.addService(service);
+				}
+
+				result = serviceResult;
+				break;
+			//解析provider节点
+			case "provider":
+				ParseResult<ParsedProvider> providerResult =
+						ParsedProviderUtils.parseProvider(mSeparateProcesses, pkg, res, parser,
+								flags, sUseRoundIcon, null /*defaultSplitName*/,
+								input);
+				if (providerResult.isSuccess()) {
+					pkg.addProvider(providerResult.getResult());
+				}
+
+				result = providerResult;
+				break;
+			case "activity-alias":
+				activityResult = ParsedActivityUtils.parseActivityAlias(pkg, res,
+						parser, sUseRoundIcon, null /*defaultSplitName*/,
+						input);
+				if (activityResult.isSuccess()) {
+					ParsedActivity activity = activityResult.getResult();
+					hasActivityOrder |= (activity.getOrder() != 0);
+					pkg.addActivity(activity);
+				}
+
+				result = activityResult;
+				break;
+			case "apex-system-service":
+				ParseResult<ParsedApexSystemService> systemServiceResult =
+						ParsedApexSystemServiceUtils.parseApexSystemService(res,
+								parser, input);
+				if (systemServiceResult.isSuccess()) {
+					ParsedApexSystemService systemService =
+							systemServiceResult.getResult();
+					pkg.addApexSystemService(systemService);
+				}
+
+				result = systemServiceResult;
+				break;
+			default:
+				result = parseBaseAppChildTag(input, tagName, pkg, res, parser, flags);
+				break;
+		}
+	}
+
+	...
+	return input.success(pkg);
+}
+这里最终对Manifest文件进行了完整的解析，主要是四大组件的信息。都放在ParsingPackage对象中返回。
+
+四大组件保存方式
+
+对Activity节点使用pkg.addActivity添加到pkg中
+对Service使用pkg.addService(service);
+对provider使用pkg.addProvider
+
+
+public interface ParsingPackage extends ParsingPackageRead {
+
+    ParsingPackage addActivity(ParsedActivity parsedActivity);
+
+    ParsingPackage addService(ParsedService service);
+	...
+}
+可以看到这个类是一个接口类，接口中提供了很全面的信息保存方法，由子类自行实现其保存方式。
+系统中是从这个方法中获取：
+final ParsingPackage pkg = mCallback.startParsingPackage(
+                    pkgName, apkPath, codePath, manifestArray, isCoreApp);
+
+mCallback是一个接口类，这样就将实现的方式委托给了mCallback实现类，最大限度对对象进行扩展，将对象创建操作提供给用户，这里还是挺巧妙的。
+
+最终定位到这个pkg的实现类为：PackageImpl extends ParsingPackageImpl
+ParsingPackageImpl中实现了addActivity，addService等操作。
+
+以上就是apk的manifest的解析过程。下面回到installPackagesFromDir的关注点2处。
+
+public void installPackagesFromDir(File scanDir, List<File> frameworkSplits, int parseFlags...){
+	...	
+	// Process results one by one
+	for (; fileCount > 0; fileCount--) {
+		//关注点2
+		ParallelPackageParser.ParseResult parseResult = parallelPackageParser.take();
+		Throwable throwable = parseResult.throwable;
+		int errorCode = PackageManager.INSTALL_SUCCEEDED;
+		String errorMsg = null;
+		
+		if (throwable == null) {
+			
+			try {
+				addForInitLI(parseResult.parsedPackage, parseFlags, scanFlags,null);
+			} catch (PackageManagerException e) {
+			
+			}
+		} 
+	}
+}
+
+apk四大组件信息解析出来后被放到mQueue中，并在关注点2处使用take取出来。最后调用addForInitLI方法处理。
+addForInitLI方法会将前面解析到的Package信息，写入到对应的文件中并更新某些系统文件信息且对满足版本要求的应用进行更新操作，
+一般来说启动过程中的app一般都是最新的，除非在进行一些ota操作时，需要更新某些系统的apk。
+
+对第三方应用的解析过程和系统应用过程也是类似的，只是扫描的是/data/app下面的apk，这里不再重复描述。
+关于PKMS的构造过程就讲这么多。
+下面总结下整个PKMS的构造方法其实就是做了下面几件事情：
+1.解析package.list以及package.xml，system/framework等文件信息写入到内存中。
+2.根据1中的package name信息去加载系统中的应用，其实是加载apk的manifest文件。
+3.将2中解析的manifest文件信息写入到PKMS中，并对满足版本要求的应用进行更新操作。
+
+后续应用的安装操作是使用installd服务进行。
+
+
+接下里我们来看应用是如何安装到设备中的。
+
+PKMS对第三方应用的安装过程
+我们知道PKMS中应用的安装卸载等工作是由Installer进程以及installd系统进程来完成的，注意两个词的区别。
+
+Installer服务：
+
+public class Installer extends SystemService {
+	//Installer服务启动的时候会调用onStart，并调用内部connect方法
+	@Override
+    public void onStart() {
+        if (mIsolated) {
+            mInstalld = null;
+            mInstalldLatch.countDown();
+        } else {
+            connect();
+        }
+    }
+	//connect方法
+    private void connect() {
+		//获取名称为installd的服务
+        IBinder binder = ServiceManager.getService("installd");
+        if (binder != null) {
+            try {
+				//binder被杀死后需要重连，调用connect，获取新的IInstalld
+                binder.linkToDeath(() -> {
+                    Slog.w(TAG, "installd died; reconnecting");
+                    mInstalldLatch = new CountDownLatch(1);
+                    connect();
+                }, 0);
+            } catch (RemoteException e) {
+                binder = null;
+            }
+        }
+
+        if (binder != null) {
+			//给mInstalld赋值获取的binder。
+            IInstalld installd = IInstalld.Stub.asInterface(binder);
+            mInstalld = installd;
+            
+        } else { 
+			//给后台服务创建一个固定时间重连机制。
+            BackgroundThread.getHandler().postDelayed(this::connect, CONNECT_RETRY_DELAY_MS);
+        }
+    }
+}
+代码中了解到Installer只是java层封装，而实际干活是installd守护进程，名称为installd的系统服务。
+
+installd服务
+
+installd服务是在系统启动过程中启动的
+
+下面我们来看installd服务启动过程，installd进程的启动是在installd.rc文件开始的
+
+installd.rc
+
+frameworks/native/cmds/installd/installd.rc
+service installd /system/bin/installd
+    class main
+
+installd进程运行在installd.cpp
+frameworks/native/cmds/installd/installd.cpp
+
+int main(const int argc, char *argv[]) {
+    return android::installd::installd_main(argc, argv);
+}
+static int installd_main(const int argc ATTRIBUTE_UNUSED, char *argv[]) {
+    //初始化全局文件路径：包括获取data路径，app路径，root路径，lib目录等等
+    if (!initialize_globals()) {
+        SLOGE("Could not initialize globals; exiting.\n");
+        exit(1);
+    }
+	//初始化本地使用的文件夹路径
+    if (initialize_directories() < 0) {
+        SLOGE("Could not create directories; exiting.\n");
+        exit(1);
+    }
+	//启动InstalldNativeService服务
+    if ((ret = InstalldNativeService::start()) != android::OK) {
+        SLOGE("Unable to start InstalldNativeService: %d", ret);
+        exit(1);
+    }
+	//创建Binder通讯的线程池
+    IPCThreadState::self()->joinThreadPool();
+
+    return 0;
+}
+class InstalldNativeService : public BinderService<InstalldNativeService>, public os::BnInstalld {
+public:
+    static char const* getServiceName() { return "installd"; }
+}
+由上面代码可知：installd服务启动过程其实是启动了一个InstalldNativeService服务并注册到ServiceManager中，
+所以InstalldNativeService使用的是binder的方式和其他进程进行通讯，在6.0之前使用的是socket的方式。
+
+InstalldNativeService的服务名称是"installd"。
+
+installd 进程拥有root权限，而启动PKMS的SystemServer进程只有System权限，所以installd 可以对应用进行安装和卸载，而SystemServer进程只是一个中间者而已。
+
+最后我们来看InstalldNativeService有哪些接口：
+class InstalldNativeService : public BinderService<InstalldNativeService>, public os::BnInstalld {
+public:
+    ...
+    binder::Status dexopt(const std::string& apkPath, int32_t uid, const std::string& packageName,
+                          const std::string& instructionSet, int32_t dexoptNeeded,
+                          const std::optional<std::string>& outputPath, int32_t dexFlags,
+                          const std::string& compilerFilter, const std::optional<std::string>& uuid,
+                          const std::optional<std::string>& classLoaderContext,
+                          const std::optional<std::string>& seInfo, bool downgrade,
+                          int32_t targetSdkVersion, const std::optional<std::string>& profileName,
+                          const std::optional<std::string>& dexMetadataPath,
+                          const std::optional<std::string>& compilationReason, bool* aidl_return);
+
+    binder::Status rmdex(const std::string& codePath, const std::string& instructionSet);
+
+    binder::Status rmPackageDir(const std::string& packageName, const std::string& packageDir);
+   
+    binder::Status linkNativeLibraryDirectory(const std::optional<std::string>& uuid,
+            const std::string& packageName, const std::string& nativeLibPath32, int32_t userId);
+    binder::Status createOatDir(const std::string& packageName, const std::string& oatDir,
+                                const std::string& instructionSet);
+    
+    binder::Status deleteOdex(const std::string& packageName, const std::string& apkPath,
+                              const std::string& instructionSet,
+                              const std::optional<std::string>& outputPath, int64_t* _aidl_return);
+    ...省略
+};
+InstalldNativeService中定义了很多关于应用Package的操作：如对dex文件优化，修改以及删除，对so文件的关联等操作，这里只列出了部分操作。
+所以实际PKMS只是一个壳，所有操作都是由installd完成的。
+
+
+
+好了，关于PKMS的启动过程就讲到这里。对于应用的安装过程我们下篇文章再来讲解。
+
+这里总结下：
+PKMS主要是在SystemServer进程启动过程中启动的，PKMS启动过程中主要做了以下事情：
+1.会对某些配置文件进行解析扫描，放到PKMS对象内存中
+2.会对系统中的应用包括：overlay，system，vendor，app等路径下的应用进行扫描，如果发现有版本更新，则进行应用更新操作。
+3.初始化包管理过程中需要使用到一些环境对象等。
+
+
+应用安装过程
+
+应用安装的方式有如下几种：
+1.普通安装方式
+在7.0之后，为了进一步提升文件读写的安全性，Android框架执行的StrictMode API政策禁止在您的应用外部公开file://URI。
+如果一项包含文件URI的intent离开您的应用，则应用出现故障，并出现FileUriExposedException异常。
+
+这个时候需要使用FileProvider来授权外部文件读写权限。
+
+具体使用方式如下：
+1.在AndroidManifest文件中定义：
+<provider
+	android:authorities="${applicationId}.fileprovider"
+	android:name="androidx.core.content.FileProvider"
+	android:exported="false"
+	android:grantUriPermissions="true"
+	>
+	<meta-data
+		android:name="android.support.FILE_PROVIDER_PATHS"
+		android:resource="@xml/update_files"
+		/>
+</provider>
+2.在xml中定义文件update_files.xml：
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-path
+        name="external_storage_install"
+        path="yuhb/install"/>
+</paths>
+
+3.在代码中调用
+/**
+ * 普通应用安装方式
+ * 7.0以后需要使用FileProvider进行申请
+ * @param apkFile
+ * @param context
+ */
+public static void generateInstall(File apkFile, Context context){
+	if(!apkFile.exists()){
+		return;
+	}
+	Intent intent = getInstallIntent(apkFile, context);
+	context.startActivity(intent);
+}
+//获取安装应用的Intent
+private static Intent getInstallIntent(File apkFile, Context context) {
+	Uri data;
+	Intent intent = new Intent(Intent.ACTION_VIEW);
+	intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+	data = getInstallUri(context,apkFile);
+	//7.0以后使用FileProvider处理
+	if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.N){
+		intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);//授权其他应用的读权限
+		intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);//防止app加固下出现授权失败情况
+//            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);//授权其他应用写权限
+	}
+	intent.setDataAndType(data,"application/vnd.android.package-archive");
+	return intent;
+}
+//获取安装文件的uri
+private static Uri getInstallUri(Context context,File apkFile) {
+	Uri data;
+	//7.0以后使用FileProvider处理
+	if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.N){
+		data = FileProvider.getUriForFile(context,context.getPackageName()+".fileprovider",apkFile);
+	}else {
+		data = Uri.fromFile(apkFile);
+	}
+	return data;
+}
+
+2.静默安装方式（需要有root权限）
+你是不是尝试了N种方法，打了N个debug，然后得到的却是各种各样的安装失败 ~
+首先类似静默功能一般是被系统所禁止的，只有厂商在自已平台才会开发权限（好比小米的系统应用，默认实现了静默功能，但是如果小米应用移植到vivo就无效了）。
+
+具体使用方式如下：
+
+/**静默安装方式，一般需要root权限或者是厂商自己的系统应用。
+ * @param context
+ * @param apkFilePath
+ */
+public static void silenceInstallApk(Context context,String apkFilePath) {
+	/*apkFilePath:这里我们首先传入的是安装包的路径   installObserver:自定义安装的回调，不需要可以删了*/
+	File apkFile = new File(apkFilePath);
+	//判断路径下的文件是否存在
+	if (!apkFile.exists()) {
+		Log.e(TAG, "apkFile is null...");
+		return;
+	}
+	String packageName = "";
+	//获取安装包的信息
+	PackageInfo packageInfo = context.getPackageManager().getPackageArchiveInfo(apkFilePath,
+			PackageManager.GET_ACTIVITIES | PackageManager.GET_SERVICES);
+	if (packageInfo != null) {
+		packageName = packageInfo.packageName;
+		String versionName = packageInfo.versionName;
+	}
+	//获取packageInstaller，后面用来创建PackageInstaller.Session
+	PackageInstaller packageInstaller = context.getPackageManager().getPackageInstaller();
+	//获取创建PackageInstaller.Session的参数
+	PackageInstaller.SessionParams sessionParams = new PackageInstaller.SessionParams(
+			PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+	/*指示将在此会话中交付的所有APK的总大小（以字节为单位），系统可以使用它来确保在继续之前存在足够的磁盘空间，
+	或者估计安装在外部存储上的容器大小*/
+	sessionParams.setSize(apkFile.length());
+	PackageInstaller.Session session = null;
+	try {
+		//代表一个session的唯一ID,这里我是在全局变量中声明，因为后面的另外一个方法用到了这个sessionId
+		int mSessionId = packageInstaller.createSession(sessionParams);
+		if (mSessionId != -1) {
+			//也就是在这个外部的onTransfesApkFile()方法中，将会用到sessionId
+			boolean copySuccess = onTransfesApkFile(mSessionId,context,apkFilePath, packageName);
+			if (copySuccess) {
+				session = context.getPackageManager().getPackageInstaller().openSession(mSessionId);
+				//设置安装完成后需要发送的一个自定义安装结果广播，这里我设置了App的NAME，VERSION，PACKAGE
+				Intent intent = new Intent(context,
+						InstallResultReceiver.class);
+				intent.setAction(PackageInstaller.EXTRA_STATUS);
+				intent.putExtra("APP_VERSION", "1.0");
+				intent.putExtra("APP_PACKAGE", "com.allinpay.manager");
+				//执行结束后，发送intent
+				PendingIntent pendingIntent = PendingIntent.getBroadcast(context,1,
+						intent, PendingIntent.FLAG_UPDATE_CURRENT);
+				//这里最终进行session的提交
+				session.commit(pendingIntent.getIntentSender());
+			} else {
+				//此处是安装失败的回调，不需要可以删除
+//                    if (installObserver != null) {
+//                        installObserver.observer(false, apkFilePath, packageName);
+//                    }
+			}
+		}
+	} catch (Exception exception) {
+		Log.e(TAG, "installApk exception = " + exception.getLocalizedMessage());
+	} finally {
+		if (null != session) {
+			session.close();
+		}
+		//安装完成需要删除文件
+		if (apkFile != null && apkFile.exists()) {
+//                apkFile.delete();
+		}
+	}
+}
+
+private static boolean onTransfesApkFile(int mSessionId,Context context,String apkFilePath, String packageName) {
+	InputStream in = null;
+	OutputStream out = null;
+	PackageInstaller.Session session = null;
+	boolean success = false;
+	try {
+		File apkFile = new File(apkFilePath);
+		//根据sessionId来获取其代表的session
+		session = context.getPackageManager().getPackageInstaller().openSession(mSessionId);
+		//向session中写入文件数据
+		out = session.openWrite(packageName + "_base.apk", 0, apkFile.length());
+		in = new FileInputStream(apkFile);
+		int total = 0;
+		int len;
+		byte[] buffer = new byte[1024];
+		while ((len = in.read(buffer)) != -1) {
+			total += len;
+			out.write(buffer, 0, len);
+		}
+		session.fsync(out);
+		success = true;
+	} catch (IOException exception) {
+		exception.printStackTrace();
+	} finally {
+		if (null != session) {
+			session.close();
+		}
+		try {
+			if (null != out) {
+				out.close();
+			}
+			if (null != in) {
+				in.close();
+			}
+		} catch (IOException exception) {
+			exception.printStackTrace();
+		}
+	}
+	return success;
+}
+
+这里我们来分析下方式一（普通应用更新方式）
+1.提取关键代码：调用的startActivity中的Intent属性
+Action：Intent.ACTION_VIEW
+Flag：Intent.FLAG_ACTIVITY_NEW_TASK
+Uri：content格式
+Type：application/vnd.android.package-archive
+
+2.根据以上Intent，调用了startActivity，然后通过PKMS找到对应的Activity。
+最终定位到：InstallStart类，这个类就是启动安装时打开的第一个Activity。
+/**
+ * Select which activity is the first visible activity of the installation and forward the intent to
+ * it.
+ */
+public class InstallStart extends Activity {
+	protected void onCreate(@Nullable Bundle savedInstanceState) {
+		...
+		Uri packageUri = intent.getData();
+		//如果Scheme是Content格式
+		if (packageUri != null && packageUri.getScheme().equals(
+				ContentResolver.SCHEME_CONTENT)) {
+			// [IMPORTANT] This path is deprecated, but should still work. Only necessary
+			// features should be added.
+
+			// Copy file to prevent it from being changed underneath this process
+			nextActivity.setClass(this, InstallStaging.class);
+		//如果Scheme是package格式
+		} else if (packageUri != null && packageUri.getScheme().equals(
+				PackageInstallerActivity.SCHEME_PACKAGE)) {
+			nextActivity.setClass(this, PackageInstallerActivity.class);
+		//如果Scheme是其他格式
+		} else {
+			Intent result = new Intent();
+			result.putExtra(Intent.EXTRA_INSTALL_RESULT,
+					PackageManager.INSTALL_FAILED_INVALID_URI);
+			setResult(RESULT_FIRST_USER, result);
+
+			nextActivity = null;
+		}
+		
+        if (nextActivity != null) {
+            startActivity(nextActivity);
+        }
+        finish();
+	}
+	 
+}
+
+InstallStart的onCreate方法会对传入的Scheme格式进行判断，然后启动另外一个Activity，并结束自己。
+我们重点来看Content格式的Activity。最终启动的是InstallStaging.class。看父类名字应该是一个选择框类型的Activity。
+
+frameworks/base/packages/PackageInstaller/src/com/android/packageinstaller/InstallStaging.java
+public class InstallStaging extends AlertActivity {
+	protected void onResume() {
+		...
+		mStagingTask = new StagingAsyncTask();
+		//执行StagingAsyncTask
+        mStagingTask.execute(getIntent().getData());
+	}
+	
+	private final class StagingAsyncTask extends AsyncTask<Uri, Void, Boolean> {
+		@Override
+		protected Boolean doInBackground(Uri... params) {
+			if (params == null || params.length <= 0) {
+				return false;
+			}
+			Uri packageUri = params[0];
+			try (InputStream in = getContentResolver().openInputStream(packageUri)) {
+				// Despite the comments in ContentResolver#openInputStream the returned stream can
+				// be null.
+				if (in == null) {
+					return false;
+				}
+
+				try (OutputStream out = new FileOutputStream(mStagedFile)) {
+					byte[] buffer = new byte[1024 * 1024];
+					int bytesRead;
+					while ((bytesRead = in.read(buffer)) >= 0) {
+						// Be nice and respond to a cancellation
+						if (isCancelled()) {
+							return false;
+						}
+						out.write(buffer, 0, bytesRead);
+					}
+				}
+			} catch (IOException | SecurityException | IllegalStateException e) {
+				Log.w(LOG_TAG, "Error staging apk from content URI", e);
+				return false;
+			}
+			return true;
+		}
+
+		@Override
+		protected void onPostExecute(Boolean success) {
+			if (success) {
+				// Now start the installation again from a file
+				Intent installIntent = new Intent(getIntent());
+				installIntent.setClass(InstallStaging.this, DeleteStagedFileOnResult.class);
+				installIntent.setData(Uri.fromFile(mStagedFile));
+
+				if (installIntent.getBooleanExtra(Intent.EXTRA_RETURN_RESULT, false)) {
+					installIntent.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
+				}
+
+				installIntent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+				startActivity(installIntent);
+
+				InstallStaging.this.finish();
+			} else {
+				showError();
+			}
+		}
+	}
+
+}
+1.InstallStaging的onResume时会启用了一个ASyncTask，在后台读取apk文件，并写入到mStagedFile文件中。
+mStagedFile文件的作用是临时文件，防止在安装过程中对原文件变更。
+2.在文件读取完成后，调用AsyncTask的onPostExecute方法，这个方法中会再次启动一个DeleteStagedFileOnResult类Activity。
+
+继续进入DeleteStagedFileOnResult
+/**
+ * Trampoline activity. Calls PackageInstallerActivity and deletes staged install file onResult.
+ */
+public class DeleteStagedFileOnResult extends Activity {
+	@Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        if (savedInstanceState == null) {
+            Intent installIntent = new Intent(getIntent());
+            installIntent.setClass(this, PackageInstallerActivity.class);
+
+            installIntent.setFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            startActivityForResult(installIntent, 0);
+        }
+    
+}
+
+看谷歌给我们的注解：这个类是一个过渡Activity：最终是用来启动PackageInstallerActivity并删除mStagedFile临时文件，这在onCreate方法中也可以看出。
+
+那就转到PackageInstallerActivity，在PackageInstallerActivity中会让引导用户点击安装按钮，点击之后会调用startInstall方法进行安装操作。
+frameworks/base/packages/PackageInstaller/src/com/android/packageinstaller/PackageInstallerActivity.java
+private void startInstall() {
+	// Start subactivity to actually install the application
+	Intent newIntent = new Intent();
+	newIntent.putExtra(PackageUtil.INTENT_ATTR_APPLICATION_INFO,
+			mPkgInfo.applicationInfo);
+	newIntent.setData(mPackageURI);
+	newIntent.setClass(this, InstallInstalling.class);
+	String installerPackageName = getIntent().getStringExtra(
+			Intent.EXTRA_INSTALLER_PACKAGE_NAME);
+	if (mOriginatingURI != null) {
+		newIntent.putExtra(Intent.EXTRA_ORIGINATING_URI, mOriginatingURI);
+	}
+	if (mReferrerURI != null) {
+		newIntent.putExtra(Intent.EXTRA_REFERRER, mReferrerURI);
+	}
+	if (mOriginatingUid != PackageInstaller.SessionParams.UID_UNKNOWN) {
+		newIntent.putExtra(Intent.EXTRA_ORIGINATING_UID, mOriginatingUid);
+	}
+	if (installerPackageName != null) {
+		newIntent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME,
+				installerPackageName);
+	}
+	if (getIntent().getBooleanExtra(Intent.EXTRA_RETURN_RESULT, false)) {
+		newIntent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
+	}
+	newIntent.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
+	if (mLocalLOGV) Log.i(TAG, "downloaded app uri=" + mPackageURI);
+	startActivity(newIntent);
+	finish();
+}
+
+startInstall重新启动了一个“InstallInstalling”去安装，并将启动应用需要的参数信息放到Intent中。
+
+frameworks/base/packages/PackageInstaller/src/com/android/packageinstaller/InstallInstalling.java
+
+public class InstallInstalling extends AlertActivity {
+	@Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+		PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(
+                        PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+		...
+		//注册一个安装结果监听器launchFinishBasedOnResult
+		mInstallId = InstallEventReceiver
+                            .addObserver(this, EventResultPersister.GENERATE_NEW_ID,
+                                    this::launchFinishBasedOnResult);
+		...
+		//创建一个createSession
+		mSessionId = getPackageManager().getPackageInstaller().createSession(params);
+	}
+	
+	@Override
+    protected void onResume() {
+		//启动一个InstallingAsyncTask
+		mInstallingTask = new InstallingAsyncTask();
+        mInstallingTask.execute();
+	}
+	
+	private final class InstallingAsyncTask extends AsyncTask<Void, Void,
+		PackageInstaller.Session> {
+	
+		@Override
+		protected PackageInstaller.Session doInBackground(Void... params) {
+			PackageInstaller.Session session;
+			try {
+				//打开Session
+				session = getPackageManager().getPackageInstaller().openSession(mSessionId);
+			} catch (IOException e) {
+				
+			}
+			//设置session安装进度
+			session.setStagingProgress(0);
+
+			try {
+				File file = new File(mPackageURI.getPath());
+
+				try (InputStream in = new FileInputStream(file)) {
+					long sizeBytes = file.length();
+					try (OutputStream out = session
+							.openWrite("PackageInstaller", 0, sizeBytes)) {
+						byte[] buffer = new byte[1024 * 1024];
+						while (true) {
+							int numRead = in.read(buffer);
+
+							if (numRead == -1) {
+								session.fsync(out);
+								break;
+							}
+
+							if (isCancelled()) {
+								session.close();
+								break;
+							}
+
+							out.write(buffer, 0, numRead);
+							if (sizeBytes > 0) {
+								float fraction = ((float) numRead / (float) sizeBytes);
+								session.addProgress(fraction);
+							}
+						}
+					}
+				}
+
+				return session;
+			} catch (IOException | SecurityException e) {
+				
+			}
+		}
+
+		@Override
+		protected void onPostExecute(PackageInstaller.Session session) {
+			if (session != null) {
+				//注册一个broadcastIntent监听安装结果：BROADCAST_ACTION = "com.android.packageinstaller.ACTION_INSTALL_COMMIT";
+				Intent broadcastIntent = new Intent(BROADCAST_ACTION);
+				broadcastIntent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+				broadcastIntent.setPackage(getPackageName());
+				broadcastIntent.putExtra(EventResultPersister.EXTRA_ID, mInstallId);
+
+				PendingIntent pendingIntent = PendingIntent.getBroadcast(
+						InstallInstalling.this,
+						mInstallId,
+						broadcastIntent,
+						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+				//调用commit进行安装
+				session.commit(pendingIntent.getIntentSender());
+				mCancelButton.setEnabled(false);
+				setFinishOnTouchOutside(false);
+			} 
+		}
+    }
+}
+	
+}
+InstallInstalling可以总结为下面几个步骤：
+1.创建session 2.打开session 3.copy apk文件到Session中 4.调用commit进行安装。
+仔细观察你会发现：这个和我们前面使用的静默安装方式步骤其实是一样的。而我们的InstallInstalling是运行在系统进程中，所以拥有静默安装权限。
+而第三方应用是没有这个权限的、
+
+下面我们深入PackageInstaller看看其是如何实现安装过程的。
+
+首先来看context.getPackageManager().getPackageInstaller()获取到的是哪个类？
+如果你对Activity熟悉的话，应该知道context的实现类是ContextImpl类。定位到它的getPackageManager
+frameworks/base/core/java/android/app/ContextImpl.java
+public PackageManager getPackageManager() {
+	if (mPackageManager != null) {
+		return mPackageManager;
+	}
+
+	final IPackageManager pm = ActivityThread.getPackageManager();
+	if (pm != null) {
+		// Doesn't matter if we make more than one instance.
+		return (mPackageManager = new ApplicationPackageManager(this, pm));
+	}
+
+	return null;
+}
+由此可知getPackageManager返回的是一个ApplicationPackageManager，而这里有个关键参数pm，后期操作实际都是通过pm进行的。
+pm是通过ActivityThread.getPackageManager()获取。
+frameworks/base/core/java/android/app/ActivityThread.java
+public static IPackageManager getPackageManager() {
+	if (sPackageManager != null) {
+		return sPackageManager;
+	}
+	final IBinder b = ServiceManager.getService("package");
+	sPackageManager = IPackageManager.Stub.asInterface(b);
+	return sPackageManager;
+}
+哦？原来就是获取ServiceManager中的package服务。如果你还有印象，前面我们分析过再PKMS的main方法中有下面这段代码。
+//构造IPackageManagerImpl对象并将其add到ServiceManager中：name为package
+IPackageManagerImpl iPackageManager = m.new IPackageManagerImpl();
+ServiceManager.addService("package", iPackageManager);
+
+所以这里返回的是一个IPackageManagerImpl对象。
+
+好了，回到前面context.getPackageManager().getPackageInstaller()
+
+context.getPackageManager()：对应ApplicationPackageManager(context,IPackageManagerImpl)
+
+进入ApplicationPackageManager的getPackageInstaller：
+
+frameworks/base/core/java/android/app/ApplicationPackageManager.java
+public PackageInstaller getPackageInstaller() {
+	if (mInstaller == null) {
+		try {
+			mInstaller = new PackageInstaller(mPM.getPackageInstaller(),
+					mContext.getPackageName(), mContext.getAttributionTag(), getUserId());
+		} catch (RemoteException e) {
+			throw e.rethrowFromSystemServer();
+		}
+	}
+	return mInstaller;
+}
+
+由此可知getPackageInstaller返回的是一个PackageInstaller对象，而关键看第一个参数mPM.getPackageInstaller()，这个参数也是实际进行安装的类。
+
+前面分析过mPM是IPackageManagerImpl对象，进入IPackageManagerImpl.getPackageInstaller()
+
+在IPackageManagerImpl父类IPackageManagerBase实现了getPackageInstaller
+frameworks/base/services/core/java/com/android/server/pm/IPackageManagerBase.java
+public final IPackageInstaller getPackageInstaller() {
+	...
+	return mInstallerService;
+}
+返回的是一个mInstallerService，这个mInstallerService是在哪里赋值的呢？经过几轮跳转，定位到。
+
+mInstallerService是在PKMS的构造方法中赋值的：mInstallerService = mInjector.getPackageInstallerService();
+
+mInjector是PackageManagerServiceInjector类（PKMS的运行时环境类）。
+
+最终获取的mInstallerService是在PKMS构造过程中也就是系统开机时初始化的PackageInstallerService对象。
+
+
+好了这里画了一张图来表示他们之间的关系：
+
+
+
+由以上分析可知：context.getPackageManager().getPackageInstaller()获取的是PackageInstaller，而实际安装操作是PackageInstaller的内部PackageInstallerService对象
+
+下面我们根据前面分析出的安装步骤进行具体分析
+1.创建session 2.打开session 3.copy apk文件到Session中 4调用commit进行安装。
+
+1.创建session
+frameworks/base/core/java/android/content/pm/PackageInstaller.java
+public int createSession(@NonNull SessionParams params) throws IOException {
+	//mInstaller为PackageInstallerService
+	return mInstaller.createSession(params, mInstallerPackageName, mAttributionTag,
+			mUserId);
+}
+PackageInstallerService的createSession方法会调用内置的createSessionInternal方法
+private int createSessionInternal(SessionParams params, String installerPackageName...){
+	//前面一大堆对Session创建的条件进行判断，不满足创建则抛出异常
+	//创建随机数的sessionId
+	sessionId = allocateSessionIdLocked();
+	//创建SessionDir
+	stageDir = buildSessionDir(sessionId, params);
+	//InstallSource持有应用安装的apk源文件信息
+	InstallSource installSource = InstallSource.create(installerPackageName,
+                originatingPackageName, requestedInstallerPackageName,
+                installerAttributionTag, params.packageSource);
+	//创建session ： PackageInstallerSession
+	session = new PackageInstallerSession(mInternalCallback, mContext, mPm, this,
+			mSilentUpdatePolicy, mInstallThread.getLooper(), mStagingManager, sessionId,
+			userId, callingUid, installSource, params, createdMillis, 0L, stageDir, stageCid,
+			null, null, false, false, false, false, null, SessionInfo.INVALID_ID,
+			false, false, false, PackageManager.INSTALL_UNKNOWN, "");
+	//将session放入到mSessions键值对中，key为sessionId
+	synchronized (mSessions) {
+		mSessions.put(sessionId, session);
+	}
+	//将InstallSource放入到PKMS的Setting集合中
+	mPm.addInstallerPackageName(session.getInstallSource());
+}
+createSessionInternal过程主要就是创建了PackageInstallerSession对象，并将对象放入到mSessions集合中。
+
+2.打开session
+打开Session也是调用PackageInstallerService的createSession方法，内部调用openSessionInternal进行打开。
+private IPackageInstallerSession openSessionInternal(int sessionId) throws IOException {
+	synchronized (mSessions) {
+		final PackageInstallerSession session = mSessions.get(sessionId);
+		if (!checkOpenSessionAccess(session)) {
+			throw new SecurityException("Caller has no access to session " + sessionId);
+		}
+		session.open();
+		return session;
+	}
+}
+内容很简单，通过sessionId去mSessions获取Session对象，然后调用session.open()打开。
+frameworks/base/services/core/java/com/android/server/pm/PackageInstallerSession.java
+public void open() throws IOException {
+	...
+	boolean wasPrepared;
+	synchronized (mLock) {
+		wasPrepared = mPrepared;
+		if (!mPrepared) {
+			if (stageDir != null) {
+				prepareStageDir(stageDir);
+			}
+			mPrepared = true;
+		}
+	}
+}
+static void prepareStageDir(File stageDir) throws IOException {
+	
+	try {
+		Os.mkdir(stageDir.getAbsolutePath(), 0775);
+		Os.chmod(stageDir.getAbsolutePath(), 0775);
+	} catch (ErrnoException e) {
+		
+	}
+}
+open方法也只是调用Os的mkdir进行stageDir文件夹创建，并且给stageDir文件夹设置了对应的权限、
+stageDir临时文件夹路径：new File("data/app", "vmdl" + sessionId + ".tmp");
+
+3.copy apk文件到Session中
+
+Session文件的写操作openWrite最终调用的是PackageInstallerSession的doWriteInternal，写文件就不介绍了，这个大家都非常清楚了。
+只要知道文件是写入到的是stageDir临时文件夹("data/app/vmdl{$sessionId}.tmp")下面
+
+4.调用commit进行安装。
+public void commit(@NonNull IntentSender statusReceiver, boolean forTransfer) {
+	...
+	dispatchSessionSealed();
+}
+private void dispatchSessionSealed() {
+	mHandler.obtainMessage(MSG_ON_SESSION_SEALED).sendToTarget();
+}
+
+private final Handler.Callback mHandlerCallback = new Handler.Callback() {
+	@Override
+	public boolean handleMessage(Message msg) {
+		switch (msg.what) {
+			
+			case MSG_ON_SESSION_SEALED:
+				//内部发射一个MSG_STREAM_VALIDATE_AND_COMMIT msg
+				handleSessionSealed();
+				break;
+			case MSG_STREAM_VALIDATE_AND_COMMIT:
+				//内部发射一个MSG_INSTALL msg
+				handleStreamValidateAndCommit();
+				break;
+			case MSG_INSTALL:
+				//处理应用安装过程
+				handleInstall();
+				break;
+			case MSG_ON_PACKAGE_INSTALLED:
+				final SomeArgs args = (SomeArgs) msg.obj;
+				final String packageName = (String) args.arg1;
+				final String message = (String) args.arg2;
+				final Bundle extras = (Bundle) args.arg3;
+				final IntentSender statusReceiver = (IntentSender) args.arg4;
+				final int returnCode = args.argi1;
+				args.recycle();
+
+				sendOnPackageInstalled(mContext, statusReceiver, sessionId,
+						isInstallerDeviceOwnerOrAffiliatedProfileOwner(), userId,
+						packageName, returnCode, message, extras);
+
+				break;
+			case MSG_SESSION_VALIDATION_FAILURE:
+				final int error = msg.arg1;
+				final String detailMessage = (String) msg.obj;
+				onSessionValidationFailure(error, detailMessage);
+				break;
+		}
+
+		return true;
+	}
+};
+发送MSG_ON_SESSION_SEALED的msg调用handleSessionSealed方法。handleSessionSealed方法内部又发送了MSG_STREAM_VALIDATE_AND_COMMIT的msg。
+然后在handleStreamValidateAndCommit又发送了MSG_INSTALL。所以最终调用了handleInstall方法进行安装。
+
+应用安装过程可以大致分为：
+1.apk文件的校验
+2.apk文件的安装
+@WorkerThread
+private void handleInstall() {
+	...
+	if (params.isStaged) {
+		mStagedSession.verifySession();
+	} else {
+		verify();
+	}
+}
+mStagedSession.verifySession最终也会走到verify，可以直接看verify方法
+
+private void verify() {
+	try {
+		//1.创建安装apk需要的文件夹：
+		prepareInheritedFiles();
+		//2.解析APK文件并提取so库文件。其实就是解析AndroidManfest中的四大组件信息
+		parseApkAndExtractNativeLibraries();
+		//3.检验apk的过程
+		verifyNonStaged();
+	} catch (PackageManagerException e) {
+		final String completeMsg = ExceptionUtils.getCompleteMessage(e);
+		final String errorMsg = PackageManager.installStatusToString(e.error, completeMsg);
+		setSessionFailed(e.error, errorMsg);
+		onSessionVerificationFailure(e.error, errorMsg);
+	}
+}
+
+重点来看3.检验apk的过程，verifyNonStaged在经过一系列session检查之后，最终会调用到PackageSessionVerifier的verifyAPK方法，
+verifyAPK内部设置了安装结果监听IPackageInstallObserver2：
+
+frameworks/base/services/core/java/com/android/server/pm/PackageSessionVerifier.java
+private void verifyAPK(PackageInstallerSession session, Callback callback)
+            throws PackageManagerException {
+	final IPackageInstallObserver2 observer = new IPackageInstallObserver2.Stub() {
+		@Override
+		public void onUserActionRequired(Intent intent) {
+			throw new IllegalStateException();
+		}
+		@Override
+		public void onPackageInstalled(String basePackageName, int returnCode, String msg,
+				Bundle extras) {
+			if (session.isStaged() && returnCode == PackageManager.INSTALL_SUCCEEDED) {
+				// Continue verification for staged sessions
+				verifyStaged(session.mStagedSession, callback);
+				return;
+			}
+			if (returnCode != PackageManager.INSTALL_SUCCEEDED) {
+				String errorMessage = PackageManager.installStatusToString(returnCode, msg);
+				session.setSessionFailed(returnCode, errorMessage);
+				callback.onResult(returnCode, msg);
+			} else {
+				session.setSessionReady();
+				callback.onResult(PackageManager.INSTALL_SUCCEEDED, null);
+			}
+		}
+	};
+	final VerificationParams verifyingSession = makeVerificationParams(session, observer);
+	...
+	verifyingSession.verifyStage();
+   
+}
+frameworks/base/services/core/java/com/android/server/pm/VerificationParams.java
+public void verifyStage() {
+	mPm.mHandler.post(this::startCopy);
+}
+
+可以看到verifyStage最终调用了mPm.mHandler post了一个startCopy的任务。
+final void startCopy() {
+	handleStartCopy();
+	handleReturnCode();
+}
+handleStartCopy和handleReturnCode是两个抽象方法：具体实现是在VerificationParams类中
+
+public void handleStartCopy() {
+	//获取需要安装的apk包信息
+	PackageInfoLite pkgLite = PackageManagerServiceUtils.getMinimalPackageInfo(mPm.mContext,
+			mPackageLite, mOriginInfo.mResolvedPath, mInstallFlags, mPackageAbiOverride);
+	//校验需要更新的app的VersionCode，这里面会对VersionCode版本和原始版本进行校验。
+	Pair<Integer, String> ret = mInstallPackageHelper.verifyReplacingVersionCode(
+			pkgLite, mRequiredInstalledVersionCode, mInstallFlags);
+	
+	if (!mOriginInfo.mExisting) {
+		//如果是PackageManager.INSTALL_APEX不是APEX包，也就是apk包，则调用sendApkVerificationRequest对APK包进行更新
+		if ((mInstallFlags & PackageManager.INSTALL_APEX) == 0) {	
+			sendApkVerificationRequest(pkgLite);//关注点1
+		}
+		//回溯版本走的
+		if ((mInstallFlags & PackageManager.INSTALL_ENABLE_ROLLBACK) != 0) {
+			sendEnableRollbackRequest();
+		}
+	}
+}
+
+//关注点1
+private void sendApkVerificationRequest(PackageInfoLite pkgLite) {
+	...
+	//发送完整的校验请求
+	sendIntegrityVerificationRequest(verificationId, pkgLite, verificationState);
+	//发送package安装包校验
+	sendPackageVerificationRequest(
+			verificationId, pkgLite, verificationState);
+	...
+}
+sendPackageVerificationRequest主要校验下面几个：
+1.四大组件包信息校验
+2.apk打包公钥校验
+3.校验打包的sdk版本信息，通过添加广播的方式进行。
+
+好了，继续回到startCopy的handleReturnCode方法
+frameworks/base/services/core/java/com/android/server/pm/VerificationParams.java
+void handleReturnCode() {
+	sendVerificationCompleteNotification();
+}
+private void sendVerificationCompleteNotification() {
+	...
+	try {
+		mObserver.onPackageInstalled(null, mRet, mErrorMessage,
+				new Bundle());
+	} catch (RemoteException e) {
+		Slog.i(TAG, "Observer no longer exists.");
+	}
+	...
+}
+
+在校验完毕成功以后，回调mObserver的onPackageInstalled方法。
+而mObserver之前说过是在verifyAPK方法时传入的。
+final IPackageInstallObserver2 observer = new IPackageInstallObserver2.Stub() {
+	
+	@Override
+	public void onPackageInstalled(String basePackageName, int returnCode, String msg,
+			Bundle extras) {
+		...
+		if (returnCode != PackageManager.INSTALL_SUCCEEDED) {
+			String errorMessage = PackageManager.installStatusToString(returnCode, msg);
+			session.setSessionFailed(returnCode, errorMessage);
+			callback.onResult(returnCode, msg);
+		} else {
+			session.setSessionReady();
+			callback.onResult(PackageManager.INSTALL_SUCCEEDED, null);
+		}
+	}
+};
+
+onPackageInstalled回调成功后会再次调用callback的onResult方法
+
+callBack是在前面分析的PackageInstallerSession的verifyNonStaged方法中传入的，一层一层向外回调。
+private void verifyNonStaged()
+		throws PackageManagerException {
+	
+	mSessionProvider.getSessionVerifier().verify(this, (error, msg) -> {
+		mHandler.post(() -> {
+			if (dispatchPendingAbandonCallback()) {
+				// No need to continue if abandoned
+				return;
+			}
+			if (error == INSTALL_SUCCEEDED) {
+				onVerificationComplete();
+			} else {
+				onSessionVerificationFailure(error, msg);
+			}
+		});
+	});
+}
+最终回调到onVerificationComplete方法，可以看到前面很大一部分是在对应用进行校验的部分。
+
+下面分析的才是具体安装的过程：
+@WorkerThread
+private void onVerificationComplete() {
+	...
+	install();
+}
+private CompletableFuture<Void> install() {
+	List<CompletableFuture<InstallResult>> futures = installNonStaged();
+	...
+}
+
+private List<CompletableFuture<InstallResult>> installNonStaged() {
+	...	
+	final InstallParams installingSession = makeInstallParams(future);	
+	installingSession.installStage();
+	...
+}
+
+frameworks/base/services/core/java/com/android/server/pm/InstallParams.java
+public void installStage() {
+	final Message msg = mPm.mHandler.obtainMessage(INIT_COPY);
+	
+	msg.obj = this;
+	mPm.mHandler.sendMessage(msg);
+}
+installStage发送了一个INIT_COPY的msg，定位到mPm = PackageManagerImpl.java
+mPm.mHandler = PackageHandler
+final class PackageHandler extends Handler {
+	@Override
+    public void handleMessage(Message msg) {
+        try {
+            doHandleMessage(msg);
+        } finally {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_DEFAULT);
+        }
+    }
+
+    void doHandleMessage(Message msg) {
+        switch (msg.what) {
+            case INIT_COPY: {
+                HandlerParams params = (HandlerParams) msg.obj;
+                if (params != null) {
+                    ...
+                    params.startCopy();                
+                }
+                break;
+            }
+		}
+	}
+}
+INIT_COPY的msg调用了HandlerParams的startCopy方法处理，而这个时候的HandlerParams的实现类是InstallParams.java,前面校验过程中的实现类是VerificationParams
+final void startCopy() {
+	
+	handleStartCopy();//关注点1
+	handleReturnCode();//关注点2
+}
+先看关注点1
+frameworks/base/services/core/java/com/android/server/pm/InstallParams.java
+public void handleStartCopy() {
+	
+	PackageInfoLite pkgLite = PackageManagerServiceUtils.getMinimalPackageInfo(mPm.mContext,
+			mPackageLite, mOriginInfo.mResolvedPath, mInstallFlags, mPackageAbiOverride);
+
+	if (!mOriginInfo.mStaged && pkgLite.recommendedInstallLocation
+			== InstallLocationUtils.RECOMMEND_FAILED_INSUFFICIENT_STORAGE) {
+		//先释放一部分不需要的缓存。
+		pkgLite.recommendedInstallLocation = mPm.freeCacheForInstallation(
+				pkgLite.recommendedInstallLocation, mPackageLite,
+				mOriginInfo.mResolvedPath, mPackageAbiOverride, mInstallFlags);
+	}
+	//根据默认的规则重写安装路径，主要是区分使用外置sdcard路径还是内置路径
+	mRet = overrideInstallLocation(pkgLite.packageName, pkgLite.recommendedInstallLocation,
+			pkgLite.installLocation);
+}
+
+再看关注点2：
+void handleReturnCode() {
+	processPendingInstall();
+}
+private void processPendingInstall() {
+	//创建安装的参数信息
+	InstallArgs args = createInstallArgs(this);
+	if (mRet == PackageManager.INSTALL_SUCCEEDED) {
+		//关注点3 拷贝apk
+		mRet = args.copyApk();
+	}
+	if (mRet == PackageManager.INSTALL_SUCCEEDED) {
+		F2fsUtils.releaseCompressedBlocks(
+				mPm.mContext.getContentResolver(), new File(args.getCodePath()));
+	}
+	if (mParentInstallParams != null) {
+		mParentInstallParams.tryProcessInstallRequest(args, mRet);
+	} else {
+		
+		PackageInstalledInfo res = new PackageInstalledInfo(mRet);
+		//关注点4
+		processInstallRequestsAsync(
+				res.mReturnCode == PackageManager.INSTALL_SUCCEEDED,
+				Collections.singletonList(new InstallRequest(args, res)));
+	}
+}
+
+processPendingInstall关注两个部分：
+1.拷贝apk
+2.安装apk
+
+1.拷贝apk：mRet = args.copyApk();
+
+而args 是FileInstallArgs类对象
+frameworks/base/services/core/java/com/android/server/pm/FileInstallArgs.java
+int copyApk() {
+	return doCopyApk();
+}
+private int doCopyApk() {
+	//1.给StageDir分配对应的临时文件夹以及权限
+	final File tempDir = mPm.mInstallerService.allocateStageDirLegacy(mVolumeUuid, isEphemeral);	
+	mCodeFile = tempDir;
+	//2.拷贝Package，这里面主要是四大组件信息的拷贝
+	int ret = PackageManagerServiceUtils.copyPackage(
+			mOriginInfo.mFile.getAbsolutePath(), mCodeFile);
+	
+	//3.根据abifilter 拷贝NativeLibrary ,so库到对应的lib目录下
+	handle = NativeLibraryHelper.Handle.create(mCodeFile);
+	ret = NativeLibraryHelper.copyNativeBinariesWithOverride(handle, libraryRoot,
+			mAbiOverride, isIncremental);
+	
+	return ret;
+}
+先来分析1处allocateStageDirLegacy
+public File allocateStageDirLegacy(String volumeUuid, boolean isEphemeral) throws IOException {
+	synchronized (mSessions) {
+		try {
+			final int sessionId = allocateSessionIdLocked();
+			mLegacySessions.put(sessionId, true);
+			final File sessionStageDir = buildTmpSessionDir(sessionId, volumeUuid);
+			prepareStageDir(sessionStageDir);
+			return sessionStageDir;
+		} catch (IllegalStateException e) {
+			throw new IOException(e);
+		}
+	}
+}
+看buildTmpSessionDir，这个前面也分析过，最后返回的File路径为：data/app/vmdl{$sessionId}.tmp
+
+再来分析2处PackageManagerServiceUtils.copyPackage
+public static int copyPackage(String packagePath, File targetDir) {
+	try {
+		final File packageFile = new File(packagePath);
+		//解析APK文件到ParseResult中
+		final ParseResult<PackageLite> result = ApkLiteParseUtils.parsePackageLite(
+				input.reset(), packageFile, /* flags */ 0);
+		//获取apk的文件PackageLite信息
+		final PackageLite pkg = result.getResult();
+		//拷贝file，核心方法
+		copyFile(pkg.getBaseApkPath(), targetDir, "base.apk");
+		
+		return PackageManager.INSTALL_SUCCEEDED;
+	} catch (IOException | ErrnoException e) {
+	}
+}
+private static void copyFile(String sourcePath, File targetDir, String targetName)
+		throws ErrnoException, IOException {
+	
+	final File targetFile = new File(targetDir, targetName);
+	final FileDescriptor targetFd = Os.open(targetFile.getAbsolutePath(),
+			O_RDWR | O_CREAT, 0644);
+	Os.chmod(targetFile.getAbsolutePath(), 0644);
+	FileInputStream source = null;
+	try {
+		source = new FileInputStream(sourcePath);
+		FileUtils.copy(source.getFD(), targetFd);
+	} finally {
+		IoUtils.closeQuietly(source);
+	}
+}
+copyPackage会先去解析apk文件，然后调用copyFile方法，copyFile中调用Os.open去打开targetFile目标文件，
+调用FileUtils.copy方法将原文件拷贝到目标文件中
+
+
+2.安装apk：processInstallRequestsAsync
+// Queue up an async operation since the package installation may take a little while.
+private void processInstallRequestsAsync(boolean success,
+		List<InstallRequest> installRequests) {
+	mPm.mHandler.post(() -> {
+		mInstallPackageHelper.processInstallRequests(success, installRequests);
+	});
+}
+frameworks/base/services/core/java/com/android/server/pm/InstallPackageHelper.java
+public void processInstallRequests(boolean success, List<InstallRequest> installRequests) {
+	
+	List<InstallRequest> apkInstallRequests = new ArrayList<>();
+	for (InstallRequest request : installRequests) {
+		...
+		apkInstallRequests.add(request);
+		
+	}
+	
+	if (success) {
+		for (InstallRequest request : apkInstallRequests) {
+			//预安装，内部主要是做clean操作
+			request.mArgs.doPreInstall(request.mInstallResult.mReturnCode);
+		}
+		synchronized (mPm.mInstallLock) {
+			//实际安装apk过程
+			installPackagesTracedLI(apkInstallRequests);
+		}
+	}
+	...
+}
+private void installPackagesTracedLI(List<InstallRequest> requests) {
+	...
+	installPackagesLI(requests);
+	...
+}
+下面我们重点来分析下installPackagesLI
+private void installPackagesLI(List<InstallRequest> requests) {
+	
+	for (InstallRequest request : requests) {		
+		//阶段1：prepare阶段
+		repareResult = preparePackageLI(request.mArgs, request.mInstallResult);			
+		//阶段2：scan阶段
+		final ScanResult result = scanPackageTracedLI(
+				prepareResult.mPackageToScan, prepareResult.mParseFlags,
+				prepareResult.mScanFlags, System.currentTimeMillis(),
+				request.mArgs.mUser, request.mArgs.mAbiOverride);		
+	}	
+	//阶段3：Reconcile阶段
+	reconciledPackages = ReconcilePackageUtils.reconcilePackages(
+			reconcileRequest, mSharedLibraries,
+			mPm.mSettings.getKeySetManagerService(), mPm.mSettings);
+	}
+	
+	commitRequest = new CommitRequest(reconciledPackages,
+                            mPm.mUserManager.getUserIds());
+	//阶段4：Commit阶段
+    commitPackagesLocked(commitRequest);
+	//阶段5：完成apk安装
+	executePostCommitSteps(commitRequest);
+
+}
+
+installPackagesLI是最终安装应用的方法：主要分为4个阶段
+阶段1：prepare阶段:分析当前安装包的状态，解析安装包并对其做初始化验证
+阶段2：scan阶段：根据prepare阶段中收集的安装包状态信息去扫描解析出来的包
+阶段3：Reconcile阶段:验证scan阶段扫描到的Package信息以及当前系统状态，确保apk的正确安装。
+阶段4：Commit阶段：提交所有扫描的包并更新系统状态。这是唯一可以在安装流程和所有可预测错误中修改系统状态的地方.
+
+在 preparePackageLI() 内使用 PackageParser2.parsePackage() 解析AndroidManifest.xml，获取四大组件等信息；
+使用ParsingPackageUtils.getSigningDetails() 解析签名信息；重命名包最终路径 等。
+
+完成了解析和校验准备工作后，最后一步就是对apk的安装了。这里调用了executePostCommitSteps准备app数据，并执行dex优化。
+
+最后通过executePostCommitSteps完成apk的安装，执行dex优化等操作
+
+阶段5：完成apk安装
+private void executePostCommitSteps(CommitRequest commitRequest) {
+	
+	for (ReconciledPackage reconciledPkg : commitRequest.mReconciledPackages.values()) {
+		
+		// prepareAppDataPostCommitLIF经过一系列调用会走到Installer的createAppData方法。
+		mAppDataHelper.prepareAppDataPostCommitLIF(pkg, 0);
+		
+		/*
+		检测是否需要进行dex优化：同时满足下面三种情况就需要
+		1.不是一个即时应用app或者如果是的话通过gservices进行dex优化操作
+		2.debuggable为false
+		3.不在增量文件系统上。
+		*/
+		final boolean performDexopt =
+				(!instantApp || android.provider.Settings.Global.getInt(
+						mContext.getContentResolver(),
+						android.provider.Settings.Global.INSTANT_APP_DEXOPT_ENABLED, 0) != 0)
+						&& !pkg.isDebuggable()
+						&& (!onIncremental)
+						&& dexoptOptions.isCompilationEnabled();
+
+		if (performDexopt) {
+			
+			//获取so库所在的目录
+			PackageSetting realPkgSetting = result.mExistingSettingCopied
+					? result.mRequest.mPkgSetting : result.mPkgSetting;
+			
+			boolean isUpdatedSystemApp = reconciledPkg.mPkgSetting.getPkgState()
+					.isUpdatedSystemApp();
+			//更新系统app信息。
+			realPkgSetting.getPkgState().setUpdatedSystemApp(isUpdatedSystemApp);
+			//进行dex优化
+			mPackageDexOptimizer.performDexOpt(pkg, realPkgSetting,
+					null /* instructionSets */,
+					mPm.getOrCreateCompilerPackageStats(pkg),
+					mDexManager.getPackageUseInfoOrDefault(packageName),
+					dexoptOptions);
+		
+		}
+
+		//通知BackgroundDexOptService服务当前packageName的应用进行了更新。
+		BackgroundDexOptService.getService().notifyPackageChanged(packageName);
+		
+		notifyPackageChangeObserversOnUpdate(reconciledPkg);
+	}
+}
+
+阶段5：主要做了下面两件事
+1.调用prepareAppDataPostCommitLIF方法,最终执行到createAppData方法进行app的安装，
+2.调用performDexOpt进行dex优化
+	同时满足下面三种情况就需要
+	1.不是一个即时应用app或者如果是的话通过gservices进行dex优化操作
+	2.debuggable为false
+	3.不在增量文件系统上。
+	
+public @NonNull CreateAppDataResult createAppData(@NonNull CreateAppDataArgs args)
+		throws InstallerException {
+	...
+	try {
+		return mInstalld.createAppData(args);
+	} catch (Exception e) {
+		throw InstallerException.from(e);
+	}
+}
+mInstalld在前面分析过了，installd进程 的执行权限为 root，所有实际的应用安装，卸载等操作都是通过这个服务进行的。
+PKMS只是java层的封装。mInstalld进程和PKMS是通过binder进行通讯的。
+
+然后关于dex优化部分，后面会单独出一篇文章来讲解。
+
+关于应用安装部分就讲到这里了。
+
+总结
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
