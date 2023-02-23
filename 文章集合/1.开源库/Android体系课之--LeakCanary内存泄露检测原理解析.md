@@ -1,0 +1,549 @@
+## 前言
+
+在讲解LeakCanary前我们先来介绍基础概念：
+
+### 基础知识：
+
+#### 内存泄露
+
+不需要的对象实例，无法被垃圾回收，比如被静态片段保留，就说可能发生内存泄露
+
+##### 常见场景:
+
+-   1.不清楚fragment视图的字段的情况下，将fragment添加到backstack中
+-   2.Activity以context的形式被添加到一些类中，比如静态类，则gc无法清除，如Activity被非静态内部类Handler引用
+-   3.注册一个监听器，广播接收器或者RxJava订阅时，引用了一个生命周期的对象，生命周期结束后，没有取消注册
+
+#### 对象引用类型：
+
+-   强引用：强引用关系是导致内存泄露最直接的原因
+-   软引用：在内存不足时会被回收
+-   弱引用：垃圾收集器回收的时候会被直接回收
+-   虚引用：这个很少用，不做介绍
+
+了解了内存泄露和引用的关系后：
+
+## 我们来介绍下LeakCanary的基本使用原理
+
+#### 1.检测保留对象
+
+LeakCanary挂钩到Android的生命周期内，以自动检测Activity或者Fragment何时被销毁并且被gc,这些被销毁的对象会被传递给一个ObjectWatcher，它持有对他们的弱引用，对象类型包括：
+
+-   Activity对象
+-   Fragment对象
+-   View实例对象
+-   ViewModel对象
+-   Service实例
+
+**1.1:注册方式:**
+
+```
+ AppWatcher.objectWatcher.watch(activity,"view was detached")
+```
+
+**1.2:等待5s后，调用gc，如果持有的弱引用没有被清除，则被监视器认为产生了一个内存泄露，LeakCanary会将其记录到Logcat中** 
+**1.3:记录保留对象的计数，达到阈值后，会调用转储堆**
+
+#### 2.转储堆
+
+> 保留对象达到阈值后，LeakCanary生成一个内存的hprof文件内存快照到到本地目录中，生成过程中，应用无法再使用，会显示一个toast
+
+#### 3.分析堆
+
+> 使用Shark分析堆内存，并定位到保留的对象，寻找保留对象的Gc root分析完成后，可以在通知栏看到分析结果，对于同一个对象可能会有几个不同的泄露路径，根据Gc roots生成签名，在LogCat中会显示 每个应用桌面上会对应生成一个LeakCanary图标，可以通过这个图标进入应用的LeakCanary分析结果界面
+>
+> 每个Gc root显示，可以显示一段路径上哪个对象持有待销毁的Context
+
+#### 4.对泄露进行分类
+
+```
+        应用程序泄露和库泄露
+        泄露类型可以在Logcat中看到
+        ====================================
+        HEAP ANALYSIS RESULT
+        ====================================
+        0 APPLICATION LEAKS
+
+        ====================================
+        1 LIBRARY LEAK
+
+        ...
+        ┬───
+        │ GC Root: Local variable in native code
+        │
+        ...
+```
+
+
+![1673c300751d483c982d421907b007e0_tplv-k3u1fbpfcp-zoom-in-crop-mark_1304_0_0_0.awebp](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/492457fcf7ea436f8dac22beecd4217d~tplv-k3u1fbpfcp-watermark.image?)
+## 使用LeakCanary如何修复内存泄露
+
+泄露对象一般都被以下对象持有，导致无法回收 **1.属于一个线程的局部变量 2.活动的java线程实例 3.系统类且会一直存在 3.native引用，属于native代码范围**
+
+```
+修复步骤：
+    1.查找泄露痕迹
+    2.缩小可疑参考范围
+        LeakCanary会自动检测类的生命周期，将可疑泄露对象显示出来
+        Leak：No  Leak:yes
+
+    3.找到导致泄露的参考
+        根据Gc root找到最大可能泄露的引用
+    4.修复漏洞
+        找到泄露的引用后，在对象被销毁前，打断Gc root即可，如置为null等操作。
+```
+
+## 来分析一个案例：
+
+我们在app中设置创建了一个list
+
+```
+class MyApp:Application(){
+    val viewList = mutableListOf<View>()
+    override fun onCreate() {
+        super.onCreate()
+    }
+
+}
+fun MyApp.setView(view: View){
+    viewList.add(view)
+}
+fun MyApp.removeView(view: View){
+    viewList.remove(view)
+}
+```
+
+在Activity中调用：
+
+```
+
+onCreate{
+    1.将view放入app的viewList中
+    app?.setView(tv)
+    2.调用：watcher监控tv
+    AppWatcher.objectWatcher.expectWeaklyReachable(tv,"test main leak")
+}
+```
+
+**此时运行后：** 日志出现:
+
+```
+D/LeakCanary: Found 1 object retained, not dumping heap yet (app is visible & < 5 threshold)
+```
+
+LeakCanary检测到有个对象没有被回收，通知栏会有显示，点击通知栏logcat中会显示对应的对象信息 我们退出该应用查看日志系统：
+
+```
+D/LeakCanary: Found 5 objects retained, dumping heap now (app is invisible)
+
+    ┬───
+    │ GC Root: System class
+    │
+    ├─ android.provider.FontsContract class
+    │    Leaking: NO (MyApp↓ is not leaking and a class is never leaking)
+    │    ↓ static FontsContract.sContext
+    ├─ com.allinpay.testkotlin.leakcanary.MyApp instance
+    │    Leaking: NO (Application is a singleton)
+    │    mBase instance of android.app.ContextImpl
+    │    ↓ MyApp.viewList
+    │            ~~~~~~~~
+    ├─ java.util.ArrayList instance
+    │    Leaking: UNKNOWN
+    │    Retaining 101.2 kB in 1415 objects
+    │    ↓ ArrayList[0]
+    │               ~~~
+    ╰→ com.google.android.material.textview.MaterialTextView instance
+         Leaking: YES (ObjectWatcher was watching this because test main leak and View.mContext references a destroyed
+         activity)
+         Retaining 101.1 kB in 1413 objects
+         key = f15737ab-8866-4235-af60-7cec30a144b3
+         watchDurationMillis = 17861
+         retainedDurationMillis = 12856
+         View is part of a window view hierarchy
+         View.mAttachInfo is null (view detached)
+         View.mID = R.id.tv
+         View.mWindowAttachCount = 1
+         mContext instance of com.allinpay.testkotlin.MainActivity with mDestroyed = true
+```
+
+此时可以看到可疑溢出的地方：
+
+**分析Gc路径：**
+
+```
+FontsContract.sContext->MyApp.viewList->ArrayList[0]->MaterialTextView instance->activity
+```
+
+**问题原因**：MyApp.viewList持有activity中的TextView引用，导致Activity退出的时候，TextView没有退出，Activity对象无法被回收，最终引起内存溢出
+
+**解决办法**：Activity退出的时候清除viewList中的view，如下： 我们在Activity的onDestroy处调用如下代码： tv?.let { app.viewList.remove(it) } 退出应用后，通知栏没有显示，logcat日志显示： LeakCanary: All retained objects have been garbage collected 说明并没有内存溢出的情况
+
+## 源码层面来分析下具体流程：
+
+#### 1.启动应用的时候，在启动ContentProvider期间，注册应用的Activity，Fragment，Service和ViewModel的的生命周期：
+
+在AndroidManfest文件中：
+
+```
+
+<application>
+        <provider
+            android:name="leakcanary.internal.MainProcessAppWatcherInstaller"
+            android:authorities="${applicationId}.leakcanary-installer"
+            android:enabled="@bool/leak_canary_watcher_auto_install"
+            android:exported="false" />
+    </application>
+    MainProcessAppWatcherInstaller.kx
+    internal class MainProcessAppWatcherInstaller : ContentProvider() {
+        override fun onCreate(): Boolean {
+            val application = context!!.applicationContext as Application
+            AppWatcher.manualInstall(application)
+            return true
+        }
+    }
+```
+
+调用了AppWatcher.manualInstall(application)，进入AppWatcher
+
+```
+fun manualInstall(..watchersToInstall: List<InstallableWatcher> = appDefaultWatchers(application)){
+    ...
+        LeakCanaryDelegate.loadLeakCanary(application)//1
+        watchersToInstall.forEach {//2
+          it.install()
+        }
+    ...
+
+    }
+```
+
+看1处：创建了一个InternalLeakCanary的单例类，并执行了loadLeakCanary()方法，传入application，这会执行InternalLeakCanary内部的invoke方法，这里埋个点，后面分析
+
+```
+val loadLeakCanary by lazy {
+        try {
+          val leakCanaryListener = Class.forName("leakcanary.internal.InternalLeakCanary")
+          leakCanaryListener.getDeclaredField("INSTANCE")
+            .get(null) as (Application) -> Unit
+        } catch (ignored: Throwable) {
+          NoLeakCanary
+        }
+      }
+```
+
+看2处：对watchersToInstall进行遍历调用install操作
+
+来看下这个List：appDefaultWatchers(application)
+
+```
+fun appDefaultWatchers(..reachabilityWatcher: ReachabilityWatcher = objectWatcher):List<InstallableWatcher> { //这里有个reachabilityWatcher用于后期监听引用对象的生命周期
+        return listOf(
+          ActivityWatcher(application, reachabilityWatcher),
+          FragmentAndViewModelWatcher(application, reachabilityWatcher),
+          RootViewWatcher(reachabilityWatcher),
+          ServiceWatcher(reachabilityWatcher)
+        )
+    }
+```
+
+可以看到这个list包括：
+
+> ActivityWatcher FragmentAndViewModelWatcher RootViewWatcher ServiceWatcher
+
+调用了每个Watcher的install操作
+
+我们用ActivityWatcher作为例子来看下：
+
+```
+class ActivityWatcher(
+        override fun install() {
+            application.registerActivityLifecycleCallbacks(lifecycleCallbacks)
+        }
+        private val lifecycleCallbacks =
+        object : Application.ActivityLifecycleCallbacks by noOpDelegate() {
+          override fun onActivityDestroyed(activity: Activity) {
+            reachabilityWatcher.expectWeaklyReachable(
+              activity, "${activity::class.java.name} received Activity#onDestroy() callback"
+            )
+          }
+        }
+    }
+```
+
+这里可以看出注册了Activity的生命周期回调，其他Watcher也类似
+
+这里的reachabilityWatcher在AppWatcher中实现：前面已经分析过：用于监听引用对象的生命周期回调
+
+```
+val objectWatcher = ObjectWatcher(
+        clock = { SystemClock.uptimeMillis() },
+        checkRetainedExecutor = {
+          check(isInstalled) {
+            "AppWatcher not installed"
+          }
+          mainHandler.postDelayed(it, retainedDelayMillis)
+        },
+        isEnabled = { true }
+      )
+```
+
+#### 2.在Activity调用onDestroy的时候，使用一个WeakReference来引用这个Activity对象，并将Activity的实例放入一个watchMap中，以WeakReference为key，并传入一个ReferenceQueue来监听这个引用实例的回收情况
+
+Activity生命周期走到onDestroy的时候会回调reachabilityWatcher.expectWeaklyReachable
+
+```
+@Synchronized override fun expectWeaklyReachable(...)(
+        removeWeaklyReachableObjects()//1
+        val reference = KeyedWeakReference(watchedObject, key, description, watchUptimeMillis, queue)//2
+        watchedObjects[key] = reference//3
+        checkRetainedExecutor.execute {
+          moveToRetained(key)//4
+        }
+      }
+```
+
+**分析1处**：从queue：ReferenceQueue中取出头部数据，如果不为null，则去watchedObjects中删除对应的key：这个key对应引用对象的包装类：KeyedWeakReference.key
+
+```
+private fun removeWeaklyReachableObjects() {
+        var ref: KeyedWeakReference?
+        do {
+          ref = queue.poll() as KeyedWeakReference?
+          if (ref != null) {
+            watchedObjects.remove(ref.key)
+          }
+        } while (ref != null)
+      }
+```
+
+**分析2处**：创建了一个KeyedWeakReference，并传入一个回收监听者ReferenceQueue，这个监听者在引用对象被回收的时候会将weakReference放入这个ReferenceQueue中 **分析3处**：将用weakReference包装引用对象后放入watchedObjects集合中，用于检测是否存在内存泄露 **分析4处**：这里又做了一次removeWeaklyReachableObjects，前面分析可知这里是用于检测是否有未回收的引用出现可能内存泄露的表现
+
+并回调遍历onObjectRetainedListeners集合的onObjectRetained方法，
+
+```
+
+private fun moveToRetained(key: String) {
+        removeWeaklyReachableObjects()
+        val retainedRef = watchedObjects[key]
+        if (retainedRef != null) {
+          retainedRef.retainedUptimeMillis = clock.uptimeMillis()
+          onObjectRetainedListeners.forEach { it.onObjectRetained() }
+        }
+      }
+```
+
+来看下onObjectRetainedListeners是在哪里赋值的
+
+**前面我们埋了个点InternalLeakCanary方法创建执行invoke方法**
+
+```
+override fun invoke(application: Application) {
+        _application = application
+
+        checkRunningInDebuggableBuild()
+
+        AppWatcher.objectWatcher.addOnObjectRetainedListener(this)//1
+
+        val gcTrigger = GcTrigger.Default //2
+
+        val configProvider = { LeakCanary.config } //3
+
+        val handlerThread = HandlerThread(LEAK_CANARY_THREAD_NAME)
+        handlerThread.start()
+        val backgroundHandler = Handler(handlerThread.looper)
+
+        heapDumpTrigger = HeapDumpTrigger(
+          application, backgroundHandler, AppWatcher.objectWatcher, gcTrigger,
+          configProvider
+        )//4
+        application.registerVisibilityListener { applicationVisible ->
+          this.applicationVisible = applicationVisible
+          heapDumpTrigger.onApplicationVisibilityChanged(applicationVisible)
+        }
+        registerResumedActivityListener(application)//5
+        addDynamicShortcut(application)
+
+      }
+```
+
+在这个方法中： 看到**1处**添加了addOnObjectRetainedListener回调为this，说明这个moveToRetained调用的是当前InternalLeakCanary的onObjectRetained方法 **在2处**创建了GC器GcTrigger.Default **在3处**设置了configProvider **在4处**创建了一个headDump触发器HeapDumpTrigger，后期dumpheap操作都由这个来完成 **在5处**注册了Activity的resume回调
+
+来仔细对1处分析下：
+
+1处说明当前InternalLeakCanary实现了OnObjectRetainedListener接口，然后看下他的方法实现onObjectRetained
+
+```
+override fun onObjectRetained() = scheduleRetainedObjectCheck()
+```
+
+继续看scheduleRetainedObjectCheck
+
+```
+fun scheduleRetainedObjectCheck() {
+        if (this::heapDumpTrigger.isInitialized) {
+          heapDumpTrigger.scheduleRetainedObjectCheck()
+        }
+      }
+```
+
+调用了heapDumpTrigger.scheduleRetainedObjectCheck()
+
+```
+HeapDumpTrigger.kt
+      fun scheduleRetainedObjectCheck(
+        delayMillis: Long = 0L
+      ) {
+        backgroundHandler.postDelayed({
+          checkScheduledAt = 0
+          checkRetainedObjects()
+        }, delayMillis)
+     }
+```
+
+这里使用一个backgroundHandler实现了checkRetainedObjects任务 这个checkRetainedObjects是LeakCanary核心地方 **我们一步一步来分析下这个方法：**
+
+```
+private fun checkRetainedObjects() {
+    val iCanHasHeap = HeapDumpControl.iCanHasHeap()
+
+    val config = configProvider()
+
+    if (iCanHasHeap is Nope) {
+      if (iCanHasHeap is NotifyingNope) {
+        ...
+        //这里只是对显示通知进行处理
+      return
+    }
+    //获取持有的被持有的个数
+    var retainedReferenceCount = objectWatcher.retainedObjectCount
+
+    //大于0，则调用gcTrigger的runGc提醒垃圾回收器回收下
+    if (retainedReferenceCount > 0) {
+      gcTrigger.runGc()
+      retainedReferenceCount = objectWatcher.retainedObjectCount
+    }
+    //这里再次检查下retainedReferenceCount，如果没有留置的对象，则直接返回，有则继续执行下面任务
+    if (checkRetainedCount(retainedReferenceCount, config.retainedVisibleThreshold)) return
+    ...
+    //这里调用了dumpHeap方法去dump当前Heap状态
+    dumpHeap(
+      retainedReferenceCount = retainedReferenceCount,
+      retry = true,
+      reason = "$retainedReferenceCount retained objects, app is $visibility"
+    )
+
+}
+```
+
+我们进入dumpHeap方法中看下：
+
+```
+private fun dumpHeap(
+    retainedReferenceCount: Int,
+    retry: Boolean,
+    reason: String
+  ) {
+    //步骤1：创建一个内存泄露的文件目录提供者
+    val directoryProvider =
+      InternalLeakCanary.createLeakDirectoryProvider(InternalLeakCanary.application)
+    val heapDumpFile = directoryProvider.newHeapDumpFile()
+
+
+    try {
+        //步骤2：发送一个DumpingHeap的事件
+      InternalLeakCanary.sendEvent(DumpingHeap(currentEventUniqueId!!))
+      //步骤3：这里开始调用dumpHeap事件，传入heapDumpFile文件参数
+      configProvider().heapDumper.dumpHeap(heapDumpFile)
+        //步骤4：发送一个HeapDump的事件,这里会将dump信息依次在logcat，toast和通知栏通知，且内部进行dumpfile的分析
+      InternalLeakCanary.sendEvent(HeapDump(currentEventUniqueId!!, heapDumpFile, durationMillis, reason))
+    } catch (throwable: Throwable) {
+      ...
+    }
+  }
+}
+```
+
+继续看sendEvent方法
+
+```
+fun sendEvent(event: Event) {
+    for(listener in LeakCanary.config.eventListeners) {
+      listener.onEvent(event)
+    }
+}
+```
+
+这里依次调用了LeakCanary.config.eventListeners中的onEvent方法 找到这个*eventListener*s：
+
+```
+val eventListeners: List<EventListener> = listOf(
+  LogcatEventListener,
+  ToastEventListener,
+  LazyForwardingEventListener {
+    if (InternalLeakCanary.formFactor == TV) TvEventListener else NotificationEventListener
+  },
+  when {
+      RemoteWorkManagerHeapAnalyzer.remoteLeakCanaryServiceInClasspath ->
+        RemoteWorkManagerHeapAnalyzer
+      WorkManagerHeapAnalyzer.validWorkManagerInClasspath -> WorkManagerHeapAnalyzer
+      else -> BackgroundThreadHeapAnalyzer
+  }
+),
+```
+
+Listener包括： 1.LogcatEventListener ：可知当sendEvent时Logcat会收到通知 2.ToastEventListener ：可知当sendEvent时也会Toast出事件 3.如果是TV则还会有TvEventListener，其他则会有NotificationEventListener ：这里是在通知栏提示事件 4.如果RemoteWorkManagerHeapAnalyzer.remoteLeakCanaryServiceInClasspath为true：则还会增加一个RemoteWorkManagerHeapAnalyzer来处理HeapDump 如果上面为false：那么查看WorkManagerHeapAnalyzer.validWorkManagerInClasspath是否为true，如果是则会增加一个WorkManagerHeapAnalyzer来处理HeapDump 如果上面为false：那么会使用一个BackgroundThreadHeapAnalyzer来处理HeapDump 4中会有一个处理请求，看当前应用版本： 我们查看默认的BackgroundThreadHeapAnalyzer来看看
+
+```
+object BackgroundThreadHeapAnalyzer : EventListener {
+
+  internal val heapAnalyzerThreadHandler by lazy {
+    val handlerThread = HandlerThread("HeapAnalyzer")
+    handlerThread.start()
+    Handler(handlerThread.looper)
+  }
+
+  override fun onEvent(event: Event) {
+    if (event is HeapDump) {
+      heapAnalyzerThreadHandler.post {
+        val doneEvent = AndroidDebugHeapAnalyzer.runAnalysisBlocking(event) { event -> //关注点1
+          InternalLeakCanary.sendEvent(event)
+        }
+        InternalLeakCanary.sendEvent(doneEvent)
+      }
+    }
+  }
+}
+```
+
+BackgroundThreadHeapAnalyzer内部使用一个HandlerThread来处理dumpHeap事件 onEvent中如果是HeapDump事件：则AndroidDebugHeapAnalyzer.runAnalysisBlocking(event)对dumpfile进行分析,并将分析结果回调给上层
+
+**来看关注点1：runAnalysisBlocking**
+
+```
+fun runAnalysisBlocking(
+    heapDumped: HeapDump,
+    isCanceled: () -> Boolean = { false },
+    progressEventListener: (HeapAnalysisProgress) -> Unit
+  ): HeapAnalysisDone<*> {
+
+    ...
+    analyzeHeap(heapDumpFile, progressListener, isCanceled)
+    ...
+}
+```
+
+analyzeHeap内部就是通过之前保存的HeapDump文件进行分析，使用的是开源库shark进行分析，感兴趣的同学可以自行阅读这块代码
+
+到这里我们已经分析了：
+
+-   1.应用启动给的时候使用Provider对Activity生命周期进行监听
+-   2.Activity在调用onDestroy的时候回调触发LeakCanary的事件监听，使用的是一个 ReferenceQueue进行监听
+-   3.如果内存中持有了未释放的Activity实例，则会调用自定义的GC处理器的runGc方法进行回收
+-   4.经过3回收后，还有对象未释放，则会在logcat，toast和通知栏提示dumpHeap操作，并在dumpHeap后对dump文件进行分析，使用的是shark开源库
+-   5.dump成功后以通知形式显示，并挂载了一个Intent，在点击通知的时候会执行这个挂载Intent，显示heap的状态信息
+
+上面就是一个整个LeakCanary的工作过程
+
+## 总结：
+
+**本文梳理了下LeakCanary基本使用流程和内存泄露以及内存检测的一些原理。有错误之处欢迎指正，喜欢的互相关注下，后期会推出更多Android体系课文章**

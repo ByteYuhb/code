@@ -1,0 +1,313 @@
+## 前言：
+
+笔者在写这篇文章之前，也白嫖了很多关于Kotlin协程的文章： 这里笔者将他们分为三种：
+
+-   1.讲的内容很*浅*，没几句可能就结束了，看完就索然无味了
+-   2.讲的内容很*深*，看到一半就开始晕乎乎了，然后可能还是手机好玩。。
+-   3.内容比较*适中*，读者可以在里面获取到一些协程的基本信息，关键内容可能就浅尝辄止了，很难获取到核心知识点
+
+> 知识的学习就像谈恋爱，不能一上来就想和对方深入了解，也不能聊得太浅，影响后续发展，得讲究循序渐进。 接下来笔者会根据由浅入深的方式，阶段性来讲解Kotlin协程相关知识点。读者可以根据自己的需求，选择对应的阶段文章。
+
+**笔者主要以下面几个时间线来讲解协程**
+
+> [Android体系课之--Kotlin协程入门篇-协程的基本使用（一）](https://juejin.cn/post/7109853967957377038/) 
+>
+> [.Android体系课之--Kotlin协程进阶篇-协程中关键知识点梳理（二）](https://juejin.cn/post/7110011090443960327/) 
+>
+> [Android体系课之--Kotlin协程进阶篇-协程的异常处理机制以及suspend关键字详解 ](https://juejin.cn/post/7111594612761837604)
+>
+> Android体系课之--Kotlin协程进阶篇-协程加Retrofit创建一个MVVM模式的网络请求框架(四)
+
+**本系列文使用的版本**：
+
+```
+// Kotlin
+implementation "org.jetbrains.kotlin:kotlin-stdlib:1.4.32"
+// 协程核心库
+implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.1"
+// 协程Android支持库
+implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1"
+```
+## 简介：
+
+本文主要讲解的是协程的基本用法。 在将基础用法前，我们先来了解下什么是协程
+
+#### 协程到底是什么？
+
+**我们这里引用官方的定义**：
+
+> 1.协程通过将复杂性放入库来简化异步编程。程序的逻辑可以在协程中顺序地表达，而底层库会为我们解决其异步性。该库可以将用户代码的相关部分包装为回调、订阅相关事件、在不同线程（甚至不同机器！）上调度执行，而代码则保持如同顺序执行一样简单。
+>
+> 2.协程是一种并发设计模式，您可以在Android平台上使用它来简化异步执行的代码
+
+我们使用GlobalScope来创建一个协程：
+
+```
+Job job = GlobalScope.launch { 
+    println(this)
+}
+```
+
+这里有几个元素： *GlobalScope*：看名字就知道这个协程的是一个针对全局的的顶级协程 *Job*：理解为一个任务，和线程类似，有自己的生命周期，Job中可以有子Job 。
+
+**Job状态**
+
+| **State**                        | [isActive] | [isCompleted] | [isCancelled] |
+| -------------------------------- | ---------- | ------------- | ------------- |
+| *New* (optional initial state)   | `false`    | `false`       | `false`       |
+| *Active* (default initial state) | `true`     | `false`       | `false`       |
+| *Completing* (transient state)   | `true`     | `false`       | `false`       |
+| *Cancelling* (transient state)   | `false`    | `false`       | `true`        |
+| *Cancelled* (final state)        | `false`    | `true`        | `true`        |
+| *Completed* (final state)        | `false`    | `true`        | `false`       |
+
+#### **协程生命周期？**
+
+我们引用官方的图来看下协程的的生命周期过程：
+
+```
+
+                                      wait children
++-----+ start  +--------+ complete   +-------------+  finish  +-----------+
+| New | -----> | Active | ---------> | Completing  | -------> | Completed |
++-----+        +--------+            +-------------+          +-----------+
+                 |  cancel / fail       |
+                 |     +----------------+
+                 |     |
+                 V     V
+             +------------+                           finish  +-----------+
+             | Cancelling | --------------------------------> | Cancelled |
+             +------------+                                   +-----------+
+```
+
+**协程的几种创建方式**： *runBlocking*：阻塞创建协程的线程，并运行协程作用域中的job任务 *launch*：不阻塞创建线程，返回一个Job，且协程没有被挂起，任务执行中可以被异步取消 *async*：不阻塞创建线程，且协程没有被挂起，返回一个*DeferredCoroutine*，此时协程状态为Active，
+
+这里们有讲到协程作用域，下面我们来分析下他是个什么东西 **协程作用域？**
+
+协程作用域是协程的运行作用范围 来看下下面的例子： var job = GloalScope.launch { val test = 1; println(this.isActive) } println("$test") 这个例子编译会报Unresolved reference: test，说明test是在另外一个作用域中。和我们使用{}括起来的作用域一样
+
+#### **协程作用域分类？** ：
+
+**顶级作用域，协同作用域和主从作用域**，后续会详细讲解
+
+## **协程的基本使用方式？**
+
+我们使用*runBlocking*，*launch*，*async*分别来启动对应协程。
+
+```
+
+fun coroutline(){
+    val run = runBlocking {
+        println("runBlocking:启动一个协程")
+        123
+    }
+    println("runBlocking:return：$run")
+    val la = GlobalScope.launch {
+        println("launch:启动一个协程")
+        345
+    }
+    println("GlobalScope.launch：return:$la")
+    val async = GlobalScope.async {
+        println("async:启动一个协程")
+        567
+    }
+    println("GlobalScope.async：return:$async")
+}
+```
+
+```
+运行结果如下：
+runBlocking:启动一个协程
+runBlocking:return：123
+launch:启动一个协程
+GlobalScope.launch：return:"coroutine#2":StandaloneCoroutine{Active}@34ce8af7
+GlobalScope.async：return:"coroutine#3":DeferredCoroutine{Active}@511baa65
+async:启动一个协程
+```
+
+```
+也可能是下面这个：
+runBlocking:启动一个协程
+runBlocking:return：123
+GlobalScope.launch：return:"coroutine#2":StandaloneCoroutine{Active}@34ce8af7
+launch:启动一个协程
+GlobalScope.async：return:"coroutine#3":DeferredCoroutine{Active}@511baa65
+async:启动一个协程
+```
+
+```
+又可能是下面这个
+runBlocking:启动一个协程
+runBlocking:return：123
+GlobalScope.launch：return:"coroutine#2":StandaloneCoroutine{Active}@34ce8af7
+launch:启动一个协程
+async:启动一个协程
+GlobalScope.async：return:"coroutine#3":DeferredCoroutine{Active}@511baa65
+```
+
+但是不管怎么变：第一个runBlocking顺序始终是先执行协程作用域中的任务，再继续执行原线程的任务，因为此时主线程是阻塞的 而launch和async因为是非阻塞的，所以原线程和协程作用域线程是异步执行的，打印日志也是无序的
+
+**我们来看下几种创建协程方式对于的返回值？** *runBlocking：*
+
+返回了123，是协程作用域中最后一行代码，这个有点类似java中线程的写法：
+
+```
+int x;
+main
+{
+    boolean isGo = false;
+    new Thread(){
+        void run(){
+            ...
+            ...
+            x = 123;
+            isGo = true;
+        }
+    }
+    while(!isGo){
+        Thread.sleep(100);
+    }
+}
+```
+
+`是不是感觉你也写过这种代码：是的在Kotlin中我们只需要一行代码就可以解决`
+
+**launch方法创建的协程**
+
+返回值是一个
+
+```
+StandaloneCoroutine："coroutine#2":StandaloneCoroutine{Active}@34ce8af7
+```
+
+> 这个job可以使我们在异步操作中对协程取消。未完成的协程如果不取消，则会出现内存溢出的情况
+
+**async方法创建的协程**
+
+返回值是也是一个*DeferredCoroutine*：这个和launch创建的协程返回值有啥区别呢 我们看DeferredCoroutine定义：
+
+```
+
+public fun <T> CoroutineScope.async(
+ context: CoroutineContext = EmptyCoroutineContext,
+ start: CoroutineStart = CoroutineStart.DEFAULT,
+ block: suspend CoroutineScope.() -> T
+): Deferred<T> {
+ val newContext = newCoroutineContext(context)
+ val coroutine = if (start.isLazy)
+ LazyDeferredCoroutine(newContext, block) else
+ DeferredCoroutine<T>(newContext, active = true)
+ coroutine.start(start, coroutine, block)
+ return coroutine
+}
+```
+
+可以看到返回的是一个*Deferred*对象
+
+```
+public interface Deferred<out T> : Job {
+    public suspend fun await(): T
+    ...
+}
+```
+
+Deferred内部有个*await*方法 这个方法注释：`等待一个协程作用域执行完成，并返回最后一行值，或者协程被取消抛出一个异常`
+
+我们使用async来创建一个协程：
+
+```
+
+GlobalScope.launch {
+    val async = GlobalScope.async {
+        println("async:启动一个协程")
+        Thread.sleep(2000)
+        567
+    }
+    println("GlobalScope.async：return:${async.await()}")
+    println("GlobalScope.async：return:after")
+}
+打印结果：
+async:启动一个协程
+GlobalScope.async：return:567
+GlobalScope.async：return:after
+```
+
+**看到在调用async.await后，这个时候主线程会阻塞，等待2s协程执行完毕后，才打印出返回值“567”**
+
+上面我们允许的async.await操作会将函数挂起，也就是说*async.await函数是一个挂起函数*
+
+## **什么是挂起函数？**
+
+*suspend*是协程的一个关键字，代表一个挂起函数，每个suspend函数只能在*协程作用域*中进行调用，关于协程作用域后面会讲解 前面我们已经使用了async.await挂起函数的操作。 挂起函数可以简单理解为：**在不阻塞当前协程使用的线程的情况下，将协程挂起。** 这里要理解好这句话就要清楚协程和线程之间的关系：
+
+**协程和线程有什么联系？**
+
+协程更倾向于一种设计模式，而线程则是一个进程的分支，是进程的一根树枝。 *线程是并发的实现者*，一个进程有多个线程，子线程之间并发执行，随机获取CPU时间片。 *协程任务内部是通过线程来实现*。**协程被挂起的情况下，并不代表执行的线程也被阻塞，可能这个线程会是空闲或者被其他任务所占用**
+
+说到线程，我们来讲下协程中的并发问题 **协程并发?**
+
+我们来看下下面这个例子：
+
+```
+
+GlobalScope.launch(Dispatchers.Main) {
+    for(index in 1 until 20){
+        launch {
+            println("index:$index")
+        }
+    }
+}
+打印结果：
+index:1
+index:2
+index:3
+...
+...
+index:18
+index:19
+```
+
+看到这里按顺序打印出了1到19的值
+
+我们将*Dispatchers.Main*改为我们将*Dispatchers.IO*
+
+```
+打印结果：
+index:1
+index:2
+index:4
+index:5
+index:6
+index:3
+index:7
+index:8
+index:9
+index:10
+index:13
+index:14
+index:15
+index:16
+index:17
+index:18
+index:19
+index:12
+index:11
+```
+
+可以看到这里打印出的是一个**无序**的结果 **为什么会出现这种情况呢？** 这里就引出了*协程调度器*的概念， *Dispatchers.Main*：表示协程使用的是主线程 *Dispatchers.IO*：表示使用IO子线程操作
+
+> 基于主线程的操作，只能等待上个协程执行完毕后，才能继续执行下个协程，所以打印出的是有序的 而基于IO线程的操作，可以并发状态下执行协程。所以打印的出的是无序的
+
+## 总结
+
+本篇文章对协程的一些基本操作做了讲解，下篇文章我们来讲下协程中的几个关键知识点 **1.协程调度器CoroutlineDispatcher 2.线程上下文CoroutlineContext 3.协程启动模式CoroutlineStart 4.协程作用域CoroutlineScope 5.挂起函数以及suspend关键字的使用**
+
+关于协程的其他知识，请看后续文章
+
+1.[Android体系课之--Kotlin协程入门篇-协程的基本使用](https://juejin.cn/post/7109853967957377038/) 
+
+2[.Android体系课之--Kotlin协程进阶篇-协程中关键知识点梳理]() 
+
+3.[Android体系课之--Kotlin协程进阶篇-协程的异常处理机制以及suspend关键字详解 ](https://juejin.cn/post/7111594612761837604)
+
+4.Android体系课之--Kotlin协程进阶篇-协程加Retrofit创建一个MVVM模式的网络请求框架
